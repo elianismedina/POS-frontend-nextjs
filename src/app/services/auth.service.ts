@@ -1,7 +1,8 @@
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 
-const API_URL = "http://localhost:3000/user";
+const API_URL = "http://localhost:3000/api/v1/auth";
+const USERS_API_URL = "http://localhost:3000/api/v1/users";
 
 export interface LoginData {
   email: string;
@@ -27,16 +28,18 @@ export interface AuthResponse {
 }
 
 interface JwtPayload {
-  userId: string;
+  sub: string;
   email: string;
+  name: string;
+  role: string;
   iat: number;
   exp: number;
 }
 
 export const authService = {
   async login(data: LoginData): Promise<AuthResponse> {
-    console.log("AuthService - Making login request to:", `${API_URL}/login`);
-    const response = await axios.post(`${API_URL}/login`, data);
+    console.log("AuthService - Making login request to:", `${API_URL}/signin`);
+    const response = await axios.post(`${API_URL}/signin`, data);
     console.log("AuthService - Login response:", response.data);
 
     if (response.data.accessToken && !response.data.user) {
@@ -45,7 +48,7 @@ export const authService = {
       console.log("AuthService - Decoded token:", decoded);
 
       console.log("AuthService - Fetching user info");
-      const userResponse = await axios.get(`${API_URL}/${decoded.userId}`, {
+      const userResponse = await axios.get(`${USERS_API_URL}/${decoded.sub}`, {
         headers: {
           Authorization: `Bearer ${response.data.accessToken}`,
         },

@@ -7,7 +7,7 @@ import { getUserName } from "../utils/user";
 import { formatDate } from "../utils/date";
 
 export default function DashboardPage() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, logout } = useAuth();
   const router = useRouter();
 
   console.log(
@@ -30,6 +30,11 @@ export default function DashboardPage() {
     }
   }, [isAuthenticated, router, user]);
 
+  const handleLogout = () => {
+    logout();
+    router.push("/login");
+  };
+
   if (!isAuthenticated) {
     console.log("Dashboard - Returning null due to unauthenticated state");
     return null;
@@ -49,7 +54,15 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto">
         <div className="bg-white shadow rounded-lg p-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Dashboard</h1>
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+            >
+              Logout
+            </button>
+          </div>
           <div className="border-t border-gray-200 pt-4">
             <div className="text-gray-600">
               <p>Welcome back, {userName}!</p>

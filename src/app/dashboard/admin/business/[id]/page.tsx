@@ -14,18 +14,17 @@ import { Label } from "@/components/ui/label";
 
 interface BusinessSettings {
   id: string;
-  businessId: string;
+  business_id: string;
   email: string;
   address: string;
   phone: string;
-  taxId: string;
-  invoiceNumberPrefix: string;
-  invoiceNumberStart: number;
-  invoiceNumberEnd: number;
-  invoiceNumberCurrent: number;
-  invoiceExpirationMonths: number;
-  createdAt: string;
-  updatedAt: string;
+  tax_id: string;
+  invoice_number_prefix: string;
+  invoice_number_start: number;
+  invoice_number_end: number;
+  invoice_number_current: number;
+  invoice_expiration_months: number;
+  updated_at: string;
 }
 
 interface PageProps {
@@ -44,136 +43,121 @@ export default function BusinessPage({ params }: PageProps) {
   const { isAuthenticated, token } = useAuth();
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchBusinessSettings = async () => {
+  const fetchBusinessSettings = async () => {
+    if (!isAuthenticated || !token) {
+      console.log("User is not authenticated, redirecting to login...");
+      router.push("/login");
+      return;
+    }
+
+    try {
+      setLoading(true);
       console.log("Fetching business settings for ID:", resolvedParams.id);
-      console.log("Is authenticated:", isAuthenticated);
-      console.log("Token:", token);
-      console.log(
-        "Access token in localStorage:",
-        localStorage.getItem("accessToken")
+      const response = await api.get<BusinessSettings>(
+        `/business/${resolvedParams.id}/settings`
       );
+      console.log("API Response:", response.data);
 
-      if (!isAuthenticated || !token) {
-        console.log("User is not authenticated, redirecting to login...");
-        router.push("/login");
-        return;
+      if (!response.data) {
+        throw new Error("No data received from server");
       }
 
-      try {
-        console.log(
-          "Making API request to:",
-          `${api.defaults.baseURL}/business/${resolvedParams.id}/settings`
-        );
-        const response = await api.get(
-          `/business/${resolvedParams.id}/settings`
-        );
-        console.log("API Response:", response.data);
-        setSettings(response.data);
-        setFormData(response.data);
-      } catch (error) {
-        console.error("Error fetching business settings:", error);
-        const axiosError = error as AxiosError<{ message: string }>;
-        console.error("Error details:", {
-          status: axiosError.response?.status,
-          statusText: axiosError.response?.statusText,
-          data: axiosError.response?.data,
-          headers: axiosError.response?.headers,
-          config: {
-            url: axiosError.config?.url,
-            method: axiosError.config?.method,
-            headers: axiosError.config?.headers,
-          },
-        });
-        toast({
-          title: "Error",
-          description:
-            axiosError.response?.data?.message ||
-            "Failed to load business settings",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
+      // Update both states atomically
+      const newData = response.data;
+      console.log("Setting new data:", newData);
+      setSettings(newData);
+      setFormData(newData);
+    } catch (error) {
+      console.error("Error fetching business settings:", error);
+      const axiosError = error as AxiosError<{ message: string }>;
+      toast({
+        title: "Error",
+        description:
+          axiosError.response?.data?.message ||
+          "Failed to load business settings",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchBusinessSettings();
-  }, [toast, isAuthenticated, token, router, resolvedParams.id]);
+  // Initial data fetch
+  useEffect(() => {
+    console.log("Initial data fetch triggered with ID:", resolvedParams.id);
+    if (resolvedParams.id) {
+      fetchBusinessSettings();
+    }
+  }, [resolvedParams.id, isAuthenticated, token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!token) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to update business settings",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      // Convert number fields to actual numbers and remove empty values
-      const dataToSend: Partial<BusinessSettings> = {};
+      const dataToSend = {
+        email: formData.email,
+        address: formData.address,
+        phone: formData.phone,
+        tax_id: formData.tax_id,
+        invoice_number_prefix: formData.invoice_number_prefix,
+        invoice_number_start: formData.invoice_number_start
+          ? Number(formData.invoice_number_start)
+          : undefined,
+        invoice_number_end: formData.invoice_number_end
+          ? Number(formData.invoice_number_end)
+          : undefined,
+        invoice_number_current: formData.invoice_number_current
+          ? Number(formData.invoice_number_current)
+          : undefined,
+        invoice_expiration_months: formData.invoice_expiration_months
+          ? Number(formData.invoice_expiration_months)
+          : undefined,
+      };
 
-      // Handle string fields
-      if (formData.email) dataToSend.email = formData.email;
-      if (formData.address) dataToSend.address = formData.address;
-      if (formData.phone) dataToSend.phone = formData.phone;
-      if (formData.taxId) dataToSend.taxId = formData.taxId;
-      if (formData.invoiceNumberPrefix)
-        dataToSend.invoiceNumberPrefix = formData.invoiceNumberPrefix;
-
-      // Handle number fields
-      if (formData.invoiceNumberStart) {
-        const numValue = Number(formData.invoiceNumberStart);
-        if (!isNaN(numValue) && numValue > 0) {
-          dataToSend.invoiceNumberStart = numValue;
-        }
-      }
-      if (formData.invoiceNumberEnd) {
-        const numValue = Number(formData.invoiceNumberEnd);
-        if (!isNaN(numValue) && numValue > 0) {
-          dataToSend.invoiceNumberEnd = numValue;
-        }
-      }
-      if (formData.invoiceNumberCurrent) {
-        const numValue = Number(formData.invoiceNumberCurrent);
-        if (!isNaN(numValue) && numValue > 0) {
-          dataToSend.invoiceNumberCurrent = numValue;
-        }
-      }
-      if (formData.invoiceExpirationMonths) {
-        const numValue = Number(formData.invoiceExpirationMonths);
-        if (!isNaN(numValue) && numValue > 0) {
-          dataToSend.invoiceExpirationMonths = numValue;
-        }
-      }
-
-      console.log("Sending update request with data:", dataToSend);
+      console.log("Current form data before update:", formData);
+      console.log("Sending data to API:", dataToSend);
 
       const response = await api.patch(
         `/business/${resolvedParams.id}/settings`,
         dataToSend
       );
 
-      console.log("Update response:", response.data);
+      console.log("API Response:", response.data);
+      console.log("Response data type:", typeof response.data);
+      console.log("Response data keys:", Object.keys(response.data));
 
-      setSettings(response.data);
-      setIsEditing(false);
-      toast({
-        title: "Success",
-        description: "Business settings updated successfully",
-      });
+      if (response.data) {
+        // Update both states atomically with the new data
+        const newData = response.data;
+        console.log("Setting new data from response:", newData);
+        setSettings(newData);
+        setFormData(newData);
+
+        // Force a re-fetch after a short delay to ensure we have the latest data
+        setTimeout(async () => {
+          console.log("Forcing re-fetch after update");
+          await fetchBusinessSettings();
+        }, 100);
+
+        setIsEditing(false);
+        toast({
+          title: "Success",
+          description: "Business settings updated successfully",
+        });
+      }
     } catch (error) {
       console.error("Error updating business settings:", error);
-      const axiosError = error as AxiosError<{ message: string }>;
-      console.error("Error details:", {
-        status: axiosError.response?.status,
-        statusText: axiosError.response?.statusText,
-        data: axiosError.response?.data,
-        headers: axiosError.response?.headers,
-        config: {
-          url: axiosError.config?.url,
-          method: axiosError.config?.method,
-          headers: axiosError.config?.headers,
-        },
-      });
       toast({
         title: "Error",
-        description:
-          axiosError.response?.data?.message ||
-          "Failed to update business settings",
+        description: "Failed to update business settings",
         variant: "destructive",
       });
     }
@@ -186,6 +170,15 @@ export default function BusinessPage({ params }: PageProps) {
       [name]: type === "number" ? (value === "" ? "" : Number(value)) : value,
     }));
   };
+
+  // Add debug logging for state changes
+  useEffect(() => {
+    console.log("Settings state updated:", settings);
+  }, [settings]);
+
+  useEffect(() => {
+    console.log("Form data state updated:", formData);
+  }, [formData]);
 
   if (loading) {
     return (
@@ -228,14 +221,23 @@ export default function BusinessPage({ params }: PageProps) {
           <CardTitle>Business Settings</CardTitle>
           <Button
             variant={isEditing ? "secondary" : "default"}
-            onClick={() => setIsEditing(!isEditing)}
+            onClick={() => {
+              setIsEditing(!isEditing);
+              if (!isEditing) {
+                setFormData(settings);
+              }
+            }}
           >
             {isEditing ? "Cancel" : "Edit Settings"}
           </Button>
         </CardHeader>
         <CardContent>
           {isEditing ? (
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form
+              key={settings?.updated_at}
+              onSubmit={handleSubmit}
+              className="space-y-6"
+            >
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
@@ -267,144 +269,130 @@ export default function BusinessPage({ params }: PageProps) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="taxId">Tax ID</Label>
+                <Label htmlFor="tax_id">Tax ID</Label>
                 <Input
-                  id="taxId"
-                  name="taxId"
-                  value={formData.taxId || ""}
+                  id="tax_id"
+                  name="tax_id"
+                  value={formData.tax_id || ""}
                   onChange={handleChange}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="invoiceNumberPrefix">
+                  <Label htmlFor="invoice_number_prefix">
                     Invoice Number Prefix
                   </Label>
                   <Input
-                    id="invoiceNumberPrefix"
-                    name="invoiceNumberPrefix"
-                    value={formData.invoiceNumberPrefix || ""}
+                    id="invoice_number_prefix"
+                    name="invoice_number_prefix"
+                    value={formData.invoice_number_prefix || ""}
                     onChange={handleChange}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="invoiceNumberCurrent">
+                  <Label htmlFor="invoice_number_current">
                     Current Invoice Number
                   </Label>
                   <Input
-                    id="invoiceNumberCurrent"
-                    name="invoiceNumberCurrent"
+                    id="invoice_number_current"
+                    name="invoice_number_current"
                     type="number"
-                    value={formData.invoiceNumberCurrent || ""}
+                    value={formData.invoice_number_current || ""}
                     onChange={handleChange}
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="invoiceNumberStart">
+                  <Label htmlFor="invoice_number_start">
                     Invoice Number Start
                   </Label>
                   <Input
-                    id="invoiceNumberStart"
-                    name="invoiceNumberStart"
+                    id="invoice_number_start"
+                    name="invoice_number_start"
                     type="number"
-                    value={formData.invoiceNumberStart || ""}
+                    value={formData.invoice_number_start || ""}
                     onChange={handleChange}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="invoiceNumberEnd">Invoice Number End</Label>
+                  <Label htmlFor="invoice_number_end">Invoice Number End</Label>
                   <Input
-                    id="invoiceNumberEnd"
-                    name="invoiceNumberEnd"
+                    id="invoice_number_end"
+                    name="invoice_number_end"
                     type="number"
-                    value={formData.invoiceNumberEnd || ""}
+                    value={formData.invoice_number_end || ""}
                     onChange={handleChange}
                   />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="invoiceExpirationMonths">
-                  Invoice Expiration (months)
+                <Label htmlFor="invoice_expiration_months">
+                  Invoice Expiration Months
                 </Label>
                 <Input
-                  id="invoiceExpirationMonths"
-                  name="invoiceExpirationMonths"
+                  id="invoice_expiration_months"
+                  name="invoice_expiration_months"
                   type="number"
-                  value={formData.invoiceExpirationMonths || ""}
+                  value={formData.invoice_expiration_months || ""}
                   onChange={handleChange}
                 />
               </div>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? "Saving..." : "Save Changes"}
+              </Button>
             </form>
           ) : (
-            <div className="grid gap-6">
+            <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h3 className="font-semibold text-sm text-gray-500">Email</h3>
-                  <p className="text-lg">{settings.email}</p>
+                  <h3 className="font-semibold">Email</h3>
+                  <p>{settings.email || "Not set"}</p>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-sm text-gray-500">Phone</h3>
-                  <p className="text-lg">{settings.phone}</p>
+                  <h3 className="font-semibold">Phone</h3>
+                  <p>{settings.phone || "Not set"}</p>
                 </div>
               </div>
               <div>
-                <h3 className="font-semibold text-sm text-gray-500">Address</h3>
-                <p className="text-lg">{settings.address}</p>
+                <h3 className="font-semibold">Address</h3>
+                <p>{settings.address || "Not set"}</p>
               </div>
               <div>
-                <h3 className="font-semibold text-sm text-gray-500">Tax ID</h3>
-                <p className="text-lg">{settings.taxId}</p>
+                <h3 className="font-semibold">Tax ID</h3>
+                <p>{settings.tax_id || "Not set"}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h3 className="font-semibold text-sm text-gray-500">
-                    Invoice Number Prefix
-                  </h3>
-                  <p className="text-lg">{settings.invoiceNumberPrefix}</p>
+                  <h3 className="font-semibold">Invoice Number Prefix</h3>
+                  <p>{settings.invoice_number_prefix || "Not set"}</p>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-sm text-gray-500">
-                    Current Invoice Number
-                  </h3>
-                  <p className="text-lg">{settings.invoiceNumberCurrent}</p>
+                  <h3 className="font-semibold">Current Invoice Number</h3>
+                  <p>{settings.invoice_number_current || "Not set"}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h3 className="font-semibold text-sm text-gray-500">
-                    Invoice Number Range
-                  </h3>
-                  <p className="text-lg">
-                    {settings.invoiceNumberStart} - {settings.invoiceNumberEnd}
-                  </p>
+                  <h3 className="font-semibold">Invoice Number Start</h3>
+                  <p>{settings.invoice_number_start || "Not set"}</p>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-sm text-gray-500">
-                    Invoice Expiration (months)
-                  </h3>
-                  <p className="text-lg">{settings.invoiceExpirationMonths}</p>
+                  <h3 className="font-semibold">Invoice Number End</h3>
+                  <p>{settings.invoice_number_end || "Not set"}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-semibold text-sm text-gray-500">
-                    Created At
-                  </h3>
-                  <p className="text-lg">
-                    {new Date(settings.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm text-gray-500">
-                    Last Updated
-                  </h3>
-                  <p className="text-lg">
-                    {new Date(settings.updatedAt).toLocaleDateString()}
-                  </p>
-                </div>
+              <div>
+                <h3 className="font-semibold">Invoice Expiration Months</h3>
+                <p>{settings.invoice_expiration_months || "Not set"}</p>
+              </div>
+              <div>
+                <h3 className="font-semibold">Last Updated</h3>
+                <p>
+                  {settings.updated_at
+                    ? new Date(settings.updated_at).toLocaleString()
+                    : "Not available"}
+                </p>
               </div>
             </div>
           )}

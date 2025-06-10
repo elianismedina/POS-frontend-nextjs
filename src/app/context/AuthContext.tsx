@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { AuthResponse, User } from "../services/auth.service";
+import { AuthResponse, User, authService } from "../services/auth.service";
 
 interface AuthContextType {
   user: User | null;
@@ -9,6 +9,7 @@ interface AuthContextType {
   login: (response: AuthResponse) => void;
   logout: () => void;
   isAuthenticated: boolean;
+  refreshToken: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -18,23 +19,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  useEffect(() => {
-    const storedToken = localStorage.getItem("accessToken");
-    const storedUser = localStorage.getItem("user");
-
-    if (storedToken && storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-        setToken(storedToken);
-      } catch (error) {
-        console.error("Error loading stored auth data:", error);
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
-        localStorage.removeItem("user");
+  const refreshToken = async () => {
+    try {
+      const storedRefreshToken = localStorage.getItem("refreshToken");
+      if (!storedRefreshToken) {
+        throw new Error("No refresh token available");
       }
+
+      console.log("Refreshing token...");
+      const { accessToken } = await authService.refreshToken(
+        storedRefreshToken
+      );
+      console.log("Token refresh successful");
+
+      setToken(accessToken);
+      localStorage.setItem("accessToken", accessToken);
+    } catch (error) {
+      console.error("Token refresh failed:", error);
+      logout();
     }
-    setIsInitialized(true);
+  };
+
+  useEffect(() => {
+    const initializeAuth = async () => {
+      const storedToken = localStorage.getItem("accessToken");
+      const storedUser = localStorage.getItem("user");
+
+      if (storedToken && storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
+          setToken(storedToken);
+
+          // Verify token is still valid
+          try {
+            await authService.verifyToken(storedToken);
+          } catch {
+            console.log("Token verification failed, attempting refresh");
+            await refreshToken();
+          }
+        } catch (error) {
+          console.error("Error loading stored auth data:", error);
+          logout();
+        }
+      }
+      setIsInitialized(true);
+    };
+
+    initializeAuth();
   }, []);
 
   const login = (response: AuthResponse) => {
@@ -53,12 +85,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("user", JSON.stringify(userData));
   };
 
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("user");
+  const logout = async () => {
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error("Error during logout:", error);
+    } finally {
+      setUser(null);
+      setToken(null);
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("user");
+    }
   };
 
   const value = {
@@ -66,6 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     token,
     login,
     logout,
+    refreshToken,
     isAuthenticated: !!token && !!user,
   };
 

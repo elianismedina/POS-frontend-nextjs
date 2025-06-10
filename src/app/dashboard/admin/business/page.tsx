@@ -10,6 +10,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AxiosError } from "axios";
 import { Button } from "@/components/ui/button";
 
+interface BusinessSettings {
+  id: string;
+  business_id: string;
+  email: string;
+  address: string;
+  phone: string;
+  tax_id: string;
+  invoice_number_prefix: string;
+  invoice_number_start: number;
+  invoice_number_end: number;
+  invoice_number_current: number;
+  invoice_expiration_months: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export default function BusinessPage() {
   const router = useRouter();
   const { isAuthenticated, token, user } = useAuth();
@@ -19,10 +35,21 @@ export default function BusinessPage() {
 
   useEffect(() => {
     const fetchBusinessId = async () => {
+      // Log authentication state
       console.log("Auth state:", {
         isAuthenticated,
         hasToken: !!token,
+        tokenLength: token?.length,
         user,
+      });
+
+      // Log localStorage state
+      console.log("LocalStorage state:", {
+        accessToken:
+          localStorage.getItem("accessToken")?.substring(0, 10) + "...",
+        refreshToken:
+          localStorage.getItem("refreshToken")?.substring(0, 10) + "...",
+        user: localStorage.getItem("user"),
       });
 
       if (!isAuthenticated || !token) {
@@ -32,16 +59,17 @@ export default function BusinessPage() {
       }
 
       try {
-        console.log(
-          "Making API request to:",
-          `${api.defaults.baseURL}/business/current/settings`
-        );
-        console.log("Request headers:", {
-          Authorization: `Bearer ${token.substring(0, 10)}...`,
-          "Content-Type": "application/json",
-        });
+        const url = "/business/current/settings";
+        console.log("Making API request to:", `${api.defaults.baseURL}${url}`);
 
-        const response = await api.get("/business/current/settings");
+        // Log request headers
+        const headers = {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        };
+        console.log("Request headers:", headers);
+
+        const response = await api.get<BusinessSettings>(url);
         console.log("Business settings response:", response.data);
 
         if (response.data?.business_id) {
@@ -51,14 +79,34 @@ export default function BusinessPage() {
           );
           router.push(`/dashboard/admin/business/${response.data.business_id}`);
         } else {
-          console.error("No business ID found in response:", response.data);
+          console.log(
+            "No business settings found, showing create business form"
+          );
           setShowCreateBusiness(true);
         }
       } catch (error) {
         console.error("Error fetching business:", error);
         const axiosError = error as AxiosError<{ message: string }>;
+
+        // Log detailed error information
+        console.error("Error details:", {
+          status: axiosError.response?.status,
+          statusText: axiosError.response?.statusText,
+          data: axiosError.response?.data,
+          headers: axiosError.response?.headers,
+        });
+
         if (axiosError.response?.status === 404) {
+          console.log("Business not found, showing create business form");
           setShowCreateBusiness(true);
+        } else if (axiosError.response?.status === 401) {
+          console.log("Unauthorized - Token might be invalid or expired");
+          toast({
+            title: "Authentication Error",
+            description: "Your session has expired. Please log in again.",
+            variant: "destructive",
+          });
+          router.push("/login");
         } else {
           toast({
             title: "Error",

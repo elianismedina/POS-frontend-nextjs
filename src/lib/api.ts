@@ -19,12 +19,6 @@ api.interceptors.request.use(
       token ? "Present" : "Missing"
     );
 
-    if (!token) {
-      console.error("API Client - No access token found in localStorage");
-      // You might want to redirect to login here
-      return Promise.reject(new Error("No access token found"));
-    }
-
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

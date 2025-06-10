@@ -33,8 +33,11 @@ export interface AuthResponse {
 
 export const authService = {
   async login(data: LoginData): Promise<AuthResponse> {
-    console.log("AuthService - Making login request to:", `${API_URL}/signin`);
-    const response = await axios.post(`${API_URL}/signin`, data);
+    console.log(
+      "AuthService - Making login request to:",
+      `${API_URL}/auth/signin`
+    );
+    const response = await axios.post(`${API_URL}/auth/signin`, data);
     console.log("AuthService - Login response:", response.data);
 
     return {
@@ -50,15 +53,15 @@ export const authService = {
   async register(data: RegisterData): Promise<AuthResponse> {
     console.log(
       "AuthService - Making register request to:",
-      `${API_URL}/register`
+      `${API_URL}/auth/signup`
     );
-    const response = await axios.post(`${API_URL}/signup`, data);
+    const response = await axios.post(`${API_URL}/auth/signup`, data);
     console.log("AuthService - Register response:", response.data);
     return response.data;
   },
 
   async refreshToken(refreshToken: string): Promise<{ accessToken: string }> {
-    const response = await axios.post(`${API_URL}/refresh`, {
+    const response = await axios.post(`${API_URL}/auth/refresh`, {
       refreshToken,
     });
     return response.data;
@@ -69,7 +72,7 @@ export const authService = {
     if (token) {
       try {
         await axios.post(
-          `${API_URL}/signout`,
+          `${API_URL}/auth/signout`,
           {},
           {
             headers: {

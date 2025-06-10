@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "../context/AuthContext";
-import { authService } from "../services/auth.service";
-import { AxiosError } from "axios";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,8 +15,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { AxiosError } from "axios";
 
-export default function LoginPage() {
+export default function SignInPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -45,8 +45,8 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await authService.login({ email, password });
-      login(response);
+      const response = await api.post("/auth/signin", { email, password });
+      login(response.data);
 
       // Handle remember me
       if (rememberMe) {
@@ -63,7 +63,7 @@ export default function LoginPage() {
     } catch (err) {
       if (err instanceof AxiosError) {
         setError(
-          err.response?.data?.message || "An error occurred during login"
+          err.response?.data?.message || "An error occurred during sign in"
         );
       } else {
         setError("An unexpected error occurred");

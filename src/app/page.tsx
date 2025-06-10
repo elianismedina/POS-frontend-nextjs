@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useAuth } from "./context/AuthContext";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
-import { getUserName } from "./utils/user";
+import { getUserName } from "@/lib/utils/user";
 
 export default function Home() {
   const { isAuthenticated, user, logout } = useAuth();
@@ -47,7 +47,7 @@ export default function Home() {
           ) : (
             <>
               <Link
-                href="/login"
+                href="/signin"
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
                 Sign In

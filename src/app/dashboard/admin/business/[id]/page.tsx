@@ -45,7 +45,6 @@ export default function BusinessPage({ params }: PageProps) {
 
   const fetchBusinessSettings = async () => {
     if (!isAuthenticated || !token) {
-      console.log("User is not authenticated, redirecting to login...");
       router.push("/login");
       return;
     }
@@ -64,7 +63,6 @@ export default function BusinessPage({ params }: PageProps) {
 
       // Update both states atomically
       const newData = response.data;
-      console.log("Setting new data:", newData);
       setSettings(newData);
       setFormData(newData);
     } catch (error) {
@@ -122,17 +120,10 @@ export default function BusinessPage({ params }: PageProps) {
           : undefined,
       };
 
-      console.log("Current form data before update:", formData);
-      console.log("Sending data to API:", dataToSend);
-
       const response = await api.patch(
         `/business/${resolvedParams.id}/settings`,
         dataToSend
       );
-
-      console.log("API Response:", response.data);
-      console.log("Response data type:", typeof response.data);
-      console.log("Response data keys:", Object.keys(response.data));
 
       if (response.data) {
         // Update both states atomically with the new data
@@ -204,10 +195,10 @@ export default function BusinessPage({ params }: PageProps) {
       <div className="container mx-auto p-6">
         <Card>
           <CardHeader>
-            <CardTitle>Business Settings</CardTitle>
+            <CardTitle>Configuración de negocio</CardTitle>
           </CardHeader>
           <CardContent>
-            <p>No business settings found.</p>
+            <p>No se encontraron configuraciones de negocio.</p>
           </CardContent>
         </Card>
       </div>
@@ -218,7 +209,7 @@ export default function BusinessPage({ params }: PageProps) {
     <div className="container mx-auto p-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Business Settings</CardTitle>
+          <CardTitle>Configuración de negocio</CardTitle>
           <Button
             variant={isEditing ? "secondary" : "default"}
             onClick={() => {
@@ -228,7 +219,7 @@ export default function BusinessPage({ params }: PageProps) {
               }
             }}
           >
-            {isEditing ? "Cancel" : "Edit Settings"}
+            {isEditing ? "Cancelar" : "Actualizar configuraciones"}
           </Button>
         </CardHeader>
         <CardContent>
@@ -240,7 +231,7 @@ export default function BusinessPage({ params }: PageProps) {
             >
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">Correo electrónico</Label>
                   <Input
                     id="email"
                     name="email"
@@ -250,7 +241,7 @@ export default function BusinessPage({ params }: PageProps) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
+                  <Label htmlFor="phone">Teléfono</Label>
                   <Input
                     id="phone"
                     name="phone"
@@ -260,7 +251,7 @@ export default function BusinessPage({ params }: PageProps) {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
+                <Label htmlFor="address">Dirección</Label>
                 <Input
                   id="address"
                   name="address"
@@ -269,7 +260,7 @@ export default function BusinessPage({ params }: PageProps) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="tax_id">Tax ID</Label>
+                <Label htmlFor="tax_id">NIT</Label>
                 <Input
                   id="tax_id"
                   name="tax_id"
@@ -280,7 +271,7 @@ export default function BusinessPage({ params }: PageProps) {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="invoice_number_prefix">
-                    Invoice Number Prefix
+                    Prefijo de número de factura
                   </Label>
                   <Input
                     id="invoice_number_prefix"
@@ -291,7 +282,7 @@ export default function BusinessPage({ params }: PageProps) {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="invoice_number_current">
-                    Current Invoice Number
+                    Número de factura actual
                   </Label>
                   <Input
                     id="invoice_number_current"
@@ -305,7 +296,7 @@ export default function BusinessPage({ params }: PageProps) {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="invoice_number_start">
-                    Invoice Number Start
+                    Número de factura inicial
                   </Label>
                   <Input
                     id="invoice_number_start"
@@ -316,7 +307,9 @@ export default function BusinessPage({ params }: PageProps) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="invoice_number_end">Invoice Number End</Label>
+                  <Label htmlFor="invoice_number_end">
+                    Número de factura final
+                  </Label>
                   <Input
                     id="invoice_number_end"
                     name="invoice_number_end"
@@ -328,7 +321,7 @@ export default function BusinessPage({ params }: PageProps) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="invoice_expiration_months">
-                  Invoice Expiration Months
+                  Meses de vencimiento de resolución de facturación
                 </Label>
                 <Input
                   id="invoice_expiration_months"
@@ -346,48 +339,52 @@ export default function BusinessPage({ params }: PageProps) {
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h3 className="font-semibold">Email</h3>
+                  <h3 className="font-semibold">Correo electrónico</h3>
                   <p>{settings.email || "Not set"}</p>
                 </div>
                 <div>
-                  <h3 className="font-semibold">Phone</h3>
+                  <h3 className="font-semibold">Teléfono</h3>
                   <p>{settings.phone || "Not set"}</p>
                 </div>
               </div>
               <div>
-                <h3 className="font-semibold">Address</h3>
+                <h3 className="font-semibold">Dirección</h3>
                 <p>{settings.address || "Not set"}</p>
               </div>
               <div>
-                <h3 className="font-semibold">Tax ID</h3>
+                <h3 className="font-semibold">NIT</h3>
                 <p>{settings.tax_id || "Not set"}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h3 className="font-semibold">Invoice Number Prefix</h3>
+                  <h3 className="font-semibold">
+                    Prefijo de número de factura
+                  </h3>
                   <p>{settings.invoice_number_prefix || "Not set"}</p>
                 </div>
                 <div>
-                  <h3 className="font-semibold">Current Invoice Number</h3>
+                  <h3 className="font-semibold">Número de factura actual</h3>
                   <p>{settings.invoice_number_current || "Not set"}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h3 className="font-semibold">Invoice Number Start</h3>
+                  <h3 className="font-semibold">Número de factura inicial</h3>
                   <p>{settings.invoice_number_start || "Not set"}</p>
                 </div>
                 <div>
-                  <h3 className="font-semibold">Invoice Number End</h3>
+                  <h3 className="font-semibold">Número de factura final</h3>
                   <p>{settings.invoice_number_end || "Not set"}</p>
                 </div>
               </div>
               <div>
-                <h3 className="font-semibold">Invoice Expiration Months</h3>
+                <h3 className="font-semibold">
+                  Meses de vencimiento de resolución de facturación
+                </h3>
                 <p>{settings.invoice_expiration_months || "Not set"}</p>
               </div>
               <div>
-                <h3 className="font-semibold">Last Updated</h3>
+                <h3 className="font-semibold">Última actualización</h3>
                 <p>
                   {settings.updated_at
                     ? new Date(settings.updated_at).toLocaleString()

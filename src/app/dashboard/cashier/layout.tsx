@@ -3,9 +3,9 @@
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { AdminSidebar } from "@/components/admin/Sidebar";
+import { CashierSidebar } from "@/components/cashier/Sidebar";
 
-export default function AdminLayout({
+export default function CashierLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -14,13 +14,16 @@ export default function AdminLayout({
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.replace("/admin/signin");
-    } else if (!isLoading && isAuthenticated && user?.role?.name !== "admin") {
-      router.replace("/dashboard/cashier");
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        router.replace("/signin");
+      } else if (user?.role?.name !== "cashier") {
+        router.replace("/dashboard/admin");
+      }
     }
-  }, [isAuthenticated, isLoading, router, user]);
+  }, [isLoading, isAuthenticated, user?.role?.name, router]);
 
+  // Show loading state while checking authentication
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -34,13 +37,15 @@ export default function AdminLayout({
     );
   }
 
-  if (!isAuthenticated || user?.role?.name !== "admin") {
+  // Don't render anything if not authenticated (will redirect)
+  if (!isAuthenticated || user?.role?.name !== "cashier") {
     return null;
   }
 
+  // Render the layout with sidebar and content
   return (
     <div className="flex h-screen">
-      <AdminSidebar />
+      <CashierSidebar />
       <main className="flex-1 overflow-auto bg-background">{children}</main>
     </div>
   );

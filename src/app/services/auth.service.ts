@@ -9,15 +9,11 @@ export interface User {
 }
 
 export interface AuthResponse {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
   accessToken: string;
   refreshToken: string;
 }
 
-export interface LoginData {
+export interface SignInData {
   email: string;
   password: string;
 }
@@ -28,19 +24,19 @@ export interface RegisterData {
   password: string;
 }
 
-class AuthService {
-  async login(data: LoginData): Promise<AuthResponse> {
+export class AuthService {
+  async signIn(data: SignInData): Promise<AuthResponse> {
     const response = await api.post<AuthResponse>("/auth/signin", data);
     return response.data;
   }
 
   async register(data: RegisterData): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>("/auth/register", data);
+    const response = await api.post<AuthResponse>("/auth/signup", data);
     return response.data;
   }
 
-  async refreshToken(refreshToken: string): Promise<{ accessToken: string }> {
-    const response = await api.post<{ accessToken: string }>("/auth/refresh", {
+  async refreshToken(refreshToken: string): Promise<AuthResponse> {
+    const response = await api.post<AuthResponse>("/auth/refresh", {
       refreshToken,
     });
     return response.data;

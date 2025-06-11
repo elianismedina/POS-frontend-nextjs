@@ -9,27 +9,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "../../components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
 
-export default function CashierSignInPage() {
+export default function AdminSignInPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const { login, isAuthenticated, isLoading: authLoading, user } = useAuth();
+  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (isAuthenticated && !authLoading && user) {
-      if (user.role.name === "cashier") {
-        router.replace("/dashboard/cashier");
-      } else if (user.role.name === "admin") {
-        router.replace("/dashboard/admin");
-      }
+    if (isAuthenticated && !authLoading) {
+      router.replace("/dashboard/admin");
     }
-  }, [isAuthenticated, authLoading, router, user]);
+  }, [isAuthenticated, authLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,15 +33,15 @@ export default function CashierSignInPage() {
     setIsLoading(true);
 
     try {
-      const response = await api.post("/auth/register/signin", {
+      const response = await api.post("/auth/signin", {
         email,
         password,
       });
-      console.log("Cashier sign-in successful:", response.data);
+      console.log("Admin sign-in successful:", response.data);
       await login(response.data.accessToken, response.data.refreshToken);
-      router.replace("/dashboard/cashier");
+      router.replace("/dashboard/admin");
     } catch (err) {
-      console.error("Cashier sign-in error:", err);
+      console.error("Admin sign-in error:", err);
       setError(
         err instanceof Error
           ? err.message
@@ -76,7 +72,7 @@ export default function CashierSignInPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">
-            Cashier Sign In
+            Admin Sign In
           </CardTitle>
         </CardHeader>
         <CardContent>

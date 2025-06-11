@@ -3,65 +3,77 @@
 import Link from "next/link";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
-import { getUserName } from "@/lib/utils/user";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
 
 export default function Home() {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, isLoading } = useAuth();
   const router = useRouter();
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
-  const handleLogout = () => {
-    logout();
-    router.push("/");
-  };
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && user && !isRedirecting) {
+      console.log("User authenticated:", user);
+      setIsRedirecting(true);
 
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Welcome to POS System
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            {isAuthenticated
-              ? `Logged in as ${getUserName(user)}`
-              : "Please sign in to continue"}
-          </p>
-        </div>
+      if (user.role.name === "admin") {
+        console.log("Redirecting to admin dashboard");
+        router.push("/dashboard/admin");
+      } else if (user.role.name === "cashier") {
+        console.log("Redirecting to cashier dashboard");
+        router.push("/dashboard/cashier");
+      }
+    }
+  }, [isAuthenticated, user, router, isLoading, isRedirecting]);
 
-        <div className="mt-8 space-y-4">
-          {isAuthenticated ? (
-            <>
-              <button
-                onClick={() => router.push("/dashboard")}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Go to Dashboard
-              </button>
-              <button
-                onClick={handleLogout}
-                className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Sign Out
-              </button>
-            </>
-          ) : (
-            <>
-              <Link
-                href="/signin"
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/register"
-                className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Register
-              </Link>
-            </>
-          )}
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="mt-2 text-muted-foreground">Loading...</p>
         </div>
       </div>
+    );
+  }
+
+  if (isAuthenticated && isRedirecting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="mt-2 text-muted-foreground">Redirecting...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold text-center">
+            Welcome to POS System
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <p className="text-center text-muted-foreground">
+              Please select your role to sign in
+            </p>
+            <div className="flex flex-col gap-4">
+              <Button asChild variant="default">
+                <Link href="/admin/signin">Sign in as Admin</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/signin">Sign in as Cashier</Link>
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

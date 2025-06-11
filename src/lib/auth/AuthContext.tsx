@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { api } from "@/lib/api";
+import { useRouter } from "next/navigation";
 
 interface User {
   id: string;
@@ -33,6 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
 
   const fetchUserData = async (accessToken: string) => {
     try {
@@ -122,6 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     setRefreshToken(null);
     setUser(null);
+    window.location.href = "/";
   };
 
   const value = {

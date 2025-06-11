@@ -37,7 +37,6 @@ export default function AdminSignInPage() {
         email,
         password,
       });
-      console.log("Admin sign-in successful:", response.data);
       await login(response.data.accessToken, response.data.refreshToken);
       router.replace("/dashboard/admin");
     } catch (err) {

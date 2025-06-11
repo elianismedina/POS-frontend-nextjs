@@ -37,7 +37,7 @@ export default function BusinessProfilePage() {
   useEffect(() => {
     if (!authLoading) {
       if (!isAuthenticated || !user?.id) {
-        router.replace("/signin");
+        router.replace("/admin/signin");
         return;
       }
 

@@ -1,11 +1,15 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { League_Spartan } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/lib/auth/AuthContext";
 
-const inter = Inter({ subsets: ["latin"] });
+const leagueSpartan = League_Spartan({
+  subsets: ["latin"],
+  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+  variable: "--font-league-spartan",
+});
 
 export const metadata: Metadata = {
   title: "POS System",
@@ -19,7 +23,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning className="h-full">
-      <body className={`${inter.className} h-full`}>
+      <body className={`${leagueSpartan.className} h-full`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

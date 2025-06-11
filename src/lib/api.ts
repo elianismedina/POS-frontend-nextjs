@@ -9,6 +9,7 @@ export const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: true,
 });
 
 // Request interceptor
@@ -34,7 +35,8 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       // Clear token and redirect to login
       localStorage.removeItem("token");
-      window.location.href = "/signin";
+      localStorage.removeItem("refreshToken");
+      window.location.href = "/admin/signin";
     }
     return Promise.reject(error);
   }

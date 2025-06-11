@@ -11,10 +11,10 @@ interface User {
   role: {
     name: string;
   };
-  business?: {
+  business?: Array<{
     id: string;
     name: string;
-  };
+  }>;
 }
 
 interface AuthContextType {

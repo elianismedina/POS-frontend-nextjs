@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import { Pencil } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/components/ui/use-toast";
 
 interface BusinessSettings {
   address?: string;
@@ -27,6 +28,7 @@ interface BusinessSettings {
 export default function BusinessProfilePage() {
   const { isAuthenticated, user, isLoading: authLoading } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -108,7 +110,11 @@ export default function BusinessProfilePage() {
       });
 
       setIsEditing(false);
-      // Show success message
+      toast({
+        title: "Success",
+        description: "Business settings updated successfully",
+        variant: "default",
+      });
     } catch (error: any) {
       console.error("Error updating business:", error);
       setError(

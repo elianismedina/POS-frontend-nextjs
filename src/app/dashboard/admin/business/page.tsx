@@ -21,6 +21,7 @@ interface BusinessSettings {
   invoiceNumberEnd?: number;
   invoiceNumberCurrent?: number;
   invoiceExpirationMonths?: number;
+  business_id?: string;
 }
 
 export default function BusinessProfilePage() {
@@ -40,6 +41,7 @@ export default function BusinessProfilePage() {
     invoiceNumberEnd: 0,
     invoiceNumberCurrent: 0,
     invoiceExpirationMonths: 0,
+    business_id: "",
   });
 
   useEffect(() => {
@@ -68,6 +70,7 @@ export default function BusinessProfilePage() {
         invoiceNumberEnd: settingsData.invoice_number_end || 0,
         invoiceNumberCurrent: settingsData.invoice_number_current || 0,
         invoiceExpirationMonths: settingsData.invoice_expiration_months || 0,
+        business_id: settingsData.business_id || "",
       });
     } catch (error: any) {
       console.error("Error fetching business data:", error);
@@ -87,12 +90,12 @@ export default function BusinessProfilePage() {
     setError(null);
 
     try {
-      if (!user?.business?.id) {
+      if (!settings.business_id) {
         throw new Error("No business ID found");
       }
 
       // Update settings using PATCH and the business ID
-      await api.patch(`/business/${user.business.id}/settings`, {
+      await api.patch(`/business/${settings.business_id}/settings`, {
         address: settings.address,
         phone: settings.phone,
         email: settings.email,

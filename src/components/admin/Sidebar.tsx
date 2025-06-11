@@ -87,8 +87,8 @@ export function AdminSidebar() {
               <SidebarItem
                 icon={<Store className="h-4 w-4" />}
                 label="My Business"
-                href={`/dashboard/admin/business/${user.business.id}/settings`}
-                isActive={pathname.includes("/business/")}
+                href="/dashboard/admin/business"
+                isActive={pathname.includes("/business")}
               />
             )}
             <SidebarItem

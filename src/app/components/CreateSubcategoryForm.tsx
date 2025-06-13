@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { subcategoriesService } from "@/app/services/subcategories";
 import { categoriesService, Category } from "@/app/services/categories";
+import { useToast } from "@/components/ui/use-toast";
 
 interface CreateSubcategoryFormProps {
   onSuccess: () => void;
@@ -13,6 +14,7 @@ export const CreateSubcategoryForm: React.FC<CreateSubcategoryFormProps> = ({
   onSuccess,
   onCancel,
 }) => {
+  const { toast } = useToast();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -44,6 +46,11 @@ export const CreateSubcategoryForm: React.FC<CreateSubcategoryFormProps> = ({
 
     try {
       await subcategoriesService.create({ categoryId, name, description });
+      toast({
+        title: "Success",
+        description: "Subcategory created successfully",
+        variant: "default",
+      });
       onSuccess();
     } catch (err) {
       setError("Failed to create subcategory. Please try again.");

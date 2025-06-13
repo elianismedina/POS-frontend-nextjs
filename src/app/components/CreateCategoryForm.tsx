@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { categoriesService } from "@/app/services/categories";
+import { useToast } from "@/components/ui/use-toast";
 
 interface CreateCategoryFormProps {
   onSuccess: () => void;
@@ -12,6 +13,7 @@ export const CreateCategoryForm: React.FC<CreateCategoryFormProps> = ({
   onSuccess,
   onCancel,
 }) => {
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -27,6 +29,11 @@ export const CreateCategoryForm: React.FC<CreateCategoryFormProps> = ({
 
     try {
       await categoriesService.createCategory(formData);
+      toast({
+        title: "Success",
+        description: "Category created successfully",
+        variant: "default",
+      });
       onSuccess();
     } catch (err) {
       setError("Failed to create category. Please try again.");

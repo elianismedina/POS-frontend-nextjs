@@ -23,6 +23,27 @@ function SidebarProvider({
 }) {
   const [collapsed, setCollapsed] = React.useState(defaultCollapsed);
 
+  // Handle mobile view
+  React.useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        // md breakpoint
+        setCollapsed(true);
+      } else {
+        setCollapsed(defaultCollapsed);
+      }
+    };
+
+    // Set initial state
+    handleResize();
+
+    // Add event listener
+    window.addEventListener("resize", handleResize);
+
+    // Cleanup
+    return () => window.removeEventListener("resize", handleResize);
+  }, [defaultCollapsed]);
+
   return (
     <SidebarContext.Provider value={{ collapsed, setCollapsed }}>
       {children}
@@ -50,6 +71,7 @@ function Sidebar({ className, ...props }: SidebarProps) {
       className={cn(
         "flex h-full flex-col border-r bg-background transition-all duration-300",
         collapsed ? "w-[60px]" : "w-[240px]",
+        "md:relative fixed inset-y-0 z-50", // Make sidebar fixed on mobile
         className
       )}
       {...props}

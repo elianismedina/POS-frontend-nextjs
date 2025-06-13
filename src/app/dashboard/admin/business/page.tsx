@@ -58,7 +58,6 @@ export default function BusinessProfilePage() {
 
   const fetchBusinessData = async () => {
     try {
-      // Get the business settings for the current user
       const settingsResponse = await api.get("/business/current/settings");
       const settingsData = settingsResponse.data;
 
@@ -96,7 +95,6 @@ export default function BusinessProfilePage() {
         throw new Error("No business ID found");
       }
 
-      // Update settings using PATCH and the business ID
       await api.patch(`/business/${settings.business_id}/settings`, {
         address: settings.address,
         phone: settings.phone,
@@ -140,9 +138,9 @@ export default function BusinessProfilePage() {
   }
 
   return (
-    <div className="container mx-auto py-10">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Business Profile</h1>
+    <div className="container mx-auto px-4 py-6 md:py-10">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
+        <h1 className="text-2xl md:text-3xl font-bold">Business Profile</h1>
         {!isEditing && !error && (
           <Button onClick={() => setIsEditing(true)}>
             <Pencil className="h-4 w-4 mr-2" />
@@ -157,205 +155,224 @@ export default function BusinessProfilePage() {
         </Alert>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Business Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isEditing ? (
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <Input
-                  id="address"
-                  value={settings.address || ""}
-                  onChange={(e) =>
-                    setSettings({ ...settings, address: e.target.value })
-                  }
-                />
-              </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Business Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isEditing ? (
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="address">Address</Label>
+                  <Input
+                    id="address"
+                    value={settings.address || ""}
+                    onChange={(e) =>
+                      setSettings({ ...settings, address: e.target.value })
+                    }
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  value={settings.phone || ""}
-                  onChange={(e) =>
-                    setSettings({ ...settings, phone: e.target.value })
-                  }
-                />
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    value={settings.phone || ""}
+                    onChange={(e) =>
+                      setSettings({ ...settings, phone: e.target.value })
+                    }
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={settings.email || ""}
-                  onChange={(e) =>
-                    setSettings({ ...settings, email: e.target.value })
-                  }
-                />
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={settings.email || ""}
+                    onChange={(e) =>
+                      setSettings({ ...settings, email: e.target.value })
+                    }
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="taxId">Tax ID</Label>
-                <Input
-                  id="taxId"
-                  value={settings.taxId || ""}
-                  onChange={(e) =>
-                    setSettings({ ...settings, taxId: e.target.value })
-                  }
-                />
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="taxId">Tax ID</Label>
+                  <Input
+                    id="taxId"
+                    value={settings.taxId || ""}
+                    onChange={(e) =>
+                      setSettings({ ...settings, taxId: e.target.value })
+                    }
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="invoiceNumberPrefix">
-                  Invoice Number Prefix
-                </Label>
-                <Input
-                  id="invoiceNumberPrefix"
-                  value={settings.invoiceNumberPrefix || ""}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      invoiceNumberPrefix: e.target.value,
-                    })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="invoiceNumberStart">Invoice Number Start</Label>
-                <Input
-                  id="invoiceNumberStart"
-                  type="number"
-                  value={settings.invoiceNumberStart || 0}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      invoiceNumberStart: parseInt(e.target.value),
-                    })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="invoiceNumberEnd">Invoice Number End</Label>
-                <Input
-                  id="invoiceNumberEnd"
-                  type="number"
-                  value={settings.invoiceNumberEnd || 0}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      invoiceNumberEnd: parseInt(e.target.value),
-                    })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="invoiceNumberCurrent">
-                  Current Invoice Number
-                </Label>
-                <Input
-                  id="invoiceNumberCurrent"
-                  type="number"
-                  value={settings.invoiceNumberCurrent || 0}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      invoiceNumberCurrent: parseInt(e.target.value),
-                    })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="invoiceExpirationMonths">
-                  Invoice Expiration (Months)
-                </Label>
-                <Input
-                  id="invoiceExpirationMonths"
-                  type="number"
-                  value={settings.invoiceExpirationMonths || 0}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      invoiceExpirationMonths: parseInt(e.target.value),
-                    })
-                  }
-                />
-              </div>
-
-              <div className="flex gap-4">
-                <Button type="submit" disabled={isSaving}>
-                  {isSaving ? "Saving..." : "Save Changes"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsEditing(false)}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          ) : (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col md:flex-row gap-4 pt-4">
+                  <Button
+                    type="submit"
+                    className="w-full md:w-auto"
+                    disabled={isSaving}
+                  >
+                    {isSaving ? "Saving..." : "Save Changes"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full md:w-auto"
+                    onClick={() => setIsEditing(false)}
+                    disabled={isSaving}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-4">
                 <div>
-                  <h3 className="font-semibold text-gray-500">Address</h3>
-                  <p>{settings.address || "Not set"}</p>
+                  <h3 className="text-sm font-medium text-gray-500">Address</h3>
+                  <p className="mt-1">{settings.address || "Not set"}</p>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-500">Phone</h3>
-                  <p>{settings.phone || "Not set"}</p>
+                  <h3 className="text-sm font-medium text-gray-500">Phone</h3>
+                  <p className="mt-1">{settings.phone || "Not set"}</p>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-500">Email</h3>
-                  <p>{settings.email || "Not set"}</p>
+                  <h3 className="text-sm font-medium text-gray-500">Email</h3>
+                  <p className="mt-1">{settings.email || "Not set"}</p>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-500">Tax ID</h3>
-                  <p>{settings.taxId || "Not set"}</p>
+                  <h3 className="text-sm font-medium text-gray-500">Tax ID</h3>
+                  <p className="mt-1">{settings.taxId || "Not set"}</p>
                 </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Invoice Settings</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isEditing ? (
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="invoicePrefix">Invoice Number Prefix</Label>
+                  <Input
+                    id="invoicePrefix"
+                    value={settings.invoiceNumberPrefix || ""}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        invoiceNumberPrefix: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="invoiceStart">Start Number</Label>
+                    <Input
+                      id="invoiceStart"
+                      type="number"
+                      value={settings.invoiceNumberStart || 0}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          invoiceNumberStart: parseInt(e.target.value) || 0,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="invoiceEnd">End Number</Label>
+                    <Input
+                      id="invoiceEnd"
+                      type="number"
+                      value={settings.invoiceNumberEnd || 0}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          invoiceNumberEnd: parseInt(e.target.value) || 0,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="invoiceCurrent">Current Number</Label>
+                  <Input
+                    id="invoiceCurrent"
+                    type="number"
+                    value={settings.invoiceNumberCurrent || 0}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        invoiceNumberCurrent: parseInt(e.target.value) || 0,
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="invoiceExpiration">
+                    Invoice Expiration (months)
+                  </Label>
+                  <Input
+                    id="invoiceExpiration"
+                    type="number"
+                    value={settings.invoiceExpirationMonths || 0}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        invoiceExpirationMonths: parseInt(e.target.value) || 0,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
                 <div>
-                  <h3 className="font-semibold text-gray-500">
+                  <h3 className="text-sm font-medium text-gray-500">
                     Invoice Number Prefix
                   </h3>
-                  <p>{settings.invoiceNumberPrefix || "Not set"}</p>
+                  <p className="mt-1">
+                    {settings.invoiceNumberPrefix || "Not set"}
+                  </p>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-500">
-                    Invoice Number Start
+                  <h3 className="text-sm font-medium text-gray-500">
+                    Number Range
                   </h3>
-                  <p>{settings.invoiceNumberStart || "Not set"}</p>
+                  <p className="mt-1">
+                    {settings.invoiceNumberStart || 0} -{" "}
+                    {settings.invoiceNumberEnd || 0}
+                  </p>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-500">
-                    Invoice Number End
+                  <h3 className="text-sm font-medium text-gray-500">
+                    Current Number
                   </h3>
-                  <p>{settings.invoiceNumberEnd || "Not set"}</p>
+                  <p className="mt-1">{settings.invoiceNumberCurrent || 0}</p>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-500">
-                    Current Invoice Number
+                  <h3 className="text-sm font-medium text-gray-500">
+                    Invoice Expiration
                   </h3>
-                  <p>{settings.invoiceNumberCurrent || "Not set"}</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-500">
-                    Invoice Expiration (Months)
-                  </h3>
-                  <p>{settings.invoiceExpirationMonths || "Not set"}</p>
+                  <p className="mt-1">
+                    {settings.invoiceExpirationMonths || 0} months
+                  </p>
                 </div>
               </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

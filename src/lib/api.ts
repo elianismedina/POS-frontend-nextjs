@@ -36,7 +36,7 @@ api.interceptors.response.use(
       // Clear token and redirect to login
       localStorage.removeItem("token");
       localStorage.removeItem("refreshToken");
-      window.location.href = "/admin/signin";
+      window.location.href = "/";
     }
     return Promise.reject(error);
   }

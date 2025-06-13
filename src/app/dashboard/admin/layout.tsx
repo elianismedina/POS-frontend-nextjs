@@ -15,7 +15,7 @@ export default function AdminLayout({
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.replace("/admin/signin");
+      router.replace("/");
     } else if (!isLoading && isAuthenticated && user?.role?.name !== "admin") {
       router.replace("/dashboard/cashier");
     }
@@ -32,6 +32,11 @@ export default function AdminLayout({
         </div>
       </div>
     );
+  }
+
+  if (!isAuthenticated) {
+    router.replace("/");
+    return null;
   }
 
   if (!isAuthenticated || user?.role?.name !== "admin") {

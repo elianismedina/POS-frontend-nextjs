@@ -111,6 +111,11 @@ export default function ProductsPage() {
     }
   };
 
+  if (!isAuthenticated) {
+    router.replace("/");
+    return null;
+  }
+
   if (isLoading || authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">

@@ -72,9 +72,13 @@ function SidebarFooterContent() {
   const router = useRouter();
   const { logout } = useAuth();
 
-  const handleLogout = () => {
-    logout();
-    router.replace("/admin/signin");
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.replace("/");
+    } catch (error) {
+      console.error("Error during logout:", error);
+    }
   };
 
   return (

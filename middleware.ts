@@ -9,8 +9,8 @@ export function middleware(request: NextRequest) {
     token
   );
   if (!token && request.nextUrl.pathname.startsWith("/dashboard")) {
-    console.log("Middleware - No token, redirecting to /login");
-    return NextResponse.redirect(new URL("/login", request.url));
+    console.log("Middleware - No token, redirecting to /");
+    return NextResponse.redirect(new URL("/", request.url));
   }
   return NextResponse.next();
 }

@@ -117,14 +117,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const logout = () => {
-    console.log("Logging out");
-    localStorage.removeItem("token");
-    localStorage.removeItem("refreshToken");
-    setToken(null);
-    setRefreshToken(null);
-    setUser(null);
-    window.location.href = "/";
+  const logout = async () => {
+    try {
+      console.log("Logging out");
+      // Call the backend signout endpoint
+      if (token) {
+        await api.post(
+          "/auth/signout",
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+      }
+    } catch (error) {
+      console.error("Error during signout:", error);
+    } finally {
+      // Clear local storage and state
+      localStorage.removeItem("token");
+      localStorage.removeItem("refreshToken");
+      setToken(null);
+      setRefreshToken(null);
+      setUser(null);
+      // Use replace instead of push to prevent back navigation
+      router.replace("/");
+    }
   };
 
   const value = {

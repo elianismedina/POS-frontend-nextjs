@@ -16,7 +16,7 @@ export default function CashierLayout({
   useEffect(() => {
     if (!isLoading) {
       if (!isAuthenticated) {
-        router.replace("/signin");
+        router.replace("/");
       } else if (user?.role?.name !== "cashier") {
         router.replace("/dashboard/admin");
       }
@@ -38,7 +38,8 @@ export default function CashierLayout({
   }
 
   // Don't render anything if not authenticated (will redirect)
-  if (!isAuthenticated || user?.role?.name !== "cashier") {
+  if (!isAuthenticated) {
+    router.replace("/");
     return null;
   }
 

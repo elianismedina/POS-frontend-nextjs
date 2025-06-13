@@ -1,36 +1,64 @@
 "use client";
 
-import Link from "next/link";
+import { useState } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
+import { api } from "@/lib/api";
 
 export default function Home() {
-  const { isAuthenticated, user, isLoading } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const { login, isAuthenticated, isLoading: authLoading, user } = useAuth();
   const router = useRouter();
-  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
-    if (!isLoading && isAuthenticated && user && !isRedirecting) {
-      console.log("User authenticated:", user);
-      setIsRedirecting(true);
-
+    if (isAuthenticated && !authLoading && user) {
       if (user.role.name === "admin") {
-        console.log("Redirecting to admin dashboard");
-        router.push("/dashboard/admin");
+        router.replace("/dashboard/admin");
       } else if (user.role.name === "cashier") {
-        console.log("Redirecting to cashier dashboard");
-        router.push("/dashboard/cashier");
+        router.replace("/dashboard/cashier");
       }
     }
-  }, [isAuthenticated, user, router, isLoading, isRedirecting]);
+  }, [isAuthenticated, authLoading, router, user]);
 
-  if (isLoading) {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const response = await api.post("/auth/signin", {
+        email,
+        password,
+      });
+      console.log("Sign-in successful:", response.data);
+      await login(response.data.accessToken, response.data.refreshToken);
+    } catch (err) {
+      console.error("Sign-in error:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Invalid email or password. Please try again."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted">
+      <div className="flex h-screen items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="mt-2 text-muted-foreground">Loading...</p>
@@ -39,15 +67,8 @@ export default function Home() {
     );
   }
 
-  if (isAuthenticated && isRedirecting) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="mt-2 text-muted-foreground">Redirecting...</p>
-        </div>
-      </div>
-    );
+  if (isAuthenticated) {
+    return null;
   }
 
   return (
@@ -75,26 +96,60 @@ export default function Home() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-6">
-              <p className="text-center text-muted-foreground text-lg">
-                Please select your role to sign in
-              </p>
-              <div className="flex flex-col gap-4">
-                <Button
-                  asChild
-                  className="h-12 text-lg font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all duration-300 shadow-lg hover:shadow-xl"
-                >
-                  <Link href="/admin/signin">Sign in as Admin</Link>
-                </Button>
-                <Button
-                  asChild
-                  variant="outline"
-                  className="h-12 text-lg font-semibold border-primary/20 hover:bg-primary/5 transition-all duration-300"
-                >
-                  <Link href="/signin">Sign in as Cashier</Link>
-                </Button>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                />
               </div>
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="remember"
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(checked === true)}
+                />
+                <Label
+                  htmlFor="remember"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Remember me
+                </Label>
+              </div>
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  "Sign in"
+                )}
+              </Button>
+            </form>
           </CardContent>
         </Card>
       </div>

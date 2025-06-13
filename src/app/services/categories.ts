@@ -4,6 +4,7 @@ export interface Category {
   id: string;
   name: string;
   description?: string;
+  imageUrl?: string;
   isActive: boolean;
   businessId: string;
   createdAt: string;
@@ -13,29 +14,31 @@ export interface Category {
 export interface CreateCategoryData {
   name: string;
   description?: string;
+  imageUrl?: string;
   isActive?: boolean;
 }
 
 export const categoriesService = {
   async listCategories(): Promise<Category[]> {
-    try {
-      const response = await api.get("/categories");
-      console.log("List categories response:", response.data);
-      return response.data;
-    } catch (error) {
-      console.error("Error listing categories:", error);
-      throw error;
-    }
+    const response = await api.get("/categories");
+    return response.data;
   },
 
   async createCategory(data: CreateCategoryData): Promise<Category> {
-    try {
-      const response = await api.post("/categories", data);
-      console.log("Create category response:", response.data);
-      return response.data;
-    } catch (error) {
-      console.error("Error creating category:", error);
-      throw error;
-    }
+    // Create a clean object with only the properties we want to send
+    const payload = {
+      name: data.name,
+      description: data.description || undefined,
+      imageUrl: data.imageUrl || undefined,
+      isActive: data.isActive ?? true,
+    };
+
+    console.log("Sending payload:", payload);
+    const response = await api.post("/categories", payload, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    return response.data;
   },
 };

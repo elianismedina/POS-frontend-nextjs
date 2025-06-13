@@ -2,18 +2,11 @@
 
 import React, { useEffect, useState } from "react";
 import { SubcategoriesList } from "@/app/components/SubcategoriesList";
-import { subcategoriesService } from "@/app/services/subcategories";
+import {
+  subcategoriesService,
+  Subcategory,
+} from "@/app/services/subcategories";
 import { CreateSubcategoryForm } from "../../../components/CreateSubcategoryForm";
-
-interface Subcategory {
-  id: string;
-  categoryId: string;
-  name: string;
-  description: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
 
 const SubcategoriesPage = () => {
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
@@ -24,7 +17,7 @@ const SubcategoriesPage = () => {
   const fetchSubcategories = async () => {
     try {
       const response = await subcategoriesService.list();
-      setSubcategories(response.data);
+      setSubcategories(response);
       setError(null);
     } catch (err) {
       setError("Failed to load subcategories. Please try again later.");

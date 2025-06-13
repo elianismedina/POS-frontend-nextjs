@@ -1,16 +1,8 @@
 "use client";
 
 import React from "react";
-
-interface Subcategory {
-  id: string;
-  categoryId: string;
-  name: string;
-  description: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+import Image from "next/image";
+import { Subcategory } from "@/app/services/subcategories";
 
 interface SubcategoriesListProps {
   subcategories: Subcategory[];
@@ -43,7 +35,7 @@ export const SubcategoriesList: React.FC<SubcategoriesListProps> = ({
     );
   }
 
-  if (subcategories.length === 0) {
+  if (!subcategories || subcategories.length === 0) {
     return (
       <div className="text-center py-10">
         <h3 className="text-lg font-medium text-gray-900">
@@ -61,6 +53,12 @@ export const SubcategoriesList: React.FC<SubcategoriesListProps> = ({
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
+            <th
+              scope="col"
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Image
+            </th>
             <th
               scope="col"
               className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -90,6 +88,22 @@ export const SubcategoriesList: React.FC<SubcategoriesListProps> = ({
         <tbody className="bg-white divide-y divide-gray-200">
           {subcategories.map((subcategory) => (
             <tr key={subcategory.id}>
+              <td className="px-6 py-4 whitespace-nowrap">
+                {subcategory.imageUrl ? (
+                  <div className="relative h-16 w-16">
+                    <Image
+                      src={subcategory.imageUrl}
+                      alt={subcategory.name}
+                      fill
+                      className="object-cover rounded-lg"
+                    />
+                  </div>
+                ) : (
+                  <div className="h-16 w-16 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <span className="text-gray-400 text-xs">No image</span>
+                  </div>
+                )}
+              </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                 {subcategory.name}
               </td>

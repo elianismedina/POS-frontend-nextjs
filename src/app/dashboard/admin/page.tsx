@@ -34,37 +34,37 @@ export default function AdminDashboard() {
       title: "Categories",
       description: "Manage product categories",
       icon: Tags,
-      href: `/dashboard/admin/categories/list`,
+      href: `/dashboard/admin/categories`,
     },
     {
       title: "Subcategories",
       description: "Manage product subcategories",
       icon: ListTree,
-      href: `/dashboard/admin/subcategories/list`,
+      href: `/dashboard/admin/subcategories`,
     },
     {
       title: "Products",
       description: "Manage your products",
       icon: Package,
-      href: `/dashboard/admin/products/list`,
+      href: `/dashboard/admin/products`,
     },
     {
       title: "Orders",
       description: "View and manage orders",
       icon: ShoppingCart,
-      href: `/dashboard/admin/orders/list`,
+      href: `/dashboard/admin/orders`,
     },
     {
       title: "Customers",
       description: "Manage customer information",
       icon: Users,
-      href: `/dashboard/admin/customers/list`,
+      href: `/dashboard/admin/customers`,
     },
     {
       title: "My Business",
       description: "Manage business settings",
       icon: Building2,
-      href: `/dashboard/admin/business/${user?.business?.id}/settings`,
+      href: `/dashboard/admin/business`,
     },
   ];
 

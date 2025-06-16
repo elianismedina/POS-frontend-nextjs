@@ -17,18 +17,29 @@ import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
 interface Branch {
-  id: string;
-  name: string;
-  address: string;
-  phone: string;
-  email: string;
-  businessId: string;
-  createdAt: string;
-  updatedAt: string;
+  _props: {
+    id: string;
+    name: string;
+    address: string;
+    phone: string;
+    email: string;
+    businessId: string;
+    createdAt: string;
+    updatedAt: string;
+    isActive: boolean;
+    business: {
+      id: string;
+      name: string;
+      branchLimit: number;
+      isActive: boolean;
+      createdAt: string;
+      updatedAt: string;
+    };
+  };
 }
 
 const BranchesPage = () => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const router = useRouter();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,9 +53,16 @@ const BranchesPage = () => {
         return;
       }
 
+      if (!user?.business?.[0]?.id) {
+        setError("No business associated with your account");
+        setLoading(false);
+        return;
+      }
+
       try {
+        const businessId = user.business[0].id;
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/branches`,
+          `${process.env.NEXT_PUBLIC_API_URL}/branches/business/${businessId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -82,7 +100,7 @@ const BranchesPage = () => {
     };
 
     fetchBranches();
-  }, [token]);
+  }, [token, user]);
 
   const handleCreateBranch = () => {
     router.push("/dashboard/admin/branches/create");
@@ -135,21 +153,21 @@ const BranchesPage = () => {
               </TableHeader>
               <TableBody>
                 {branches.map((branch) => (
-                  <TableRow key={branch.id}>
+                  <TableRow key={branch._props.id}>
                     <TableCell
-                      key={`${branch.id}-name`}
+                      key={`${branch._props.id}-name`}
                       className="font-medium"
                     >
-                      {branch.name}
+                      {branch._props.name}
                     </TableCell>
-                    <TableCell key={`${branch.id}-address`}>
-                      {branch.address}
+                    <TableCell key={`${branch._props.id}-address`}>
+                      {branch._props.address}
                     </TableCell>
-                    <TableCell key={`${branch.id}-phone`}>
-                      {branch.phone}
+                    <TableCell key={`${branch._props.id}-phone`}>
+                      {branch._props.phone}
                     </TableCell>
-                    <TableCell key={`${branch.id}-email`}>
-                      {branch.email}
+                    <TableCell key={`${branch._props.id}-email`}>
+                      {branch._props.email}
                     </TableCell>
                   </TableRow>
                 ))}

@@ -73,7 +73,9 @@ export function NewBranchForm() {
     setIsSubmitting(true);
     try {
       const businessId = user.business[0].id;
-      const url = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/branches/business/${businessId}`;
+      const baseUrl =
+        process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/v1$/, "") || "";
+      const url = `${baseUrl}/api/v1/branches/business/${businessId}`;
 
       // Log the request data for debugging
       console.log("Creating branch with data:", {
@@ -126,7 +128,7 @@ export function NewBranchForm() {
         title: "Success",
         description: "Branch created successfully",
       });
-      router.push(`/dashboard/admin/business/${businessId}/branches`);
+      router.push(`/dashboard/admin/branches`);
     } catch (error) {
       console.error("Error creating branch:", error);
       toast({

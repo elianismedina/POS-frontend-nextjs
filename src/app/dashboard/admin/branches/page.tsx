@@ -121,14 +121,14 @@ const BranchesPage = () => {
   return (
     <div className="p-4">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0 pb-2">
           <div className="flex items-center gap-2">
             <Building2 className="h-6 w-6 text-muted-foreground" />
             <CardTitle className="text-2xl font-bold">Branches</CardTitle>
           </div>
           <Button
             onClick={handleCreateBranch}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 w-full sm:w-auto"
           >
             <Plus className="h-4 w-4" />
             Create Branch
@@ -141,56 +141,98 @@ const BranchesPage = () => {
               <Skeleton className="h-8 w-full" />
               <Skeleton className="h-8 w-full" />
             </div>
+          ) : branches.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="flex flex-col items-center gap-2">
+                <Building2 className="h-8 w-8 text-muted-foreground" />
+                <p className="text-lg font-medium">No branches found</p>
+                <p className="text-sm text-muted-foreground text-center max-w-sm">
+                  Your business doesn't have any branches yet. Click the "Create
+                  Branch" button to add your first branch.
+                </p>
+              </div>
+            </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow key="header">
-                  <TableHead key="name-header">Name</TableHead>
-                  <TableHead key="address-header">Address</TableHead>
-                  <TableHead key="phone-header">Phone</TableHead>
-                  <TableHead key="email-header">Email</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile View - Cards */}
+              <div className="grid gap-4 sm:hidden">
                 {branches.map((branch) => (
-                  <TableRow key={branch._props.id}>
-                    <TableCell
-                      key={`${branch._props.id}-name`}
-                      className="font-medium"
-                    >
-                      {branch._props.name}
-                    </TableCell>
-                    <TableCell key={`${branch._props.id}-address`}>
-                      {branch._props.address}
-                    </TableCell>
-                    <TableCell key={`${branch._props.id}-phone`}>
-                      {branch._props.phone}
-                    </TableCell>
-                    <TableCell key={`${branch._props.id}-email`}>
-                      {branch._props.email}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {branches.length === 0 && (
-                  <TableRow key="no-branches">
-                    <TableCell
-                      key="no-branches-cell"
-                      colSpan={4}
-                      className="text-center py-8"
-                    >
-                      <div className="flex flex-col items-center gap-2">
-                        <Building2 className="h-8 w-8 text-muted-foreground" />
-                        <p className="text-lg font-medium">No branches found</p>
-                        <p className="text-sm text-muted-foreground">
-                          Your business doesn't have any branches yet. Click the
-                          "Create Branch" button to add your first branch.
-                        </p>
+                  <Card key={branch._props.id}>
+                    <CardContent className="pt-6">
+                      <div className="space-y-2">
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Name
+                          </p>
+                          <p className="font-medium">{branch._props.name}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Address
+                          </p>
+                          <p>{branch._props.address}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Phone
+                          </p>
+                          <p>{branch._props.phone}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Email
+                          </p>
+                          <p>{branch._props.email}</p>
+                        </div>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Desktop View - Table */}
+              <div className="hidden sm:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow key="header">
+                      <TableHead key="name-header" className="min-w-[200px]">
+                        Name
+                      </TableHead>
+                      <TableHead key="address-header" className="min-w-[200px]">
+                        Address
+                      </TableHead>
+                      <TableHead key="phone-header" className="min-w-[150px]">
+                        Phone
+                      </TableHead>
+                      <TableHead key="email-header" className="min-w-[200px]">
+                        Email
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {branches.map((branch) => (
+                      <TableRow key={branch._props.id}>
+                        <TableCell
+                          key={`${branch._props.id}-name`}
+                          className="font-medium"
+                        >
+                          {branch._props.name}
+                        </TableCell>
+                        <TableCell key={`${branch._props.id}-address`}>
+                          {branch._props.address}
+                        </TableCell>
+                        <TableCell key={`${branch._props.id}-phone`}>
+                          {branch._props.phone}
+                        </TableCell>
+                        <TableCell key={`${branch._props.id}-email`}>
+                          {branch._props.email}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

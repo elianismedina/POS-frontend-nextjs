@@ -14,7 +14,20 @@ interface User {
   business?: Array<{
     id: string;
     name: string;
+    branchLimit: number;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
   }>;
+}
+
+interface Business {
+  id: string;
+  name: string;
+  branchLimit: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface AuthContextType {

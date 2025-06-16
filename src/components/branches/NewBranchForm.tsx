@@ -15,8 +15,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
+import { Loader2 } from "lucide-react";
 
 const branchFormSchema = z.object({
   name: z.string().min(2, {
@@ -38,7 +39,10 @@ type BranchFormValues = z.infer<typeof branchFormSchema>;
 export function NewBranchForm() {
   const { token, user } = useAuth();
   const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [branchCount, setBranchCount] = useState<number>(0);
+  const [branchLimit, setBranchLimit] = useState<number>(0);
   const { toast } = useToast();
 
   const form = useForm<BranchFormValues>({
@@ -51,100 +55,93 @@ export function NewBranchForm() {
     },
   });
 
-  async function onSubmit(data: BranchFormValues) {
-    if (!token) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "No authentication token available",
-      });
+  useEffect(() => {
+    const fetchBranchCount = async () => {
+      if (!token || !user?.business?.[0]?.id) return;
+
+      try {
+        const businessId = user.business[0].id;
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/branches/business/${businessId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch branches");
+        }
+
+        const branches = await response.json();
+        setBranchCount(branches.length);
+        setBranchLimit(user.business[0].branchLimit);
+      } catch (err) {
+        console.error("Error fetching branch count:", err);
+      }
+    };
+
+    fetchBranchCount();
+  }, [token, user]);
+
+  const onSubmit = async (data: BranchFormValues) => {
+    if (!token || !user?.business?.[0]?.id) {
+      setError("No business associated with your account");
       return;
     }
 
-    if (!user?.business?.[0]?.id) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "No business associated with your account",
-      });
+    if (branchCount >= branchLimit) {
+      setError(
+        `You have reached the maximum number of branches (${branchLimit}) allowed for your business plan. Please upgrade your plan to add more branches.`
+      );
       return;
     }
 
-    setIsSubmitting(true);
+    setLoading(true);
+    setError(null);
+
     try {
       const businessId = user.business[0].id;
-      const baseUrl =
-        process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/v1$/, "") || "";
-      const url = `${baseUrl}/api/v1/branches/business/${businessId}`;
-
-      // Log the request data for debugging
-      console.log("Creating branch with data:", {
-        url,
-        data,
-        businessId,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: data.name.trim(),
-          address: data.address.trim(),
-          phone: data.phone.trim(),
-          email: data.email.trim(),
-        }),
-      });
-
-      const responseData = await response.json();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/branches/business/${businessId}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(data),
+        }
+      );
 
       if (!response.ok) {
-        console.error("Error response:", responseData);
-        if (response.status === 404) {
-          throw new Error("Business not found or is inactive");
-        } else if (response.status === 403) {
-          throw new Error(
-            "You do not have permission to create branches for this business"
-          );
-        } else if (response.status === 400) {
-          throw new Error(responseData.message || "Invalid branch data");
-        } else if (response.status === 500) {
-          throw new Error(
-            "Failed to create branch. Please check if the business is active and try again."
-          );
-        } else {
-          throw new Error(responseData.message || "Failed to create branch");
-        }
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create branch");
       }
 
-      console.log("Branch created successfully:", responseData);
       toast({
         title: "Success",
         description: "Branch created successfully",
       });
-      router.push(`/dashboard/admin/branches`);
-    } catch (error) {
-      console.error("Error creating branch:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description:
-          error instanceof Error ? error.message : "Failed to create branch",
-      });
+
+      router.push("/dashboard/admin/branches");
+    } catch (err) {
+      console.error("Error creating branch:", err);
+      setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {error && (
+          <div className="p-3 rounded-md bg-red-50 border border-red-200">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
         <FormField
           control={form.control}
           name="name"
@@ -158,7 +155,6 @@ export function NewBranchForm() {
             </FormItem>
           )}
         />
-
         <FormField
           control={form.control}
           name="address"
@@ -172,7 +168,6 @@ export function NewBranchForm() {
             </FormItem>
           )}
         />
-
         <FormField
           control={form.control}
           name="phone"
@@ -186,7 +181,6 @@ export function NewBranchForm() {
             </FormItem>
           )}
         />
-
         <FormField
           control={form.control}
           name="email"
@@ -194,27 +188,30 @@ export function NewBranchForm() {
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input
-                  placeholder="Enter email address"
-                  type="email"
-                  {...field}
-                />
+                <Input placeholder="Enter email address" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-
         <div className="flex justify-end gap-4">
           <Button
             type="button"
             variant="outline"
-            onClick={() => router.push("/dashboard/admin/branches")}
+            onClick={() => router.back()}
+            disabled={loading}
           >
             Cancel
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Creating..." : "Create Branch"}
+          <Button type="submit" disabled={loading}>
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              "Create Branch"
+            )}
           </Button>
         </div>
       </form>

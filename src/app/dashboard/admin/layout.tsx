@@ -34,11 +34,6 @@ export default function AdminLayout({
     );
   }
 
-  if (!isAuthenticated) {
-    router.replace("/");
-    return null;
-  }
-
   if (!isAuthenticated || user?.role?.name !== "admin") {
     return null;
   }

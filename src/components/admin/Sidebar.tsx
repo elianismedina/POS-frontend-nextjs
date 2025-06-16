@@ -24,6 +24,9 @@ import {
   LogOut,
   List,
   Layers,
+  Building2,
+  Calculator,
+  BarChart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -119,7 +122,7 @@ export function AdminSidebar() {
           <SidebarHeaderContent />
         </SidebarHeader>
         <SidebarContent>
-          <SidebarGroup>
+          <SidebarGroup key="main-nav">
             <SidebarItem
               icon={<LayoutDashboard className="h-4 w-4" />}
               label="Dashboard"
@@ -134,6 +137,12 @@ export function AdminSidebar() {
                 isActive={pathname.includes("/business")}
               />
             )}
+            <SidebarItem
+              icon={<Building2 className="h-4 w-4" />}
+              label="Branches"
+              href="/dashboard/admin/branches"
+              isActive={pathname.includes("/branches")}
+            />
             <SidebarItem
               icon={<Package className="h-4 w-4" />}
               label="Products"
@@ -153,6 +162,12 @@ export function AdminSidebar() {
               isActive={pathname.includes("/subcategories")}
             />
             <SidebarItem
+              icon={<Calculator className="h-4 w-4" />}
+              label="Taxes"
+              href="/dashboard/admin/taxes"
+              isActive={pathname.includes("/taxes")}
+            />
+            <SidebarItem
               icon={<ShoppingCart className="h-4 w-4" />}
               label="Orders"
               href="/dashboard/admin/orders"
@@ -165,7 +180,7 @@ export function AdminSidebar() {
               isActive={pathname.includes("/customers")}
             />
             <SidebarItem
-              icon={<Users className="h-4 w-4" />}
+              icon={<BarChart className="h-4 w-4" />}
               label="Reports"
               href="/dashboard/admin/reports"
               isActive={pathname.includes("/reports")}
@@ -173,7 +188,7 @@ export function AdminSidebar() {
           </SidebarGroup>
         </SidebarContent>
         <SidebarFooter>
-          <SidebarGroup>
+          <SidebarGroup key="footer-nav">
             <SidebarFooterContent />
           </SidebarGroup>
         </SidebarFooter>

@@ -55,6 +55,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error("User data missing role information");
       }
 
+      // Ensure business data is present for admin users
+      if (
+        response.data.role.name === "ADMIN" &&
+        (!response.data.business ||
+          !Array.isArray(response.data.business) ||
+          response.data.business.length === 0)
+      ) {
+        console.error("Admin user missing business information");
+        throw new Error("Admin user missing business information");
+      }
+
       setUser(response.data);
       return response.data;
     } catch (error) {

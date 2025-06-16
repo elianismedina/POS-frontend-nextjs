@@ -23,6 +23,7 @@ interface BusinessSettings {
   invoiceNumberCurrent?: number;
   invoiceExpirationMonths?: number;
   business_id?: string;
+  business_name?: string;
 }
 
 export default function BusinessProfilePage() {
@@ -44,6 +45,7 @@ export default function BusinessProfilePage() {
     invoiceNumberCurrent: 0,
     invoiceExpirationMonths: 0,
     business_id: "",
+    business_name: "",
   });
 
   useEffect(() => {
@@ -72,6 +74,7 @@ export default function BusinessProfilePage() {
         invoiceNumberCurrent: settingsData.invoice_number_current || 0,
         invoiceExpirationMonths: settingsData.invoice_expiration_months || 0,
         business_id: settingsData.business_id || "",
+        business_name: settingsData.business_name || "",
       });
     } catch (error: any) {
       console.error("Error fetching business data:", error);
@@ -140,7 +143,19 @@ export default function BusinessProfilePage() {
   return (
     <div className="container mx-auto px-4 py-6 md:py-10">
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
-        <h1 className="text-2xl md:text-3xl font-bold">Business Profile</h1>
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold">Business Profile</h1>
+          {settings.business_name && (
+            <p className="text-lg text-gray-600 mt-2">
+              {settings.business_name}
+            </p>
+          )}
+          {settings.business_id && (
+            <p className="text-sm text-gray-500 mt-1">
+              ID: {settings.business_id}
+            </p>
+          )}
+        </div>
         {!isEditing && !error && (
           <Button onClick={() => setIsEditing(true)}>
             <Pencil className="h-4 w-4 mr-2" />

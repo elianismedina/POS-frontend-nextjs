@@ -8,12 +8,20 @@ interface SubcategoriesListProps {
   subcategories: Subcategory[];
   isLoading: boolean;
   error: string | null;
+  onDeleteClick?: (subcategory: Subcategory) => void;
+  onReactivateClick?: (subcategory: Subcategory) => void;
+  isDeleting?: boolean;
+  isReactivating?: string | null;
 }
 
 export const SubcategoriesList: React.FC<SubcategoriesListProps> = ({
   subcategories,
   isLoading,
   error,
+  onDeleteClick,
+  onReactivateClick,
+  isDeleting = false,
+  isReactivating = null,
 }) => {
   if (isLoading) {
     return (
@@ -97,6 +105,27 @@ export const SubcategoriesList: React.FC<SubcategoriesListProps> = ({
                   Created:{" "}
                   {new Date(subcategory.createdAt).toLocaleDateString()}
                 </p>
+                <div className="mt-2 flex space-x-2">
+                  {subcategory.isActive ? (
+                    <button
+                      onClick={() => onDeleteClick?.(subcategory)}
+                      disabled={isDeleting}
+                      className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 disabled:opacity-50"
+                    >
+                      {isDeleting ? "Deleting..." : "Delete"}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => onReactivateClick?.(subcategory)}
+                      disabled={isReactivating === subcategory.id}
+                      className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {isReactivating === subcategory.id
+                        ? "Reactivating..."
+                        : "Reactivate"}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -137,6 +166,12 @@ export const SubcategoriesList: React.FC<SubcategoriesListProps> = ({
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
                 Created At
+              </th>
+              <th
+                scope="col"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Actions
               </th>
             </tr>
           </thead>
@@ -179,6 +214,27 @@ export const SubcategoriesList: React.FC<SubcategoriesListProps> = ({
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {new Date(subcategory.createdAt).toLocaleDateString()}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {subcategory.isActive ? (
+                    <button
+                      onClick={() => onDeleteClick?.(subcategory)}
+                      disabled={isDeleting}
+                      className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                    >
+                      {isDeleting ? "Deleting..." : "Delete"}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => onReactivateClick?.(subcategory)}
+                      disabled={isReactivating === subcategory.id}
+                      className="text-green-600 hover:text-green-900 disabled:opacity-50"
+                    >
+                      {isReactivating === subcategory.id
+                        ? "Reactivating..."
+                        : "Reactivate"}
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

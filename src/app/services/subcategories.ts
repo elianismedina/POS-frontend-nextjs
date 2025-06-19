@@ -19,6 +19,11 @@ export interface CreateSubcategoryData {
   isActive?: boolean;
 }
 
+export interface SoftDeleteSubcategoryResponse {
+  message: string;
+  subcategoryId: string;
+}
+
 export const subcategoriesService = {
   async list(categoryId?: string): Promise<Subcategory[]> {
     const response = await api.get("/subcategories", {
@@ -42,6 +47,20 @@ export const subcategoriesService = {
         "Content-Type": "application/json",
       },
     });
+    return response.data;
+  },
+
+  async softDeleteSubcategory(
+    subcategoryId: string
+  ): Promise<SoftDeleteSubcategoryResponse> {
+    const response = await api.delete(`/subcategories/${subcategoryId}/soft`);
+    return response.data;
+  },
+
+  async reactivateSubcategory(subcategoryId: string): Promise<Subcategory> {
+    const response = await api.patch(
+      `/subcategories/${subcategoryId}/reactivate`
+    );
     return response.data;
   },
 };

@@ -5,7 +5,6 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { api } from "@/lib/api";
 import { Plus } from "lucide-react";
 import {
   Table,
@@ -17,23 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
-
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  stock: number;
-  isActive: boolean;
-  businessId: string;
-  createdAt: string;
-  updatedAt: string;
-  discountable: boolean;
-  categoryId: string | null;
-  subcategoryId: string | null;
-  barcode: string | null;
-  imageUrl: string | null;
-}
+import { productsService, Product } from "@/app/services/products";
 
 export default function ProductsPage() {
   const { isAuthenticated, user, isLoading: authLoading } = useAuth();
@@ -73,18 +56,8 @@ export default function ProductsPage() {
 
       console.log("Fetching products for business ID:", businessId);
 
-      const response = await api.get(
-        `/products/business?businessId=${businessId}`
-      );
-
-      console.log("Products response:", response.data);
-
-      if (!response.data?.products) {
-        console.error("Invalid response format:", response.data);
-        throw new Error("Invalid response format from server");
-      }
-
-      setProducts(response.data.products);
+      const products = await productsService.getByBusinessId(businessId);
+      setProducts(products);
     } catch (error: any) {
       console.error("Error fetching products:", {
         message: error.message,

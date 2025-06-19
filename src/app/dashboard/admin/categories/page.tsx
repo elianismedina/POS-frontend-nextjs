@@ -2,10 +2,12 @@
 
 import React, { useEffect, useState } from "react";
 import { CategoryForm } from "@/components/categories/CategoryForm";
+import { EditCategoryForm } from "@/components/categories/EditCategoryForm";
 import {
   categoriesService,
   Category,
   CreateCategoryResponse,
+  UpdateCategoryResponse,
 } from "@/app/services/categories";
 
 const CategoriesPage = () => {
@@ -20,6 +22,16 @@ const CategoriesPage = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isReactivating, setIsReactivating] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showDeleteErrorModal, setShowDeleteErrorModal] = useState(false);
+  const [deleteErrorData, setDeleteErrorData] = useState<{
+    categoryName: string;
+    message: string;
+    subcategoryCount?: number;
+    subcategoryNames?: string[];
+  } | null>(null);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [categoryToEdit, setCategoryToEdit] = useState<Category | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const fetchCategories = async () => {
     try {
@@ -50,9 +62,32 @@ const CategoriesPage = () => {
     }, 3000);
   };
 
-  const handleDeleteClick = (category: Category) => {
-    setCategoryToDelete(category);
-    setShowDeleteConfirm(true);
+  const handleDeleteClick = async (category: Category) => {
+    try {
+      // Check if category can be deleted before showing confirmation
+      const checkResult = await categoriesService.checkCategoryDeletable(
+        category.id
+      );
+
+      if (!checkResult.canDelete) {
+        // Show error modal with detailed information
+        setDeleteErrorData({
+          categoryName: category.name,
+          message: checkResult.message || "Cannot delete this category",
+          subcategoryCount: checkResult.subcategoryCount,
+          subcategoryNames: checkResult.subcategoryNames,
+        });
+        setShowDeleteErrorModal(true);
+        return;
+      }
+
+      // If category can be deleted, show confirmation dialog
+      setCategoryToDelete(category);
+      setShowDeleteConfirm(true);
+    } catch (err: any) {
+      console.error("Error checking category deletability:", err);
+      setError("Failed to check if category can be deleted. Please try again.");
+    }
   };
 
   const handleDeleteConfirm = async () => {
@@ -73,7 +108,7 @@ const CategoriesPage = () => {
       setTimeout(() => {
         setSuccessMessage(null);
       }, 3000);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error deleting category:", err);
       setError("Failed to delete category. Please try again.");
     } finally {
@@ -84,6 +119,28 @@ const CategoriesPage = () => {
   const handleDeleteCancel = () => {
     setShowDeleteConfirm(false);
     setCategoryToDelete(null);
+  };
+
+  const handleEditClick = (category: Category) => {
+    setCategoryToEdit(category);
+    setShowEditForm(true);
+  };
+
+  const handleEditSuccess = (response: UpdateCategoryResponse) => {
+    setShowEditForm(false);
+    setCategoryToEdit(null);
+    setSuccessMessage(`Category "${response.name}" was updated successfully`);
+    fetchCategories();
+
+    // Clear success message after 3 seconds
+    setTimeout(() => {
+      setSuccessMessage(null);
+    }, 3000);
+  };
+
+  const handleEditCancel = () => {
+    setShowEditForm(false);
+    setCategoryToEdit(null);
   };
 
   const handleReactivate = async (category: Category) => {
@@ -107,19 +164,6 @@ const CategoriesPage = () => {
     }
   };
 
-  const handleDebug = async () => {
-    try {
-      const debugData = await categoriesService.debugCategories();
-      console.log("Debug data:", debugData);
-      setSuccessMessage(
-        `Debug completed. Check console for details. Total categories: ${debugData.totalCategories}`
-      );
-    } catch (err) {
-      console.error("Error debugging categories:", err);
-      setError("Failed to debug categories. Please try again.");
-    }
-  };
-
   // Separate active and inactive categories
   const activeCategories = categories.filter((category) => category.isActive);
   const inactiveCategories = categories.filter(
@@ -131,12 +175,6 @@ const CategoriesPage = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Categories</h1>
         <div className="flex space-x-2">
-          <button
-            onClick={handleDebug}
-            className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-          >
-            Debug
-          </button>
           <button
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             onClick={() => setShowCreateForm(true)}
@@ -214,6 +252,110 @@ const CategoriesPage = () => {
         </div>
       )}
 
+      {/* Delete Error Modal */}
+      {showDeleteErrorModal && deleteErrorData && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                <svg
+                  className="h-6 w-6 text-red-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4 text-center">
+                Cannot Delete Category
+              </h3>
+              <div className="text-sm text-gray-600 mb-6">
+                <p className="mb-3">
+                  <strong>"{deleteErrorData.categoryName}"</strong> cannot be
+                  deleted because it has associated subcategories.
+                </p>
+                {deleteErrorData.subcategoryCount &&
+                  deleteErrorData.subcategoryCount > 0 && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-3">
+                      <p className="text-yellow-800 font-medium mb-2">
+                        Associated Subcategories (
+                        {deleteErrorData.subcategoryCount}):
+                      </p>
+                      {deleteErrorData.subcategoryNames &&
+                        deleteErrorData.subcategoryNames.length > 0 && (
+                          <ul className="list-disc list-inside text-yellow-700 space-y-1">
+                            {deleteErrorData.subcategoryNames.map(
+                              (name, index) => (
+                                <li key={index}>{name}</li>
+                              )
+                            )}
+                          </ul>
+                        )}
+                    </div>
+                  )}
+                <p className="text-gray-700">
+                  Please delete or reassign these subcategories before deleting
+                  the category.
+                </p>
+              </div>
+              <div className="flex justify-center">
+                <button
+                  onClick={() => {
+                    setShowDeleteErrorModal(false);
+                    setDeleteErrorData(null);
+                  }}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                >
+                  Back to Categories
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Category Modal */}
+      {showEditForm && categoryToEdit && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">
+                Edit Category
+              </h3>
+              <EditCategoryForm
+                category={categoryToEdit}
+                onSubmit={async (data) => {
+                  setIsUpdating(true);
+                  try {
+                    const response = await categoriesService.updateCategory(
+                      categoryToEdit.id,
+                      data
+                    );
+                    handleEditSuccess(response);
+                  } catch (err: any) {
+                    console.error("Error updating category:", err);
+                    setError(
+                      err.response?.data?.message ||
+                        "Failed to update category. Please try again."
+                    );
+                  } finally {
+                    setIsUpdating(false);
+                  }
+                }}
+                onCancel={handleEditCancel}
+                isLoading={isUpdating}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white shadow rounded-lg">
         {isLoading ? (
           <div className="p-4 text-center">Loading...</div>
@@ -268,9 +410,7 @@ const CategoriesPage = () => {
                       )}
                       <div className="flex justify-end space-x-2">
                         <button
-                          onClick={() => {
-                            // TODO: Implement edit functionality
-                          }}
+                          onClick={() => handleEditClick(category)}
                           className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
                         >
                           Edit

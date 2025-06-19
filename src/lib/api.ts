@@ -9,7 +9,7 @@ export const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true,
+  withCredentials: false,
 });
 
 // Request interceptor
@@ -33,7 +33,6 @@ api.interceptors.response.use(
   },
   async (error) => {
     if (error.response?.status === 401) {
-      // Clear token and redirect to login
       localStorage.removeItem("token");
       localStorage.removeItem("refreshToken");
       window.location.href = "/";

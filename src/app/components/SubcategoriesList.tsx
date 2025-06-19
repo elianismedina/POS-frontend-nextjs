@@ -10,6 +10,7 @@ interface SubcategoriesListProps {
   error: string | null;
   onDeleteClick?: (subcategory: Subcategory) => void;
   onReactivateClick?: (subcategory: Subcategory) => void;
+  onEditClick?: (subcategory: Subcategory) => void;
   isDeleting?: boolean;
   isReactivating?: string | null;
 }
@@ -20,6 +21,7 @@ export const SubcategoriesList: React.FC<SubcategoriesListProps> = ({
   error,
   onDeleteClick,
   onReactivateClick,
+  onEditClick,
   isDeleting = false,
   isReactivating = null,
 }) => {
@@ -106,6 +108,12 @@ export const SubcategoriesList: React.FC<SubcategoriesListProps> = ({
                   {new Date(subcategory.createdAt).toLocaleDateString()}
                 </p>
                 <div className="mt-2 flex space-x-2">
+                  <button
+                    onClick={() => onEditClick?.(subcategory)}
+                    className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
+                  >
+                    Edit
+                  </button>
                   {subcategory.isActive ? (
                     <button
                       onClick={() => onDeleteClick?.(subcategory)}
@@ -216,25 +224,33 @@ export const SubcategoriesList: React.FC<SubcategoriesListProps> = ({
                   {new Date(subcategory.createdAt).toLocaleDateString()}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {subcategory.isActive ? (
+                  <div className="flex space-x-2">
                     <button
-                      onClick={() => onDeleteClick?.(subcategory)}
-                      disabled={isDeleting}
-                      className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                      onClick={() => onEditClick?.(subcategory)}
+                      className="text-blue-600 hover:text-blue-900"
                     >
-                      {isDeleting ? "Deleting..." : "Delete"}
+                      Edit
                     </button>
-                  ) : (
-                    <button
-                      onClick={() => onReactivateClick?.(subcategory)}
-                      disabled={isReactivating === subcategory.id}
-                      className="text-green-600 hover:text-green-900 disabled:opacity-50"
-                    >
-                      {isReactivating === subcategory.id
-                        ? "Reactivating..."
-                        : "Reactivate"}
-                    </button>
-                  )}
+                    {subcategory.isActive ? (
+                      <button
+                        onClick={() => onDeleteClick?.(subcategory)}
+                        disabled={isDeleting}
+                        className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                      >
+                        {isDeleting ? "Deleting..." : "Delete"}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => onReactivateClick?.(subcategory)}
+                        disabled={isReactivating === subcategory.id}
+                        className="text-green-600 hover:text-green-900 disabled:opacity-50"
+                      >
+                        {isReactivating === subcategory.id
+                          ? "Reactivating..."
+                          : "Reactivate"}
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

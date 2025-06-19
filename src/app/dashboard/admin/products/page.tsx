@@ -17,6 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { productsService, Product } from "@/app/services/products";
+import { CreateProductForm } from "@/components/products/CreateProductForm";
 
 export default function ProductsPage() {
   const { isAuthenticated, user, isLoading: authLoading } = useAuth();
@@ -24,6 +25,7 @@ export default function ProductsPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
     if (!authLoading) {
@@ -84,6 +86,19 @@ export default function ProductsPage() {
     }
   };
 
+  const handleCreateSuccess = (newProduct: Product) => {
+    setShowCreateModal(false);
+    setProducts((prev) => [...prev, newProduct]);
+    toast({
+      title: "Success",
+      description: `Product "${newProduct.name}" created successfully`,
+    });
+  };
+
+  const handleCreateCancel = () => {
+    setShowCreateModal(false);
+  };
+
   if (!isAuthenticated) {
     router.replace("/");
     return null;
@@ -106,12 +121,10 @@ export default function ProductsPage() {
     <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Products</h1>
-        {products.length > 0 && (
-          <Button onClick={() => router.push("/dashboard/admin/products/new")}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Product
-          </Button>
-        )}
+        <Button onClick={() => setShowCreateModal(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Product
+        </Button>
       </div>
 
       {products.length === 0 ? (
@@ -141,7 +154,7 @@ export default function ProductsPage() {
                 Products help you manage your stock and sales effectively.
               </p>
               <Button
-                onClick={() => router.push("/dashboard/admin/products/new")}
+                onClick={() => setShowCreateModal(true)}
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -202,6 +215,45 @@ export default function ProductsPage() {
             </Table>
           </CardContent>
         </Card>
+      )}
+
+      {/* Create Product Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Create New Product
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCreateCancel}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </Button>
+              </div>
+              <CreateProductForm
+                onSuccess={handleCreateSuccess}
+                onCancel={handleCreateCancel}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

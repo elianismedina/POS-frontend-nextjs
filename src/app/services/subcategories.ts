@@ -19,6 +19,27 @@ export interface CreateSubcategoryData {
   isActive?: boolean;
 }
 
+export interface UpdateSubcategoryData {
+  name: string;
+  description?: string;
+  imageUrl?: string;
+  isActive?: boolean;
+  categoryId: string;
+}
+
+export interface UpdateSubcategoryResponse {
+  id: string;
+  name: string;
+  description?: string;
+  imageUrl?: string;
+  isActive: boolean;
+  categoryId: string;
+  businessId: string;
+  createdAt: string;
+  updatedAt: string;
+  message: string;
+}
+
 export interface SoftDeleteSubcategoryResponse {
   message: string;
   subcategoryId: string;
@@ -47,6 +68,14 @@ export const subcategoriesService = {
         "Content-Type": "application/json",
       },
     });
+    return response.data;
+  },
+
+  async updateSubcategory(
+    subcategoryId: string,
+    data: UpdateSubcategoryData
+  ): Promise<UpdateSubcategoryResponse> {
+    const response = await api.put(`/subcategories/${subcategoryId}`, data);
     return response.data;
   },
 

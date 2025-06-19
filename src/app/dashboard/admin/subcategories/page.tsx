@@ -6,8 +6,10 @@ import {
   subcategoriesService,
   Subcategory,
   SoftDeleteSubcategoryResponse,
+  UpdateSubcategoryResponse,
 } from "@/app/services/subcategories";
 import { CreateSubcategoryForm } from "../../../components/CreateSubcategoryForm";
+import { EditSubcategoryForm } from "@/components/subcategories/EditSubcategoryForm";
 
 const SubcategoriesPage = () => {
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
@@ -20,6 +22,10 @@ const SubcategoriesPage = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isReactivating, setIsReactivating] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [subcategoryToEdit, setSubcategoryToEdit] =
+    useState<Subcategory | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const fetchSubcategories = async () => {
     try {
@@ -83,6 +89,54 @@ const SubcategoriesPage = () => {
   const handleDeleteCancel = () => {
     setShowDeleteConfirm(false);
     setSubcategoryToDelete(null);
+  };
+
+  const handleEditClick = (subcategory: Subcategory) => {
+    setSubcategoryToEdit(subcategory);
+    setShowEditForm(true);
+  };
+
+  const handleEditSuccess = (response: UpdateSubcategoryResponse) => {
+    setShowEditForm(false);
+    setSubcategoryToEdit(null);
+    setSuccessMessage(
+      `Subcategory "${response.name}" was updated successfully`
+    );
+    fetchSubcategories();
+
+    // Clear success message after 3 seconds
+    setTimeout(() => {
+      setSuccessMessage(null);
+    }, 3000);
+  };
+
+  const handleEditCancel = () => {
+    setShowEditForm(false);
+    setSubcategoryToEdit(null);
+  };
+
+  const handleEditSubmit = async (data: {
+    name: string;
+    description?: string;
+    imageUrl?: string;
+    isActive?: boolean;
+    categoryId: string;
+  }) => {
+    if (!subcategoryToEdit) return;
+
+    setIsUpdating(true);
+    try {
+      const response = await subcategoriesService.updateSubcategory(
+        subcategoryToEdit.id,
+        data
+      );
+      handleEditSuccess(response);
+    } catch (err: any) {
+      console.error("Error updating subcategory:", err);
+      setError("Failed to update subcategory. Please try again.");
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const handleReactivate = async (subcategory: Subcategory) => {
@@ -165,6 +219,7 @@ const SubcategoriesPage = () => {
               error={null}
               onDeleteClick={handleDeleteClick}
               onReactivateClick={handleReactivate}
+              onEditClick={handleEditClick}
               isDeleting={isDeleting}
               isReactivating={isReactivating}
             />
@@ -185,6 +240,7 @@ const SubcategoriesPage = () => {
               error={null}
               onDeleteClick={handleDeleteClick}
               onReactivateClick={handleReactivate}
+              onEditClick={handleEditClick}
               isDeleting={isDeleting}
               isReactivating={isReactivating}
             />
@@ -211,6 +267,45 @@ const SubcategoriesPage = () => {
               onSuccess={handleCreateSuccess}
               onCancel={() => setShowCreateForm(false)}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Edit Form Modal */}
+      {showEditForm && subcategoryToEdit && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Edit Subcategory
+                </h2>
+                <button
+                  onClick={handleEditCancel}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <EditSubcategoryForm
+                subcategory={subcategoryToEdit}
+                onSubmit={handleEditSubmit}
+                onCancel={handleEditCancel}
+                isLoading={isUpdating}
+              />
+            </div>
           </div>
         </div>
       )}

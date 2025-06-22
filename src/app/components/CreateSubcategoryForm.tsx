@@ -149,6 +149,7 @@ export const CreateSubcategoryForm: React.FC<CreateSubcategoryFormProps> = ({
                       alt="Preview"
                       width={128}
                       height={128}
+                      priority
                       className="h-32 w-32 object-cover rounded-lg mx-auto"
                     />
                     <button

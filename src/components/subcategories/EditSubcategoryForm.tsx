@@ -259,8 +259,8 @@ export const EditSubcategoryForm: React.FC<EditSubcategoryFormProps> = ({
             ) : (
               <CloudinaryUploadWidget
                 onUpload={handleImageUpload}
-                folder="subcategories"
-                className="w-full"
+                uploadPreset="pos-upload-preset"
+                buttonText="Upload Image"
               />
             )}
           </div>

@@ -316,8 +316,8 @@ export const CreateProductForm: React.FC<CreateProductFormProps> = ({
           <Label>Product Image</Label>
           <CloudinaryUploadWidget
             onUpload={handleImageUpload}
-            folder="products"
-            className="mt-2"
+            uploadPreset="pos-upload-preset"
+            buttonText="Upload Product Image"
           />
           {imageUrl && (
             <div className="mt-2">

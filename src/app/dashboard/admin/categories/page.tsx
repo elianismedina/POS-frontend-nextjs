@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { CategoryForm } from "@/components/categories/CategoryForm";
 import { EditCategoryForm } from "@/components/categories/EditCategoryForm";
+import { CategoriesList } from "@/app/components/CategoriesList";
 import {
   categoriesService,
   Category,
@@ -164,24 +165,28 @@ const CategoriesPage = () => {
     }
   };
 
-  // Separate active and inactive categories
-  const activeCategories = categories.filter((category) => category.isActive);
-  const inactiveCategories = categories.filter(
-    (category) => !category.isActive
-  );
-
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Categories</h1>
-        <div className="flex space-x-2">
-          <button
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            onClick={() => setShowCreateForm(true)}
+        <button
+          className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center gap-2"
+          onClick={() => setShowCreateForm(true)}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5"
+            viewBox="0 0 20 20"
+            fill="currentColor"
           >
-            Add Category
-          </button>
-        </div>
+            <path
+              fillRule="evenodd"
+              d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
+              clipRule="evenodd"
+            />
+          </svg>
+          Add Category
+        </button>
       </div>
 
       {/* Success Message */}
@@ -198,6 +203,19 @@ const CategoriesPage = () => {
         </div>
       )}
 
+      {/* Categories List */}
+      <CategoriesList
+        categories={categories}
+        isLoading={isLoading}
+        error={error}
+        onDeleteClick={handleDeleteClick}
+        onReactivateClick={handleReactivate}
+        onEditClick={handleEditClick}
+        isDeleting={isDeleting}
+        isReactivating={isReactivating}
+      />
+
+      {/* Create Category Modal */}
       {showCreateForm && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
@@ -355,155 +373,6 @@ const CategoriesPage = () => {
           </div>
         </div>
       )}
-
-      <div className="bg-white shadow rounded-lg">
-        {isLoading ? (
-          <div className="p-4 text-center">Loading...</div>
-        ) : error ? (
-          <div className="p-4 text-red-600">{error}</div>
-        ) : (
-          <div className="p-6">
-            {/* Active Categories Section */}
-            <div className="mb-8">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                Active Categories ({activeCategories.length})
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {activeCategories.map((category) => (
-                  <div
-                    key={category.id}
-                    className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 border border-green-200"
-                  >
-                    <div className="relative h-48 bg-gray-200">
-                      {category.imageUrl ? (
-                        <img
-                          src={category.imageUrl}
-                          alt={category.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            console.error(
-                              "Error loading image:",
-                              category.imageUrl
-                            );
-                            e.currentTarget.src = "";
-                          }}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                          <span className="text-gray-400">No image</span>
-                        </div>
-                      )}
-                      <div className="absolute top-2 right-2">
-                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                          Active
-                        </span>
-                      </div>
-                    </div>
-                    <div className="p-4">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        {category.name}
-                      </h3>
-                      {category.description && (
-                        <p className="text-sm text-gray-600 mb-4">
-                          {category.description}
-                        </p>
-                      )}
-                      <div className="flex justify-end space-x-2">
-                        <button
-                          onClick={() => handleEditClick(category)}
-                          className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteClick(category)}
-                          className="text-red-600 hover:text-red-900 text-sm font-medium"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Inactive Categories Section */}
-            {inactiveCategories.length > 0 && (
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  Inactive Categories ({inactiveCategories.length})
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {inactiveCategories.map((category) => (
-                    <div
-                      key={category.id}
-                      className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 border border-red-200 opacity-75"
-                    >
-                      <div className="relative h-48 bg-gray-200">
-                        {category.imageUrl ? (
-                          <img
-                            src={category.imageUrl}
-                            alt={category.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              console.error(
-                                "Error loading image:",
-                                category.imageUrl
-                              );
-                              e.currentTarget.src = "";
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                            <span className="text-gray-400">No image</span>
-                          </div>
-                        )}
-                        <div className="absolute top-2 right-2">
-                          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
-                            Inactive
-                          </span>
-                        </div>
-                      </div>
-                      <div className="p-4">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                          {category.name}
-                        </h3>
-                        {category.description && (
-                          <p className="text-sm text-gray-600 mb-4">
-                            {category.description}
-                          </p>
-                        )}
-                        <div className="flex justify-end space-x-2">
-                          <button
-                            onClick={() => handleReactivate(category)}
-                            disabled={isReactivating === category.id}
-                            className="text-green-600 hover:text-green-900 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {isReactivating === category.id
-                              ? "Reactivating..."
-                              : "Reactivate"}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* No Categories Message */}
-            {categories.length === 0 && (
-              <div className="text-center py-8">
-                <p className="text-gray-500">
-                  No categories found. Create your first category to get
-                  started.
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
     </div>
   );
 };

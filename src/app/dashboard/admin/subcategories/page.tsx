@@ -28,13 +28,14 @@ const SubcategoriesPage = () => {
   const [isUpdating, setIsUpdating] = useState(false);
 
   const fetchSubcategories = async () => {
+    setIsLoading(true);
+    setError(null);
     try {
-      const response = await subcategoriesService.list();
-      setSubcategories(response);
-      setError(null);
-    } catch (err) {
-      setError("Failed to load subcategories. Please try again later.");
+      const data = await subcategoriesService.list();
+      setSubcategories(data);
+    } catch (err: any) {
       console.error("Error fetching subcategories:", err);
+      setError("Failed to load subcategories");
     } finally {
       setIsLoading(false);
     }
@@ -65,14 +66,25 @@ const SubcategoriesPage = () => {
 
     setIsDeleting(true);
     try {
-      await subcategoriesService.softDeleteSubcategory(subcategoryToDelete.id);
+      const response = await subcategoriesService.softDeleteSubcategory(
+        subcategoryToDelete.id
+      );
       setShowDeleteConfirm(false);
       setSubcategoryToDelete(null);
-      setSuccessMessage(
-        `Subcategory "${subcategoryToDelete.name}" was deleted successfully`
-      );
+
+      // Show appropriate message based on whether it was already deleted
+      if (response.wasAlreadyDeleted) {
+        setSuccessMessage(
+          `Subcategory "${subcategoryToDelete.name}" was already deleted`
+        );
+      } else {
+        setSuccessMessage(
+          `Subcategory "${subcategoryToDelete.name}" was deleted successfully`
+        );
+      }
+
       // Refresh the subcategories list
-      fetchSubcategories();
+      await fetchSubcategories();
 
       // Clear success message after 3 seconds
       setTimeout(() => {

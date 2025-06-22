@@ -43,6 +43,7 @@ export interface UpdateSubcategoryResponse {
 export interface SoftDeleteSubcategoryResponse {
   message: string;
   subcategoryId: string;
+  wasAlreadyDeleted: boolean;
 }
 
 export const subcategoriesService = {

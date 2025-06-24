@@ -12,6 +12,7 @@ import {
   TrendingUp,
   Clock,
 } from "lucide-react";
+import { ShiftManager } from "@/components/cashier/ShiftManager";
 
 export default function CashierDashboard() {
   const { user, isLoading } = useAuth();
@@ -70,14 +71,22 @@ export default function CashierDashboard() {
   ];
 
   return (
-    <div className="container mx-auto py-10">
+    <div className="container mx-auto py-6 md:py-10 px-4">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Welcome, {user?.name}</h1>
+        <h1 className="text-2xl md:text-3xl font-bold">
+          Welcome, {user?.name}
+        </h1>
         <p className="text-muted-foreground">
           Here's what's happening with your sales today
         </p>
       </div>
 
+      {/* Shift Management Section */}
+      <div className="mb-8">
+        <ShiftManager />
+      </div>
+
+      {/* Stats Section */}
       <div className="grid gap-4 md:grid-cols-3 mb-8">
         {stats.map((stat) => (
           <Card key={stat.title}>
@@ -94,6 +103,7 @@ export default function CashierDashboard() {
         ))}
       </div>
 
+      {/* Quick Actions Section */}
       <h2 className="text-2xl font-bold mb-4">Quick Actions</h2>
       <div className="grid gap-4 md:grid-cols-3">
         {quickActions.map((action) => (

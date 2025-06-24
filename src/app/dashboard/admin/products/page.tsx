@@ -46,6 +46,9 @@ export default function ProductsPage() {
       }
 
       const businessId = user.business[0].id;
+      console.log("User object:", user);
+      console.log("Business array:", user.business);
+      console.log("Selected business ID:", businessId);
 
       // Validate business ID format
       if (
@@ -60,7 +63,19 @@ export default function ProductsPage() {
       console.log("Fetching products for business ID:", businessId);
 
       const products = await productsService.getByBusinessId(businessId);
-      setProducts(products);
+      console.log("Raw API response:", products);
+      console.log("First product:", products[0]);
+      console.log("First product price:", products[0]?.price);
+      console.log("First product price type:", typeof products[0]?.price);
+
+      // Filter out products with missing essential data
+      const validProducts = products.filter((product) => {
+        return (
+          product && product.name && product.name.trim() !== "" && product.id
+        );
+      });
+
+      setProducts(validProducts);
     } catch (error: any) {
       console.error("Error fetching products:", {
         message: error.message,
@@ -185,8 +200,8 @@ export default function ProductsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {products.map((product) => (
-                    <TableRow key={product.id}>
+                  {products.map((product, index) => (
+                    <TableRow key={product.id || `product-${index}`}>
                       <TableCell>
                         {product.imageUrl ? (
                           <div className="relative w-12 h-12 rounded-lg overflow-hidden">
@@ -217,10 +232,15 @@ export default function ProductsPage() {
                         )}
                       </TableCell>
                       <TableCell className="font-medium">
-                        {product.name}
+                        {product.name || "Unnamed Product"}
                       </TableCell>
-                      <TableCell>${product.price.toFixed(2)}</TableCell>
-                      <TableCell>{product.stock}</TableCell>
+                      <TableCell>
+                        $
+                        {typeof product.price === "number"
+                          ? product.price.toFixed(2)
+                          : "0.00"}
+                      </TableCell>
+                      <TableCell>{product.stock || 0}</TableCell>
                       <TableCell>
                         <Badge
                           variant={product.isActive ? "default" : "secondary"}
@@ -252,8 +272,11 @@ export default function ProductsPage() {
 
             {/* Mobile Card View */}
             <div className="md:hidden space-y-4">
-              {products.map((product) => (
-                <Card key={product.id} className="overflow-hidden">
+              {products.map((product, index) => (
+                <Card
+                  key={product.id || `product-${index}`}
+                  className="overflow-hidden"
+                >
                   <CardContent className="p-4">
                     <div className="flex items-start space-x-4">
                       {/* Product Image */}
@@ -292,7 +315,7 @@ export default function ProductsPage() {
                         {/* Product Name - More Prominent */}
                         <div className="mb-3">
                           <h3 className="text-xl font-bold text-gray-900 leading-tight">
-                            {product.name}
+                            {product.name || "Unnamed Product"}
                           </h3>
                         </div>
 
@@ -311,7 +334,10 @@ export default function ProductsPage() {
                               Price:
                             </span>
                             <span className="text-sm text-gray-900 font-semibold">
-                              ${product.price.toFixed(2)}
+                              $
+                              {typeof product.price === "number"
+                                ? product.price.toFixed(2)
+                                : "0.00"}
                             </span>
                           </div>
 
@@ -320,7 +346,7 @@ export default function ProductsPage() {
                               Stock:
                             </span>
                             <span className="text-sm text-gray-900">
-                              {product.stock} units
+                              {product.stock || 0} units
                             </span>
                           </div>
 

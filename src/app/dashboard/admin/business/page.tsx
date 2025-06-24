@@ -7,15 +7,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { api } from "@/lib/api";
 import { Pencil } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/components/ui/use-toast";
+import { CloudinaryUploadWidget } from "@/components/shared/CloudinaryUploadWidget";
+import { businessService, BusinessSettings } from "@/app/services/business";
 
-interface BusinessSettings {
+interface LocalBusinessSettings {
   address?: string;
   phone?: string;
   email?: string;
+  imageUrl?: string;
   taxId?: string;
   invoiceNumberPrefix?: string;
   invoiceNumberStart?: number;
@@ -34,10 +36,11 @@ export default function BusinessProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [settings, setSettings] = useState<BusinessSettings>({
+  const [localSettings, setLocalSettings] = useState<LocalBusinessSettings>({
     address: "",
     phone: "",
     email: "",
+    imageUrl: "",
     taxId: "",
     invoiceNumberPrefix: "",
     invoiceNumberStart: 0,
@@ -60,13 +63,13 @@ export default function BusinessProfilePage() {
 
   const fetchBusinessData = async () => {
     try {
-      const settingsResponse = await api.get("/business/current/settings");
-      const settingsData = settingsResponse.data;
+      const settingsData = await businessService.getCurrentSettings();
 
-      setSettings({
+      setLocalSettings({
         address: settingsData.address || "",
         phone: settingsData.phone || "",
         email: settingsData.email || "",
+        imageUrl: settingsData.image_url || "",
         taxId: settingsData.tax_id || "",
         invoiceNumberPrefix: settingsData.invoice_number_prefix || "",
         invoiceNumberStart: settingsData.invoice_number_start || 0,
@@ -94,20 +97,21 @@ export default function BusinessProfilePage() {
     setError(null);
 
     try {
-      if (!settings.business_id) {
+      if (!localSettings.business_id) {
         throw new Error("No business ID found");
       }
 
-      await api.patch(`/business/${settings.business_id}/settings`, {
-        address: settings.address,
-        phone: settings.phone,
-        email: settings.email,
-        tax_id: settings.taxId,
-        invoice_number_prefix: settings.invoiceNumberPrefix,
-        invoice_number_start: settings.invoiceNumberStart,
-        invoice_number_end: settings.invoiceNumberEnd,
-        invoice_number_current: settings.invoiceNumberCurrent,
-        invoice_expiration_months: settings.invoiceExpirationMonths,
+      await businessService.updateSettings(localSettings.business_id, {
+        address: localSettings.address,
+        phone: localSettings.phone,
+        email: localSettings.email,
+        image_url: localSettings.imageUrl,
+        tax_id: localSettings.taxId,
+        invoice_number_prefix: localSettings.invoiceNumberPrefix,
+        invoice_number_start: localSettings.invoiceNumberStart,
+        invoice_number_end: localSettings.invoiceNumberEnd,
+        invoice_number_current: localSettings.invoiceNumberCurrent,
+        invoice_expiration_months: localSettings.invoiceExpirationMonths,
       });
 
       setIsEditing(false);
@@ -143,18 +147,29 @@ export default function BusinessProfilePage() {
   return (
     <div className="container mx-auto px-4 py-6 md:py-10">
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Business Profile</h1>
-          {settings.business_name && (
-            <p className="text-lg text-gray-600 mt-2">
-              {settings.business_name}
-            </p>
+        <div className="flex items-center space-x-4">
+          {localSettings.imageUrl && (
+            <div className="flex-shrink-0">
+              <img
+                src={localSettings.imageUrl}
+                alt="Business Logo"
+                className="w-16 h-16 object-cover rounded-lg border shadow-sm"
+              />
+            </div>
           )}
-          {settings.business_id && (
-            <p className="text-sm text-gray-500 mt-1">
-              ID: {settings.business_id}
-            </p>
-          )}
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold">Business Profile</h1>
+            {localSettings.business_name && (
+              <p className="text-lg text-gray-600 mt-2">
+                {localSettings.business_name}
+              </p>
+            )}
+            {localSettings.business_id && (
+              <p className="text-sm text-gray-500 mt-1">
+                ID: {localSettings.business_id}
+              </p>
+            )}
+          </div>
         </div>
         {!isEditing && !error && (
           <Button onClick={() => setIsEditing(true)}>
@@ -178,13 +193,42 @@ export default function BusinessProfilePage() {
           <CardContent>
             {isEditing ? (
               <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="space-y-4">
+                  <Label>Business Logo</Label>
+                  <div className="flex items-center space-x-4">
+                    {localSettings.imageUrl && (
+                      <div className="flex-shrink-0">
+                        <img
+                          src={localSettings.imageUrl}
+                          alt="Business Logo"
+                          className="w-20 h-20 object-cover rounded-lg border"
+                        />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <CloudinaryUploadWidget
+                        onUpload={(url) =>
+                          setLocalSettings({ ...localSettings, imageUrl: url })
+                        }
+                        uploadPreset="pos-upload-preset"
+                        buttonText={
+                          localSettings.imageUrl ? "Change Logo" : "Upload Logo"
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="address">Address</Label>
                   <Input
                     id="address"
-                    value={settings.address || ""}
+                    value={localSettings.address || ""}
                     onChange={(e) =>
-                      setSettings({ ...settings, address: e.target.value })
+                      setLocalSettings({
+                        ...localSettings,
+                        address: e.target.value,
+                      })
                     }
                   />
                 </div>
@@ -193,9 +237,12 @@ export default function BusinessProfilePage() {
                   <Label htmlFor="phone">Phone</Label>
                   <Input
                     id="phone"
-                    value={settings.phone || ""}
+                    value={localSettings.phone || ""}
                     onChange={(e) =>
-                      setSettings({ ...settings, phone: e.target.value })
+                      setLocalSettings({
+                        ...localSettings,
+                        phone: e.target.value,
+                      })
                     }
                   />
                 </div>
@@ -205,9 +252,12 @@ export default function BusinessProfilePage() {
                   <Input
                     id="email"
                     type="email"
-                    value={settings.email || ""}
+                    value={localSettings.email || ""}
                     onChange={(e) =>
-                      setSettings({ ...settings, email: e.target.value })
+                      setLocalSettings({
+                        ...localSettings,
+                        email: e.target.value,
+                      })
                     }
                   />
                 </div>
@@ -216,9 +266,12 @@ export default function BusinessProfilePage() {
                   <Label htmlFor="taxId">Tax ID</Label>
                   <Input
                     id="taxId"
-                    value={settings.taxId || ""}
+                    value={localSettings.taxId || ""}
                     onChange={(e) =>
-                      setSettings({ ...settings, taxId: e.target.value })
+                      setLocalSettings({
+                        ...localSettings,
+                        taxId: e.target.value,
+                      })
                     }
                   />
                 </div>
@@ -244,21 +297,37 @@ export default function BusinessProfilePage() {
               </form>
             ) : (
               <div className="space-y-4">
+                {/* Logo Display */}
+                {localSettings.imageUrl && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 mb-2">
+                      Business Logo
+                    </h3>
+                    <div className="flex items-center space-x-4">
+                      <img
+                        src={localSettings.imageUrl}
+                        alt="Business Logo"
+                        className="w-24 h-24 object-cover rounded-lg border shadow-sm"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Address</h3>
-                  <p className="mt-1">{settings.address || "Not set"}</p>
+                  <p className="mt-1">{localSettings.address || "Not set"}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Phone</h3>
-                  <p className="mt-1">{settings.phone || "Not set"}</p>
+                  <p className="mt-1">{localSettings.phone || "Not set"}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Email</h3>
-                  <p className="mt-1">{settings.email || "Not set"}</p>
+                  <p className="mt-1">{localSettings.email || "Not set"}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Tax ID</h3>
-                  <p className="mt-1">{settings.taxId || "Not set"}</p>
+                  <p className="mt-1">{localSettings.taxId || "Not set"}</p>
                 </div>
               </div>
             )}
@@ -276,10 +345,10 @@ export default function BusinessProfilePage() {
                   <Label htmlFor="invoicePrefix">Invoice Number Prefix</Label>
                   <Input
                     id="invoicePrefix"
-                    value={settings.invoiceNumberPrefix || ""}
+                    value={localSettings.invoiceNumberPrefix || ""}
                     onChange={(e) =>
-                      setSettings({
-                        ...settings,
+                      setLocalSettings({
+                        ...localSettings,
                         invoiceNumberPrefix: e.target.value,
                       })
                     }
@@ -292,10 +361,10 @@ export default function BusinessProfilePage() {
                     <Input
                       id="invoiceStart"
                       type="number"
-                      value={settings.invoiceNumberStart || 0}
+                      value={localSettings.invoiceNumberStart || 0}
                       onChange={(e) =>
-                        setSettings({
-                          ...settings,
+                        setLocalSettings({
+                          ...localSettings,
                           invoiceNumberStart: parseInt(e.target.value) || 0,
                         })
                       }
@@ -307,10 +376,10 @@ export default function BusinessProfilePage() {
                     <Input
                       id="invoiceEnd"
                       type="number"
-                      value={settings.invoiceNumberEnd || 0}
+                      value={localSettings.invoiceNumberEnd || 0}
                       onChange={(e) =>
-                        setSettings({
-                          ...settings,
+                        setLocalSettings({
+                          ...localSettings,
                           invoiceNumberEnd: parseInt(e.target.value) || 0,
                         })
                       }
@@ -323,10 +392,10 @@ export default function BusinessProfilePage() {
                   <Input
                     id="invoiceCurrent"
                     type="number"
-                    value={settings.invoiceNumberCurrent || 0}
+                    value={localSettings.invoiceNumberCurrent || 0}
                     onChange={(e) =>
-                      setSettings({
-                        ...settings,
+                      setLocalSettings({
+                        ...localSettings,
                         invoiceNumberCurrent: parseInt(e.target.value) || 0,
                       })
                     }
@@ -340,10 +409,10 @@ export default function BusinessProfilePage() {
                   <Input
                     id="invoiceExpiration"
                     type="number"
-                    value={settings.invoiceExpirationMonths || 0}
+                    value={localSettings.invoiceExpirationMonths || 0}
                     onChange={(e) =>
-                      setSettings({
-                        ...settings,
+                      setLocalSettings({
+                        ...localSettings,
                         invoiceExpirationMonths: parseInt(e.target.value) || 0,
                       })
                     }
@@ -357,7 +426,7 @@ export default function BusinessProfilePage() {
                     Invoice Number Prefix
                   </h3>
                   <p className="mt-1">
-                    {settings.invoiceNumberPrefix || "Not set"}
+                    {localSettings.invoiceNumberPrefix || "Not set"}
                   </p>
                 </div>
                 <div>
@@ -365,22 +434,24 @@ export default function BusinessProfilePage() {
                     Number Range
                   </h3>
                   <p className="mt-1">
-                    {settings.invoiceNumberStart || 0} -{" "}
-                    {settings.invoiceNumberEnd || 0}
+                    {localSettings.invoiceNumberStart || 0} -{" "}
+                    {localSettings.invoiceNumberEnd || 0}
                   </p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">
                     Current Number
                   </h3>
-                  <p className="mt-1">{settings.invoiceNumberCurrent || 0}</p>
+                  <p className="mt-1">
+                    {localSettings.invoiceNumberCurrent || 0}
+                  </p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">
                     Invoice Expiration
                   </h3>
                   <p className="mt-1">
-                    {settings.invoiceExpirationMonths || 0} months
+                    {localSettings.invoiceExpirationMonths || 0} months
                   </p>
                 </div>
               </div>

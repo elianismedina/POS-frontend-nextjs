@@ -12,7 +12,9 @@ export interface Product {
   discountable: boolean;
   businessId: string;
   categoryId?: string;
+  categoryName?: string;
   subcategoryId?: string;
+  subcategoryName?: string;
   createdAt: string;
   updatedAt: string;
 }

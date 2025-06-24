@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Filter, X } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -17,6 +17,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { productsService, Product } from "@/app/services/products";
+import { categoriesService, Category } from "@/app/services/categories";
+import {
+  subcategoriesService,
+  Subcategory,
+} from "@/app/services/subcategories";
 import { CreateProductForm } from "@/components/products/CreateProductForm";
 import Image from "next/image";
 
@@ -26,7 +31,16 @@ export default function ProductsPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // Filter states
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+  const [selectedSubcategoryId, setSelectedSubcategoryId] =
+    useState<string>("");
+  const [searchTerm, setSearchTerm] = useState<string>("");
 
   useEffect(() => {
     if (!authLoading) {
@@ -35,8 +49,22 @@ export default function ProductsPage() {
         return;
       }
       fetchProducts();
+      fetchCategories();
     }
   }, [isAuthenticated, user, router, authLoading]);
+
+  useEffect(() => {
+    if (selectedCategoryId) {
+      fetchSubcategories(selectedCategoryId);
+    } else {
+      setSubcategories([]);
+      setSelectedSubcategoryId("");
+    }
+  }, [selectedCategoryId]);
+
+  useEffect(() => {
+    applyFilters();
+  }, [allProducts, selectedCategoryId, selectedSubcategoryId, searchTerm]);
 
   const fetchProducts = async () => {
     try {
@@ -63,10 +91,17 @@ export default function ProductsPage() {
       console.log("Fetching products for business ID:", businessId);
 
       const products = await productsService.getByBusinessId(businessId);
-      console.log("Raw API response:", products);
-      console.log("First product:", products[0]);
-      console.log("First product price:", products[0]?.price);
-      console.log("First product price type:", typeof products[0]?.price);
+
+      // Debug price data
+      if (products.length > 0) {
+        console.log("First product price data:", {
+          price: products[0].price,
+          priceType: typeof products[0].price,
+          priceValue: products[0].price,
+          isNumber: typeof products[0].price === "number",
+          isString: typeof products[0].price === "string",
+        });
+      }
 
       // Filter out products with missing essential data
       const validProducts = products.filter((product) => {
@@ -76,6 +111,7 @@ export default function ProductsPage() {
       });
 
       setProducts(validProducts);
+      setAllProducts(validProducts);
     } catch (error: any) {
       console.error("Error fetching products:", {
         message: error.message,
@@ -102,8 +138,74 @@ export default function ProductsPage() {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const categoriesData = await categoriesService.listCategories();
+      setCategories(categoriesData);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load categories",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchSubcategories = async (categoryId: string) => {
+    try {
+      const subcategoriesData = await subcategoriesService.list(categoryId);
+      setSubcategories(subcategoriesData);
+    } catch (error) {
+      console.error("Error fetching subcategories:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load subcategories",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const applyFilters = () => {
+    let filteredProducts = [...allProducts];
+
+    // Filter by category
+    if (selectedCategoryId) {
+      filteredProducts = filteredProducts.filter(
+        (product) => product.categoryId === selectedCategoryId
+      );
+    }
+
+    // Filter by subcategory
+    if (selectedSubcategoryId) {
+      filteredProducts = filteredProducts.filter(
+        (product) => product.subcategoryId === selectedSubcategoryId
+      );
+    }
+
+    // Filter by search term
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      filteredProducts = filteredProducts.filter(
+        (product) =>
+          product.name.toLowerCase().includes(term) ||
+          product.description.toLowerCase().includes(term) ||
+          (product.barcode && product.barcode.toLowerCase().includes(term))
+      );
+    }
+
+    setProducts(filteredProducts);
+  };
+
+  const clearFilters = () => {
+    setSelectedCategoryId("");
+    setSelectedSubcategoryId("");
+    setSearchTerm("");
+  };
+
   const handleCreateSuccess = (newProduct: Product) => {
     setShowCreateModal(false);
+    setAllProducts((prev) => [...prev, newProduct]);
     setProducts((prev) => [...prev, newProduct]);
     toast({
       title: "Success",
@@ -142,6 +244,92 @@ export default function ProductsPage() {
           Add Product
         </Button>
       </div>
+
+      {/* Filters Section */}
+      <Card className="mb-6 hidden md:block">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center">
+              <Filter className="h-5 w-5 mr-2" />
+              Filters
+            </CardTitle>
+            {(selectedCategoryId || selectedSubcategoryId || searchTerm) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearFilters}
+                className="flex items-center"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Clear Filters
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-4 gap-4">
+            {/* Search Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Search Products
+              </label>
+              <input
+                type="text"
+                placeholder="Search by name, description, or barcode..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* Category Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Category
+              </label>
+              <select
+                value={selectedCategoryId}
+                onChange={(e) => setSelectedCategoryId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All Categories</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Subcategory Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Subcategory
+              </label>
+              <select
+                value={selectedSubcategoryId}
+                onChange={(e) => setSelectedSubcategoryId(e.target.value)}
+                disabled={!selectedCategoryId}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                <option value="">All Subcategories</option>
+                {subcategories.map((subcategory) => (
+                  <option key={subcategory.id} value={subcategory.id}>
+                    {subcategory.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Results Count */}
+            <div className="flex items-end">
+              <div className="text-sm text-gray-600">
+                Showing {products.length} of {allProducts.length} products
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {products.length === 0 ? (
         <Card>
@@ -196,6 +384,7 @@ export default function ProductsPage() {
                     <TableHead>Stock</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Category</TableHead>
+                    <TableHead>Subcategory</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -236,9 +425,19 @@ export default function ProductsPage() {
                       </TableCell>
                       <TableCell>
                         $
-                        {typeof product.price === "number"
-                          ? product.price.toFixed(2)
-                          : "0.00"}
+                        {(() => {
+                          const price = product.price;
+                          if (typeof price === "number") {
+                            return price.toFixed(2);
+                          } else if (typeof price === "string") {
+                            const numPrice = parseFloat(price);
+                            return isNaN(numPrice)
+                              ? "0.00"
+                              : numPrice.toFixed(2);
+                          } else {
+                            return "0.00";
+                          }
+                        })()}
                       </TableCell>
                       <TableCell>{product.stock || 0}</TableCell>
                       <TableCell>
@@ -249,7 +448,10 @@ export default function ProductsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {product.categoryId ? "Category" : "No Category"}
+                        {product.categoryName || "No Category"}
+                      </TableCell>
+                      <TableCell>
+                        {product.subcategoryName || "No Subcategory"}
                       </TableCell>
                       <TableCell>
                         <Button
@@ -272,6 +474,90 @@ export default function ProductsPage() {
 
             {/* Mobile Card View */}
             <div className="md:hidden space-y-4">
+              {/* Mobile Filters */}
+              <Card className="mb-4">
+                <CardContent className="p-4">
+                  <div className="space-y-3">
+                    {/* Search Input */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Search Products
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Search by name, description, or barcode..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    {/* Category Filter */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Category
+                      </label>
+                      <select
+                        value={selectedCategoryId}
+                        onChange={(e) => setSelectedCategoryId(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">All Categories</option>
+                        {categories.map((category) => (
+                          <option key={category.id} value={category.id}>
+                            {category.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Subcategory Filter */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Subcategory
+                      </label>
+                      <select
+                        value={selectedSubcategoryId}
+                        onChange={(e) =>
+                          setSelectedSubcategoryId(e.target.value)
+                        }
+                        disabled={!selectedCategoryId}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      >
+                        <option value="">All Subcategories</option>
+                        {subcategories.map((subcategory) => (
+                          <option key={subcategory.id} value={subcategory.id}>
+                            {subcategory.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Clear Filters Button */}
+                    {(selectedCategoryId ||
+                      selectedSubcategoryId ||
+                      searchTerm) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={clearFilters}
+                        className="w-full flex items-center justify-center"
+                      >
+                        <X className="h-4 w-4 mr-1" />
+                        Clear Filters
+                      </Button>
+                    )}
+
+                    {/* Results Count */}
+                    <div className="text-center">
+                      <div className="text-sm text-gray-600">
+                        Showing {products.length} of {allProducts.length}{" "}
+                        products
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
               {products.map((product, index) => (
                 <Card
                   key={product.id || `product-${index}`}
@@ -335,9 +621,19 @@ export default function ProductsPage() {
                             </span>
                             <span className="text-sm text-gray-900 font-semibold">
                               $
-                              {typeof product.price === "number"
-                                ? product.price.toFixed(2)
-                                : "0.00"}
+                              {(() => {
+                                const price = product.price;
+                                if (typeof price === "number") {
+                                  return price.toFixed(2);
+                                } else if (typeof price === "string") {
+                                  const numPrice = parseFloat(price);
+                                  return isNaN(numPrice)
+                                    ? "0.00"
+                                    : numPrice.toFixed(2);
+                                } else {
+                                  return "0.00";
+                                }
+                              })()}
                             </span>
                           </div>
 
@@ -369,7 +665,16 @@ export default function ProductsPage() {
                               Category:
                             </span>
                             <span className="text-sm text-gray-900">
-                              {product.categoryId ? "Category" : "No Category"}
+                              {product.categoryName || "No Category"}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-700">
+                              Subcategory:
+                            </span>
+                            <span className="text-sm text-gray-900">
+                              {product.subcategoryName || "No Subcategory"}
                             </span>
                           </div>
                         </div>

@@ -46,6 +46,7 @@ export const CreateProductForm: React.FC<CreateProductFormProps> = ({
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [imageUrl, setImageUrl] = useState<string>("");
+  const [barcodeError, setBarcodeError] = useState<string>("");
 
   const [formData, setFormData] = useState<CreateProductData>({
     name: "",
@@ -109,6 +110,11 @@ export const CreateProductForm: React.FC<CreateProductFormProps> = ({
       ...prev,
       [name]: type === "number" ? parseFloat(value) || 0 : value,
     }));
+
+    // Clear barcode error when user starts typing
+    if (name === "barcode") {
+      setBarcodeError("");
+    }
   };
 
   const handleCheckboxChange = (name: string, checked: boolean) => {
@@ -143,6 +149,30 @@ export const CreateProductForm: React.FC<CreateProductFormProps> = ({
     }));
   };
 
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      description: "",
+      price: 0,
+      stock: 0,
+      isActive: true,
+      imageUrl: "",
+      barcode: "",
+      discountable: true,
+      categoryId: "",
+      subcategoryId: "",
+      sku: "",
+    });
+    setSelectedCategoryId("");
+    setImageUrl("");
+    setBarcodeError("");
+  };
+
+  const handleCancel = () => {
+    resetForm();
+    onCancel();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -174,13 +204,50 @@ export const CreateProductForm: React.FC<CreateProductFormProps> = ({
         description: `Product "${newProduct.name}" created successfully`,
       });
 
+      // Clear any previous errors
+      setBarcodeError("");
+
       onSuccess(newProduct);
     } catch (error: any) {
       console.error("Error creating product:", error);
+
+      // Handle specific error types
+      let errorMessage = "Failed to create product";
+
+      if (error.response?.status === 409) {
+        // Conflict - duplicate barcode or name
+        errorMessage =
+          error.response?.data?.message ||
+          "A product with this barcode or name already exists";
+
+        // Check if it's specifically a barcode error
+        if (error.response?.data?.message?.toLowerCase().includes("barcode")) {
+          setBarcodeError("This barcode is already in use");
+        } else if (
+          error.response?.data?.message?.toLowerCase().includes("name")
+        ) {
+          setBarcodeError(""); // Clear barcode error if it's a name conflict
+        } else {
+          setBarcodeError(""); // Clear for other conflicts
+        }
+      } else if (error.response?.status === 400) {
+        // Bad request - validation errors
+        errorMessage =
+          error.response?.data?.message ||
+          "Please check your input and try again";
+      } else if (error.response?.status === 404) {
+        // Not found - business, category, or subcategory not found
+        errorMessage =
+          error.response?.data?.message ||
+          "One or more selected items were not found";
+      } else if (error.response?.data?.message) {
+        // Use the specific error message from the backend
+        errorMessage = error.response.data.message;
+      }
+
       toast({
         title: "Error",
-        description:
-          error.response?.data?.message || "Failed to create product",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -249,7 +316,12 @@ export const CreateProductForm: React.FC<CreateProductFormProps> = ({
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="barcode">Barcode</Label>
+            <Label
+              htmlFor="barcode"
+              className={barcodeError ? "text-red-600" : ""}
+            >
+              Barcode {barcodeError && <span className="text-red-500">*</span>}
+            </Label>
             <Input
               id="barcode"
               name="barcode"
@@ -257,7 +329,33 @@ export const CreateProductForm: React.FC<CreateProductFormProps> = ({
               value={formData.barcode}
               onChange={handleInputChange}
               placeholder="Enter barcode"
+              className={
+                barcodeError
+                  ? "border-red-500 focus:ring-red-500 focus:border-red-500"
+                  : ""
+              }
             />
+            {barcodeError && (
+              <p className="text-sm text-red-600 mt-1 flex items-center">
+                <svg
+                  className="w-4 h-4 mr-1"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                {barcodeError}
+              </p>
+            )}
+            {!barcodeError && formData.barcode && (
+              <p className="text-sm text-gray-500 mt-1">
+                Barcodes must be unique across all products
+              </p>
+            )}
           </div>
 
           <div>
@@ -359,7 +457,7 @@ export const CreateProductForm: React.FC<CreateProductFormProps> = ({
         <Button
           type="button"
           variant="outline"
-          onClick={onCancel}
+          onClick={handleCancel}
           disabled={isLoading}
         >
           Cancel

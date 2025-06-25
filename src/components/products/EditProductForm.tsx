@@ -165,23 +165,7 @@ export const EditProductForm: React.FC<EditProductFormProps> = ({
 
     setIsLoading(true);
     try {
-      const updateData = {
-        name: formData.name,
-        description: formData.description,
-        price: formData.price,
-        stock: formData.stock,
-        isActive: formData.isActive,
-        imageUrl: formData.imageUrl || undefined,
-        barcode: formData.barcode || undefined,
-        discountable: formData.discountable,
-        categoryId: formData.categoryId || undefined,
-        subcategoryId: formData.subcategoryId || undefined,
-      };
-
-      const updatedProduct = await productsService.update(
-        product.id,
-        updateData
-      );
+      const updatedProduct = await productsService.update(product.id, formData);
       onSuccess(updatedProduct);
     } catch (error: any) {
       console.error("Error updating product:", error);

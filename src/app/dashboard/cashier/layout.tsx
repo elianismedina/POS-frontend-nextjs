@@ -37,9 +37,8 @@ export default function CashierLayout({
     );
   }
 
-  // Don't render anything if not authenticated (will redirect)
+  // Don't render anything if not authenticated (will redirect in useEffect)
   if (!isAuthenticated) {
-    router.replace("/");
     return null;
   }
 

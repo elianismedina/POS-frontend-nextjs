@@ -79,6 +79,21 @@ export default function CashierDashboard() {
         <p className="text-muted-foreground">
           Here's what's happening with your sales today
         </p>
+        {user?.branch?.business && (
+          <div className="mt-2 text-sm text-gray-700">
+            <div>
+              <span className="font-semibold">Business:</span>{" "}
+              {user.branch.business.name}
+            </div>
+            <div>
+              <span className="font-semibold">Business ID:</span>{" "}
+              {user.branch.business.id}
+            </div>
+            <div>
+              <span className="font-semibold">Cashier ID:</span> {user.id}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Shift Management Section */}

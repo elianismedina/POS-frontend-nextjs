@@ -19,6 +19,18 @@ interface User {
     createdAt: string;
     updatedAt: string;
   }>;
+  branch?: {
+    id: string;
+    name: string;
+    business: {
+      id: string;
+      name: string;
+      branchLimit: number;
+      isActive: boolean;
+      createdAt: string;
+      updatedAt: string;
+    };
+  };
 }
 
 interface Business {

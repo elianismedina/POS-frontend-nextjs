@@ -74,14 +74,27 @@ export default function CashierProductsPage() {
 
   const fetchProducts = async () => {
     try {
-      if (!user?.business?.[0]?.id) {
-        console.error("User business data:", user?.business);
+      // Handle different user types (regular users vs cashiers)
+      let businessId: string | undefined;
+
+      if (user?.business?.[0]?.id) {
+        // Regular users (ADMIN/SUPERADMIN) have business array
+        businessId = user.business[0].id;
+      } else if (user?.branch?.business?.id) {
+        // Cashiers have business through branch relationship
+        businessId = user.branch.business.id;
+      }
+
+      if (!businessId) {
+        console.error("User business data:", {
+          userBusiness: user?.business,
+          userBranch: user?.branch,
+          userRole: user?.role?.name,
+        });
         throw new Error("No business ID found");
       }
 
-      const businessId = user.business[0].id;
       console.log("User object:", user);
-      console.log("Business array:", user.business);
       console.log("Selected business ID:", businessId);
 
       // Validate business ID format
@@ -123,7 +136,7 @@ export default function CashierProductsPage() {
         message: error.message,
         response: error.response?.data,
         status: error.response?.status,
-        businessId: user?.business?.[0]?.id,
+        businessId: user?.business?.[0]?.id || user?.branch?.business?.id,
         headers: error.response?.headers,
         config: {
           url: error.config?.url,

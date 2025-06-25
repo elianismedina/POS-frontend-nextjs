@@ -4,49 +4,17 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { api } from "@/lib/api";
-
-interface CashierProfile {
-  id: string;
-  name: string;
-  email: string;
-  business_id: string;
-  created_at: string;
-  updated_at: string;
-}
 
 export default function CashierProfilePage() {
-  const { user, token, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
   const router = useRouter();
-  const [profile, setProfile] = useState<CashierProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchCashierProfile = async () => {
-      if (!token || !user?.id) return;
-
-      try {
-        setLoading(true);
-        const response = await api.get(`/auth/getRegister/${user.id}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        setProfile(response.data);
-        setError(null);
-      } catch (err) {
-        console.error("Error fetching cashier profile:", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to fetch cashier profile"
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCashierProfile();
-  }, [token, user?.id]);
+    if (!isLoading) {
+      setLoading(false);
+    }
+  }, [isLoading]);
 
   if (isLoading || loading) {
     return (
@@ -61,24 +29,12 @@ export default function CashierProfilePage() {
     );
   }
 
-  if (error) {
+  if (!user) {
     return (
       <div className="container mx-auto py-10">
         <Card>
           <CardContent className="pt-6">
-            <div className="text-red-500">{error}</div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (!profile) {
-    return (
-      <div className="container mx-auto py-10">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-muted-foreground">No profile found</div>
+            <div className="text-red-500">No user data found</div>
           </CardContent>
         </Card>
       </div>
@@ -97,36 +53,58 @@ export default function CashierProfilePage() {
               <h3 className="text-sm font-medium text-muted-foreground">
                 Name
               </h3>
-              <p className="text-lg">{profile.name}</p>
+              <p className="text-lg">{user.name}</p>
             </div>
             <div>
               <h3 className="text-sm font-medium text-muted-foreground">
                 Email
               </h3>
-              <p className="text-lg">{profile.email}</p>
+              <p className="text-lg">{user.email}</p>
             </div>
             <div>
               <h3 className="text-sm font-medium text-muted-foreground">
-                Business ID
+                Role
               </h3>
-              <p className="text-lg">{profile.business_id}</p>
+              <p className="text-lg capitalize">{user.role?.name}</p>
             </div>
             <div>
               <h3 className="text-sm font-medium text-muted-foreground">
-                Member Since
+                Cashier ID
               </h3>
-              <p className="text-lg">
-                {new Date(profile.created_at).toLocaleDateString()}
-              </p>
+              <p className="text-lg">{user.id}</p>
             </div>
-            <div>
-              <h3 className="text-sm font-medium text-muted-foreground">
-                Last Updated
-              </h3>
-              <p className="text-lg">
-                {new Date(profile.updated_at).toLocaleDateString()}
-              </p>
-            </div>
+            {user.branch && (
+              <>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">
+                    Branch
+                  </h3>
+                  <p className="text-lg">{user.branch.name}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">
+                    Branch ID
+                  </h3>
+                  <p className="text-lg">{user.branch.id}</p>
+                </div>
+              </>
+            )}
+            {user.branch?.business && (
+              <>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">
+                    Business
+                  </h3>
+                  <p className="text-lg">{user.branch.business.name}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">
+                    Business ID
+                  </h3>
+                  <p className="text-lg">{user.branch.business.id}</p>
+                </div>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>

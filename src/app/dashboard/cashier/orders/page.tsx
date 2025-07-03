@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ordersService, Order } from "@/app/services/orders";
@@ -52,6 +53,25 @@ const getStatusIcon = (status: string) => {
   }
 };
 
+// Pagination calculations
+const calculatePagination = (
+  orders: Order[],
+  currentPage: number,
+  ordersPerPage: number
+) => {
+  const totalPages = Math.ceil(orders.length / ordersPerPage);
+  const startIndex = (currentPage - 1) * ordersPerPage;
+  const endIndex = startIndex + ordersPerPage;
+  const currentOrders = orders.slice(startIndex, endIndex);
+
+  return {
+    totalPages,
+    startIndex,
+    endIndex,
+    currentOrders,
+  };
+};
+
 export default function CashierOrdersPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
@@ -61,6 +81,10 @@ export default function CashierOrdersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [ordersPerPage] = useState(10);
 
   const fetchOrders = async () => {
     if (user?.branch?.business?.id) {
@@ -194,7 +218,16 @@ export default function CashierOrdersPage() {
     }
 
     setFilteredOrders(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
   }, [orders, searchTerm, statusFilter]);
+
+  // Calculate pagination
+  const { totalPages, startIndex, endIndex, currentOrders } =
+    calculatePagination(filteredOrders, currentPage, ordersPerPage);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
 
   if (isLoading) {
     return (
@@ -271,142 +304,144 @@ export default function CashierOrdersPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
-          {filteredOrders.map((order, index) => (
-            <Card
-              key={order.id || `order-${index}`}
-              className="hover:shadow-md transition-shadow"
-            >
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <CardTitle className="text-lg">
-                      Order #
-                      {order.id || order._props?.id
-                        ? (order.id || order._props?.id || "").slice(-8)
-                        : "N/A"}
-                    </CardTitle>
-                    <Badge
-                      className={getStatusColor(
-                        order.status || order._props?.status || "UNKNOWN"
-                      )}
-                    >
-                      <div className="flex items-center gap-1">
-                        {getStatusIcon(
-                          order.status || order._props?.status || "UNKNOWN"
-                        )}
-                        {order.status || order._props?.status || "UNKNOWN"}
+        <>
+          {/* Orders Summary */}
+          <div className="mb-4 text-sm text-gray-600">
+            Showing {startIndex + 1} to{" "}
+            {Math.min(endIndex, filteredOrders.length)} of{" "}
+            {filteredOrders.length} orders
+          </div>
+
+          <div className="space-y-2">
+            {currentOrders.map((order, index) => (
+              <Card
+                key={order.id || `order-${index}`}
+                className="hover:shadow-md transition-shadow"
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    {/* Left side - Order ID and Status */}
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm font-semibold text-gray-700">
+                          #
+                          {order.id || order._props?.id
+                            ? (order.id || order._props?.id || "").slice(-8)
+                            : "N/A"}
+                        </span>
+                        <Badge
+                          className={`text-xs px-2 py-1 ${getStatusColor(
+                            order.status || order._props?.status || "UNKNOWN"
+                          )}`}
+                        >
+                          <div className="flex items-center gap-1">
+                            {getStatusIcon(
+                              order.status || order._props?.status || "UNKNOWN"
+                            )}
+                            <span className="text-xs">
+                              {order.status ||
+                                order._props?.status ||
+                                "UNKNOWN"}
+                            </span>
+                          </div>
+                        </Badge>
                       </div>
-                    </Badge>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-green-600">
-                      $
-                      {order.total || order._props?.total
-                        ? (order.total || order._props?.total || 0).toFixed(2)
-                        : "0.00"}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {order.createdAt || order._props?.createdAt ? (
-                        <>
-                          {new Date(
-                            order.createdAt ||
-                              order._props?.createdAt ||
-                              new Date()
-                          ).toLocaleDateString()}{" "}
-                          {new Date(
-                            order.createdAt ||
-                              order._props?.createdAt ||
-                              new Date()
-                          ).toLocaleTimeString()}
-                        </>
-                      ) : (
-                        "Date not available"
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <h4 className="font-semibold mb-2">Customer</h4>
-                    {(() => {
-                      // Handle both direct and _props structure for customer data
-                      const orderCustomer =
-                        (order as any).customer ||
-                        (order as any)._props?.customer;
-                      console.log(
-                        `Order ${order.id || order._props?.id} customer data:`,
-                        {
-                          customerId:
-                            order.customerId || order._props?.customerId,
-                          customer: orderCustomer,
-                          hasCustomer: !!orderCustomer,
-                          customerName: orderCustomer?.name,
-                        }
-                      );
-                      return null;
-                    })()}
-                    <p className="text-muted-foreground">
-                      {(
-                        (order as any).customer ||
-                        (order as any)._props?.customer
-                      )?.name || "No customer assigned"}
-                    </p>
-                    {(
-                      (order as any).customer || (order as any)._props?.customer
-                    )?.email && (
-                      <p className="text-sm text-muted-foreground">
-                        {
-                          (
+                    </div>
+
+                    {/* Center - Customer and Items */}
+                    <div className="flex items-center gap-6 flex-1 justify-center">
+                      <div className="text-center">
+                        <p className="text-xs text-gray-500 mb-1">Customer</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {(
                             (order as any).customer ||
                             (order as any)._props?.customer
-                          ).email
+                          )?.name || "No customer"}
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-gray-500 mb-1">Items</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {order.items || order._props?.items
+                            ? (order.items || order._props?.items || []).length
+                            : 0}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Right side - Total and Actions */}
+                    <div className="flex items-center gap-4 flex-1 justify-end">
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-green-600">
+                          $
+                          {order.total || order._props?.total
+                            ? (order.total || order._props?.total || 0).toFixed(
+                                2
+                              )
+                            : "0.00"}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {order.createdAt || order._props?.createdAt ? (
+                            <>
+                              {new Date(
+                                order.createdAt ||
+                                  order._props?.createdAt ||
+                                  new Date()
+                              ).toLocaleDateString()}{" "}
+                              {new Date(
+                                order.createdAt ||
+                                  order._props?.createdAt ||
+                                  new Date()
+                              ).toLocaleTimeString()}
+                            </>
+                          ) : (
+                            "Date not available"
+                          )}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          router.push(
+                            `/dashboard/cashier/sales?orderId=${
+                              order.id || order._props?.id
+                            }`
+                          )
                         }
-                      </p>
-                    )}
+                        className="text-xs px-3 py-1"
+                      >
+                        <Eye className="h-3 w-3 mr-1" />
+                        View
+                      </Button>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-semibold mb-2">Order Details</h4>
-                    <p className="text-muted-foreground">
-                      {order.items || order._props?.items
-                        ? (order.items || order._props?.items || []).length
-                        : 0}{" "}
-                      item
-                      {(order.items || order._props?.items
-                        ? (order.items || order._props?.items || []).length
-                        : 0) !== 1
-                        ? "s"
-                        : ""}
-                    </p>
-                    {(order.notes || order._props?.notes) && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Notes: {order.notes || order._props?.notes}
+
+                  {/* Notes section - only show if there are notes */}
+                  {(order.notes || order._props?.notes) && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <p className="text-xs text-gray-600">
+                        <span className="font-medium">Notes:</span>{" "}
+                        {order.notes || order._props?.notes}
                       </p>
-                    )}
-                  </div>
-                </div>
-                <div className="mt-4 flex justify-end">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      router.push(
-                        `/dashboard/cashier/sales?orderId=${
-                          order.id || order._props?.id
-                        }`
-                      )
-                    }
-                  >
-                    <Eye className="h-4 w-4 mr-2" />
-                    Go to Order
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="mt-6 flex justify-center">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+              />
+            </div>
+          )}
+        </>
       )}
     </div>
   );

@@ -26,6 +26,15 @@ export interface Order {
     name: string;
     email: string;
   };
+  cashier?: {
+    id: string;
+    name: string;
+    email: string;
+    branch?: {
+      id: string;
+      name: string;
+    };
+  };
   items: OrderItem[];
   subtotal: number;
   taxTotal: number;
@@ -39,6 +48,15 @@ export interface Order {
     businessId: string;
     cashierId: string;
     customerId?: string;
+    cashier?: {
+      id: string;
+      name: string;
+      email: string;
+      branch?: {
+        id: string;
+        name: string;
+      };
+    };
     items: OrderItem[];
     total: number;
     totalAmount: number;

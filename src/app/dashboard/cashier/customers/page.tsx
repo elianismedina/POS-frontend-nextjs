@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Pagination } from "@/components/ui/pagination";
 import { useToast } from "@/components/ui/use-toast";
 import { customersService, Customer } from "@/app/services/customers";
 import {
@@ -42,18 +43,22 @@ export default function CashierCustomersPage() {
       }
       fetchCustomers();
     }
-  }, [isAuthenticated, user, router, authLoading, currentPage]);
+  }, [isAuthenticated, user, router, authLoading]);
 
   useEffect(() => {
     applyFilters();
+    // Reset to first page when search term changes
+    if (searchTerm && currentPage !== 1) {
+      setCurrentPage(1);
+    }
   }, [allCustomers, searchTerm]);
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = async (page: number = currentPage) => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const response = await customersService.getCustomers(currentPage, 50); // Load more customers for cashiers
+      const response = await customersService.getCustomers(page, 20); // Reduced to 20 per page for better performance
       setCustomers(response.data);
       setAllCustomers(response.data);
       setTotalPages(response.meta.totalPages);
@@ -106,6 +111,11 @@ export default function CashierCustomersPage() {
     });
   };
 
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    fetchCustomers(page);
+  };
+
   if (!isAuthenticated) {
     router.replace("/");
     return null;
@@ -133,13 +143,13 @@ export default function CashierCustomersPage() {
             <h1 className="text-2xl md:text-3xl font-bold">Customers</h1>
             <p className="text-gray-600 mt-2">
               View and search customers for transactions ({totalCustomers}{" "}
-              total)
+              total, {customers.length} on this page)
             </p>
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <Button
               variant="outline"
-              onClick={fetchCustomers}
+              onClick={() => fetchCustomers()}
               disabled={isLoading}
               title="Refresh customers"
               className="w-full sm:w-auto"
@@ -201,7 +211,8 @@ export default function CashierCustomersPage() {
         <CardHeader>
           <CardTitle className="flex items-center">
             <Users className="h-5 w-5 mr-2" />
-            Customer List ({customers.length} shown)
+            Customer List ({customers.length} shown
+            {searchTerm ? " (filtered)" : ""})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -247,38 +258,18 @@ export default function CashierCustomersPage() {
 
       {/* Pagination */}
       {totalPages > 1 && !searchTerm && (
-        <Card className="mt-6">
-          <CardContent className="p-4">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="text-sm text-gray-600 text-center sm:text-left">
-                Showing {(currentPage - 1) * 50 + 1} to{" "}
-                {Math.min(currentPage * 50, totalCustomers)} of {totalCustomers}{" "}
-                customers
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                >
-                  Previous
-                </Button>
-                <span className="text-sm text-gray-600 px-2">
-                  {currentPage} / {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-sm text-gray-600 text-center sm:text-left">
+            Showing {(currentPage - 1) * 20 + 1} to{" "}
+            {Math.min(currentPage * 20, totalCustomers)} of {totalCustomers}{" "}
+            customers
+          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        </div>
       )}
     </div>
   );

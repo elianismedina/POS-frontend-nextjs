@@ -60,11 +60,19 @@ export default function CashierOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   const fetchOrders = async () => {
     if (user?.branch?.business?.id) {
       try {
         setLoading(true);
+        console.log(
+          "Fetching orders for business:",
+          user.branch.business.id,
+          "and cashier:",
+          user.id
+        );
+
         // For cashiers, we'll get orders filtered by their business and cashier ID
         const response = await ordersService.getOrders({
           businessId: user.branch.business.id,
@@ -80,11 +88,14 @@ export default function CashierOrdersPage() {
             customer: order.customer,
             hasCustomer: !!order.customer,
             customerName: order.customer?.name,
+            orderKeys: Object.keys(order),
+            orderProps: order._props,
           });
         });
 
         setOrders(response);
         setFilteredOrders(response);
+        setLastRefresh(new Date());
       } catch (error) {
         console.error("Error fetching orders:", error);
       } finally {
@@ -97,6 +108,34 @@ export default function CashierOrdersPage() {
     fetchOrders();
   }, [user]);
 
+  // Additional refresh when component mounts or user navigates back
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Set a flag in sessionStorage to indicate we should refresh on return
+      sessionStorage.setItem("shouldRefreshOrders", "true");
+    };
+
+    const checkForRefresh = () => {
+      const shouldRefresh = sessionStorage.getItem("shouldRefreshOrders");
+      console.log("Checking for refresh flag:", shouldRefresh);
+      if (shouldRefresh === "true") {
+        console.log("Detected return from sales page, refreshing orders...");
+        fetchOrders();
+        sessionStorage.removeItem("shouldRefreshOrders");
+      }
+    };
+
+    // Check if we should refresh when component mounts
+    checkForRefresh();
+
+    // Set up listener for when user leaves the page
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [user]);
+
   // Refresh orders when user returns to the page (e.g., from sales page)
   useEffect(() => {
     const handleFocus = () => {
@@ -104,10 +143,22 @@ export default function CashierOrdersPage() {
       fetchOrders();
     };
 
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log("Page became visible, refreshing orders...");
+        fetchOrders();
+      }
+    };
+
+    // Refresh on focus
     window.addEventListener("focus", handleFocus);
+
+    // Refresh when page becomes visible (more reliable than focus)
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [user]);
 
@@ -195,8 +246,13 @@ export default function CashierOrdersPage() {
           className="flex items-center gap-2"
         >
           <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          Refresh
+          {loading ? "Refreshing..." : "Refresh"}
         </Button>
+        {lastRefresh && (
+          <div className="text-xs text-muted-foreground">
+            Last updated: {lastRefresh.toLocaleTimeString()}
+          </div>
+        )}
       </div>
 
       {/* Orders List */}
@@ -276,24 +332,38 @@ export default function CashierOrdersPage() {
                   <div>
                     <h4 className="font-semibold mb-2">Customer</h4>
                     {(() => {
+                      // Handle both direct and _props structure for customer data
+                      const orderCustomer =
+                        (order as any).customer ||
+                        (order as any)._props?.customer;
                       console.log(
                         `Order ${order.id || order._props?.id} customer data:`,
                         {
                           customerId:
                             order.customerId || order._props?.customerId,
-                          customer: order.customer,
-                          hasCustomer: !!order.customer,
-                          customerName: order.customer?.name,
+                          customer: orderCustomer,
+                          hasCustomer: !!orderCustomer,
+                          customerName: orderCustomer?.name,
                         }
                       );
                       return null;
                     })()}
                     <p className="text-muted-foreground">
-                      {order.customer?.name || "No customer assigned"}
+                      {(
+                        (order as any).customer ||
+                        (order as any)._props?.customer
+                      )?.name || "No customer assigned"}
                     </p>
-                    {order.customer?.email && (
+                    {(
+                      (order as any).customer || (order as any)._props?.customer
+                    )?.email && (
                       <p className="text-sm text-muted-foreground">
-                        {order.customer.email}
+                        {
+                          (
+                            (order as any).customer ||
+                            (order as any)._props?.customer
+                          ).email
+                        }
                       </p>
                     )}
                   </div>

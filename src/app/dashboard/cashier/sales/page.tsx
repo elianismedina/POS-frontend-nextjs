@@ -8,7 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
-import { productsService, Product } from "@/app/services/products";
+import {
+  productsService,
+  Product,
+  PaginatedProductsResponse,
+} from "@/app/services/products";
 import { customersService, Customer } from "@/app/services/customers";
 import { taxesService, Tax } from "@/app/services/taxes";
 import {
@@ -17,6 +21,7 @@ import {
 } from "@/app/services/business-payment-methods";
 import { ordersService, Order } from "@/app/services/orders";
 import { shiftsService, Shift } from "@/app/services/shifts";
+import { Pagination } from "@/components/ui/pagination";
 import {
   Search,
   ShoppingCart,
@@ -81,6 +86,13 @@ export default function SalesPage() {
   const [loadedOrderId, setLoadedOrderId] = useState<string | null>(null);
   const [justCleared, setJustCleared] = useState(false);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [productsPerPage] = useState(20);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+
   // Sale state
   const [sale, setSale] = useState<SaleData>({
     items: [],
@@ -126,9 +138,39 @@ export default function SalesPage() {
     }
   }, [justCleared]);
 
+  // Load products when search term or category changes
   useEffect(() => {
-    applyFilters();
-  }, [products, searchTerm, selectedCategory]);
+    if (!isLoading && user) {
+      let businessId: string | undefined;
+      if (user?.business?.[0]?.id) {
+        businessId = user.business[0].id;
+      } else if (user?.branch?.business?.id) {
+        businessId = user.branch.business.id;
+      }
+
+      if (businessId) {
+        // Reset to first page when filters change
+        setCurrentPage(1);
+        loadProducts(businessId, 1);
+      }
+    }
+  }, [searchTerm, selectedCategory]);
+
+  // Handle page changes
+  const handlePageChange = (page: number) => {
+    if (!user) return;
+
+    let businessId: string | undefined;
+    if (user?.business?.[0]?.id) {
+      businessId = user.business[0].id;
+    } else if (user?.branch?.business?.id) {
+      businessId = user.branch.business.id;
+    }
+
+    if (businessId) {
+      loadProducts(businessId, page);
+    }
+  };
 
   // Debug useEffect to monitor sale state changes
   useEffect(() => {
@@ -151,8 +193,20 @@ export default function SalesPage() {
   useEffect(() => {
     if (!sale.currentOrder || products.length === 0) return;
 
+    console.log(
+      "Syncing useEffect triggered - currentOrder:",
+      sale.currentOrder
+    );
+    console.log("Syncing useEffect - products length:", products.length);
+
     // Always use the correct path for order items
     const orderData = (sale.currentOrder as any)._props || sale.currentOrder;
+    console.log("Syncing useEffect - orderData.items:", orderData.items);
+    console.log(
+      "Syncing useEffect - orderData.items length:",
+      orderData.items?.length
+    );
+
     const backendItems = (orderData.items || [])
       .map((item: any) => {
         const itemData = item._props || item;
@@ -175,11 +229,67 @@ export default function SalesPage() {
       })
       .filter((item: any): item is CartItem => item !== null);
 
+    console.log("Syncing useEffect - backendItems mapped:", backendItems);
+    console.log(
+      "Syncing useEffect - backendItems length:",
+      backendItems.length
+    );
+
     setSale((prev) => ({
       ...prev,
       items: backendItems,
     }));
   }, [sale.currentOrder, products]);
+
+  const loadProducts = async (businessId: string, page: number = 1) => {
+    try {
+      setIsLoadingProducts(true);
+
+      const response: PaginatedProductsResponse =
+        await productsService.getPaginated({
+          businessId,
+          page: page - 1, // Backend uses 0-based pagination
+          limit: productsPerPage,
+          search: searchTerm || undefined,
+          categoryName: selectedCategory || undefined,
+        });
+
+      setProducts(response.products);
+      setTotalPages(response.totalPages || 1);
+      setTotalProducts(response.total);
+      setCurrentPage(page);
+    } catch (error: any) {
+      console.error("Error loading products:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load products",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  };
+
+  const loadCategories = async (businessId: string) => {
+    try {
+      // Load all products to extract categories (this could be optimized with a separate categories endpoint)
+      const response: PaginatedProductsResponse =
+        await productsService.getPaginated({
+          businessId,
+          page: 0,
+          limit: 1000, // Get a large number to extract all categories
+        });
+
+      const uniqueCategories = [
+        ...new Set(
+          response.products.map((p) => p.categoryName).filter(Boolean)
+        ),
+      ];
+      setCategories(uniqueCategories.map((name) => ({ id: name, name })));
+    } catch (error: any) {
+      console.error("Error loading categories:", error);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -197,22 +307,15 @@ export default function SalesPage() {
         throw new Error("No business ID found");
       }
 
-      // Fetch products, customers, taxes, payment methods, and active shift
-      const [
-        productsData,
-        customersData,
-        taxesData,
-        paymentMethodsData,
-        shiftData,
-      ] = await Promise.all([
-        productsService.getByBusinessId(businessId),
-        customersService.getCustomers(1, 100),
-        taxesService.getByBusinessId(businessId),
-        businessPaymentMethodsService.getBusinessPaymentMethods(),
-        shiftsService.getActiveShift(user!.id),
-      ]);
+      // Fetch customers, taxes, payment methods, and active shift
+      const [customersData, taxesData, paymentMethodsData, shiftData] =
+        await Promise.all([
+          customersService.getCustomers(1, 100),
+          taxesService.getByBusinessId(businessId),
+          businessPaymentMethodsService.getBusinessPaymentMethods(),
+          shiftsService.getActiveShift(user!.id),
+        ]);
 
-      setProducts(productsData);
       setCustomers(customersData.data);
       setTaxes(taxesData);
       setPaymentMethods(paymentMethodsData);
@@ -226,43 +329,21 @@ export default function SalesPage() {
         setSale((prev) => ({ ...prev, selectedPaymentMethod: defaultMethod }));
       }
 
-      // Extract unique categories
-      const uniqueCategories = [
-        ...new Set(productsData.map((p) => p.categoryName).filter(Boolean)),
-      ];
-      setCategories(uniqueCategories.map((name) => ({ id: name, name })));
+      // Load initial products
+      await loadProducts(businessId);
+
+      // Load categories
+      await loadCategories(businessId);
     } catch (error: any) {
       console.error("Error fetching data:", error);
       toast({
         title: "Error",
-        description: "Failed to load products and customers",
+        description: "Failed to load data",
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const applyFilters = () => {
-    let filtered = [...products];
-
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (product) =>
-          product.name.toLowerCase().includes(term) ||
-          product.description?.toLowerCase().includes(term) ||
-          product.barcode?.includes(term)
-      );
-    }
-
-    if (selectedCategory) {
-      filtered = filtered.filter(
-        (product) => product.categoryName === selectedCategory
-      );
-    }
-
-    setFilteredProducts(filtered);
   };
 
   // Helper function to safely get order ID
@@ -277,6 +358,13 @@ export default function SalesPage() {
 
       const existingOrder = await ordersService.getOrder(orderId);
       console.log("Existing order loaded:", existingOrder);
+      console.log("Existing order structure:", {
+        hasCustomer: !!(existingOrder as any).customer,
+        customer: (existingOrder as any).customer,
+        customerId: (existingOrder as any).customerId,
+        orderKeys: Object.keys(existingOrder),
+        orderProps: (existingOrder as any)._props,
+      });
 
       // Handle both direct properties and _props structure
       const orderData = (existingOrder._props || existingOrder) as any;
@@ -321,19 +409,25 @@ export default function SalesPage() {
           })
           .filter((item: any): item is CartItem => item !== null) || [];
 
-      // Set customer if order has one
-      const customer = (existingOrder as any).customer
+      // Set customer if order has one - handle both direct and _props structure
+      const orderCustomer =
+        (existingOrder as any).customer ||
+        (existingOrder as any)._props?.customer;
+      const customer = orderCustomer
         ? ({
-            id: (existingOrder as any).customer.id,
-            name: (existingOrder as any).customer.name,
-            email: (existingOrder as any).customer.email,
-            phone: "",
-            address: "",
-            documentNumber: "",
-            isActive: true,
-            business: { id: "", name: "" },
-            createdAt: new Date(),
-            updatedAt: new Date(),
+            id: orderCustomer.id,
+            name: orderCustomer.name,
+            email: orderCustomer.email,
+            phone: orderCustomer.phone || "",
+            address: orderCustomer.address || "",
+            documentNumber: orderCustomer.documentNumber || "",
+            isActive:
+              orderCustomer.isActive !== undefined
+                ? orderCustomer.isActive
+                : true,
+            business: orderCustomer.business || { id: "", name: "" },
+            createdAt: orderCustomer.createdAt || new Date(),
+            updatedAt: orderCustomer.updatedAt || new Date(),
           } as Customer)
         : null;
 
@@ -517,6 +611,9 @@ export default function SalesPage() {
       // Update state directly
       setSale(calculatedSale);
 
+      // Set flag to refresh orders list when returning
+      sessionStorage.setItem("shouldRefreshOrders", "true");
+
       toast({
         title: "Added to cart",
         description: `${product.name} added to cart`,
@@ -640,6 +737,9 @@ export default function SalesPage() {
           // Use a more explicit state update
           setSale(() => calculatedSale);
 
+          // Set flag to refresh orders list when returning
+          sessionStorage.setItem("shouldRefreshOrders", "true");
+
           // Force a re-render immediately
           console.log("Force update triggered for quantity update");
         }
@@ -754,6 +854,9 @@ export default function SalesPage() {
           // Use a more explicit state update
           setSale(() => calculatedSale);
 
+          // Set flag to refresh orders list when returning
+          sessionStorage.setItem("shouldRefreshOrders", "true");
+
           // Force a re-render immediately
           console.log("Force update triggered for remove");
         }
@@ -769,10 +872,16 @@ export default function SalesPage() {
   };
 
   const calculateTotals = (saleData: SaleData): SaleData => {
-    // Always preserve the items array from the input
+    // Always preserve all the sale data from the input
     const result = {
       ...saleData,
       items: saleData.items || [], // Ensure items are preserved
+      customer: saleData.customer, // Preserve customer data
+      currentOrder: saleData.currentOrder, // Preserve current order
+      selectedPaymentMethod: saleData.selectedPaymentMethod, // Preserve payment method
+      discount: saleData.discount || 0, // Preserve discount
+      discountType: saleData.discountType || "percentage", // Preserve discount type
+      amountTendered: saleData.amountTendered || 0, // Preserve amount tendered
     };
 
     // If we have a current order with backend totals, use those for calculations
@@ -824,12 +933,34 @@ export default function SalesPage() {
 
         if (orderId) {
           console.log("Updating order with customer:", customer);
+          console.log("Sending update request with customerId:", customer.id);
           const updatedOrder = await ordersService.updateOrder(orderId, {
             customerId: customer.id,
           });
+          console.log("Received updated order:", updatedOrder);
+          console.log("Updated order customer data:", {
+            customerId: updatedOrder.customerId,
+            customer: updatedOrder.customer,
+            hasCustomer: !!updatedOrder.customer,
+            customerName: updatedOrder.customer?.name,
+          });
 
-          // Update the current order with the response
-          setSale((prev) => ({ ...prev, currentOrder: updatedOrder }));
+          // Update both currentOrder and customer in local state
+          setSale((prev) => ({
+            ...prev,
+            currentOrder: updatedOrder,
+            customer: updatedOrder.customer
+              ? {
+                  ...customer,
+                  id: updatedOrder.customer.id,
+                  name: updatedOrder.customer.name,
+                  email: updatedOrder.customer.email,
+                }
+              : customer,
+          }));
+
+          // Set flag to refresh orders list when returning
+          sessionStorage.setItem("shouldRefreshOrders", "true");
         }
       }
     } catch (error: any) {
@@ -850,39 +981,62 @@ export default function SalesPage() {
           (sale.currentOrder as any)?.id;
 
         if (orderId) {
-          // Remove all items in parallel and wait for all to finish
-          const orderData =
-            (sale.currentOrder as any)._props || sale.currentOrder;
-          const orderItems = orderData.items || [];
+          console.log("Clearing all items from order:", orderId);
 
-          await Promise.all(
-            orderItems.map(async (item: any) => {
-              const itemData = item._props || item;
-              await ordersService.removeItem(orderId, itemData.id);
-            })
-          );
+          try {
+            // Use the new bulk clear endpoint
+            const clearedOrder = await ordersService.clearOrderItems(orderId);
+            console.log("Order cleared successfully:", clearedOrder);
 
-          // Fetch the updated (now empty) order
-          const updatedOrder = await ordersService.getOrder(orderId);
+            // Update local state with the cleared order
+            setSale((prev) => ({
+              ...prev,
+              items: [],
+              subtotal: 0,
+              tax: 0,
+              total: 0,
+              discount: 0,
+              amountTendered: 0,
+              currentOrder: clearedOrder,
+            }));
+            setLoadedOrderId(orderId);
+            setJustCleared(true);
 
-          // Update the local state with the cleared order, but keep currentOrder
-          setSale((prev) => ({
-            ...prev,
-            items: [],
-            subtotal: 0,
-            tax: 0,
-            total: 0,
-            discount: 0,
-            amountTendered: 0,
-            currentOrder: updatedOrder,
-          }));
-          setLoadedOrderId(orderId);
-          setJustCleared(true);
-          toast({
-            title: "Sale cleared",
-            description: "All items have been removed from the order",
-          });
-          return;
+            // Set flag to refresh orders list when returning
+            sessionStorage.setItem("shouldRefreshOrders", "true");
+
+            toast({
+              title: "Sale cleared",
+              description: "All items have been removed from the order",
+            });
+            return;
+          } catch (error: any) {
+            console.error("Error clearing order items:", error);
+
+            // If backend fails, still clear locally
+            setSale((prev) => ({
+              ...prev,
+              items: [],
+              subtotal: 0,
+              tax: 0,
+              total: 0,
+              discount: 0,
+              amountTendered: 0,
+            }));
+            setLoadedOrderId(orderId);
+            setJustCleared(true);
+
+            // Set flag to refresh orders list when returning
+            sessionStorage.setItem("shouldRefreshOrders", "true");
+
+            toast({
+              title: "Sale cleared (with warnings)",
+              description:
+                "Cart cleared locally. Backend may still have items.",
+              variant: "default",
+            });
+            return;
+          }
         }
       }
 
@@ -904,6 +1058,10 @@ export default function SalesPage() {
       });
       setLoadedOrderId(null);
       setJustCleared(true);
+
+      // Set flag to refresh orders list when returning
+      sessionStorage.setItem("shouldRefreshOrders", "true");
+
       toast({
         title: "Sale cleared",
         description: "All items have been removed from the order",
@@ -1166,48 +1324,75 @@ export default function SalesPage() {
             </div>
 
             {/* Products Grid */}
-            <div className="flex-1 overflow-y-auto p-4">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                {filteredProducts.map((product) => (
-                  <Card
-                    key={product.id}
-                    className="cursor-pointer hover:shadow-lg transition-shadow"
-                    onClick={() => addToCart(product)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="aspect-square relative mb-3">
-                        {product.imageUrl ? (
-                          <Image
-                            src={product.imageUrl}
-                            alt={product.name}
-                            fill
-                            className="object-cover rounded-lg"
-                            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
-                            <Package className="h-8 w-8 text-gray-400" />
-                          </div>
-                        )}
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {isLoadingProducts ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-center">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">Loading products...</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex-1 overflow-y-auto p-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                      {products.map((product) => (
+                        <Card
+                          key={product.id}
+                          className="cursor-pointer hover:shadow-lg transition-shadow"
+                          onClick={() => addToCart(product)}
+                        >
+                          <CardContent className="p-4">
+                            <div className="aspect-square relative mb-3">
+                              {product.imageUrl ? (
+                                <Image
+                                  src={product.imageUrl}
+                                  alt={product.name}
+                                  fill
+                                  className="object-cover rounded-lg"
+                                  sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
+                                />
+                              ) : (
+                                <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
+                                  <Package className="h-8 w-8 text-gray-400" />
+                                </div>
+                              )}
+                            </div>
+                            <h3 className="font-semibold text-sm mb-1 line-clamp-2">
+                              {product.name}
+                            </h3>
+                            <p className="text-lg font-bold text-green-600">
+                              ${Number(product.price).toFixed(2)}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Stock: {product.stock || 0}
+                            </p>
+                            {product.categoryName && (
+                              <Badge variant="outline" className="text-xs mt-1">
+                                {product.categoryName}
+                              </Badge>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Pagination */}
+                  <div className="border-t bg-white p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-gray-500">
+                        Showing {products.length} of {totalProducts} products
                       </div>
-                      <h3 className="font-semibold text-sm mb-1 line-clamp-2">
-                        {product.name}
-                      </h3>
-                      <p className="text-lg font-bold text-green-600">
-                        ${Number(product.price).toFixed(2)}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Stock: {product.stock || 0}
-                      </p>
-                      {product.categoryName && (
-                        <Badge variant="outline" className="text-xs mt-1">
-                          {product.categoryName}
-                        </Badge>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                      <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={handlePageChange}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

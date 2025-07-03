@@ -127,6 +127,11 @@ class OrdersService {
     return response.data;
   }
 
+  async clearOrderItems(orderId: string): Promise<Order> {
+    const response = await api.delete(`/orders/${orderId}/items`);
+    return response.data;
+  }
+
   async updateOrder(
     orderId: string,
     data: Partial<CreateOrderRequest>

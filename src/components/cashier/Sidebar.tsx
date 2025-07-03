@@ -19,6 +19,7 @@ import {
   Users,
   LogOut,
   User,
+  ListOrdered,
 } from "lucide-react";
 
 interface SidebarItemProps {
@@ -65,8 +66,8 @@ export function CashierSidebar() {
             <SidebarItem
               icon={<ShoppingCart className="h-4 w-4" />}
               label="New Sale"
-              href="/dashboard/cashier/sales/new"
-              isActive={pathname === "/dashboard/cashier/sales/new"}
+              href="/dashboard/cashier/sales"
+              isActive={pathname === "/dashboard/cashier/sales"}
             />
             <SidebarItem
               icon={<Package className="h-4 w-4" />}
@@ -79,6 +80,12 @@ export function CashierSidebar() {
               label="Customers"
               href="/dashboard/cashier/customers"
               isActive={pathname === "/dashboard/cashier/customers"}
+            />
+            <SidebarItem
+              icon={<ListOrdered className="h-4 w-4" />}
+              label="Orders"
+              href="/dashboard/cashier/orders"
+              isActive={pathname === "/dashboard/cashier/orders"}
             />
             <SidebarItem
               icon={<User className="h-4 w-4" />}

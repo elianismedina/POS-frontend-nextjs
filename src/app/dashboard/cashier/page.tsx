@@ -13,10 +13,39 @@ import {
   Clock,
 } from "lucide-react";
 import { ShiftManager } from "@/components/cashier/ShiftManager";
+import { dashboardService, DashboardStats } from "@/app/services/dashboard";
+import { useEffect, useState } from "react";
 
 export default function CashierDashboard() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
+    todaySales: 0,
+    pendingOrders: 0,
+    totalSales: 0,
+    todayOrders: 0,
+  });
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (user?.branch?.business?.id) {
+        try {
+          const data = await dashboardService.getDashboardStats(
+            user.branch.business.id,
+            user.id
+          );
+          setDashboardStats(data);
+        } catch (error) {
+          console.error("Error fetching dashboard stats:", error);
+        } finally {
+          setStatsLoading(false);
+        }
+      }
+    };
+
+    fetchStats();
+  }, [user]);
 
   if (isLoading) {
     return (
@@ -36,7 +65,7 @@ export default function CashierDashboard() {
       title: "New Sale",
       description: "Start a new sale transaction",
       icon: <ShoppingCart className="h-6 w-6" />,
-      href: "/dashboard/cashier/sales/new",
+      href: "/dashboard/cashier/sales",
     },
     {
       title: "View Products",
@@ -54,18 +83,24 @@ export default function CashierDashboard() {
 
   const stats = [
     {
-      title: "Today's Sales",
-      value: "$0.00",
+      title: "My Today's Sales",
+      value: statsLoading
+        ? "Loading..."
+        : `$${dashboardStats.todaySales.toFixed(2)}`,
       icon: <DollarSign className="h-4 w-4" />,
     },
     {
-      title: "Pending Orders",
-      value: "0",
+      title: "My Pending Orders",
+      value: statsLoading
+        ? "Loading..."
+        : dashboardStats.pendingOrders.toString(),
       icon: <Clock className="h-4 w-4" />,
     },
     {
-      title: "Total Sales",
-      value: "$0.00",
+      title: "My Total Sales",
+      value: statsLoading
+        ? "Loading..."
+        : `$${dashboardStats.totalSales.toFixed(2)}`,
       icon: <TrendingUp className="h-4 w-4" />,
     },
   ];
@@ -102,6 +137,7 @@ export default function CashierDashboard() {
       </div>
 
       {/* Stats Section */}
+      <h2 className="text-2xl font-bold mb-4">My Sales Statistics</h2>
       <div className="grid gap-4 md:grid-cols-3 mb-8">
         {stats.map((stat) => (
           <Card key={stat.title}>

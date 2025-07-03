@@ -79,6 +79,7 @@ export default function SalesPage() {
   const [customerSearchTerm, setCustomerSearchTerm] = useState("");
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
   const [loadedOrderId, setLoadedOrderId] = useState<string | null>(null);
+  const [justCleared, setJustCleared] = useState(false);
 
   // Sale state
   const [sale, setSale] = useState<SaleData>({
@@ -111,15 +112,74 @@ export default function SalesPage() {
       orderId &&
       !isLoading &&
       products.length > 0 &&
-      loadedOrderId !== orderId
+      loadedOrderId !== orderId &&
+      !justCleared
     ) {
       loadExistingOrder(orderId);
     }
-  }, [searchParams, isLoading, products, loadedOrderId]);
+  }, [searchParams, isLoading, products, loadedOrderId, justCleared]);
+
+  useEffect(() => {
+    if (justCleared) {
+      const timeout = setTimeout(() => setJustCleared(false), 1000);
+      return () => clearTimeout(timeout);
+    }
+  }, [justCleared]);
 
   useEffect(() => {
     applyFilters();
   }, [products, searchTerm, selectedCategory]);
+
+  // Debug useEffect to monitor sale state changes
+  useEffect(() => {
+    console.log("Sale state changed:", {
+      itemsCount: sale.items.length,
+      items: sale.items.map((item) => ({
+        name: item.product.name,
+        quantity: item.quantity,
+        subtotal: item.subtotal,
+      })),
+      currentOrderId: sale.currentOrder
+        ? (sale.currentOrder as any)._props?.id || (sale.currentOrder as any).id
+        : null,
+      total: sale.total,
+      subtotal: sale.subtotal,
+      tax: sale.tax,
+    });
+  }, [sale]);
+
+  useEffect(() => {
+    if (!sale.currentOrder || products.length === 0) return;
+
+    // Always use the correct path for order items
+    const orderData = (sale.currentOrder as any)._props || sale.currentOrder;
+    const backendItems = (orderData.items || [])
+      .map((item: any) => {
+        const itemData = item._props || item;
+        const product = products.find((p) => p.id === itemData.productId);
+        if (!product) {
+          console.warn(
+            "Product not found for order item:",
+            itemData.productId,
+            "Available products:",
+            products.map((p) => p.id)
+          );
+          return null;
+        }
+        return {
+          product,
+          quantity: itemData.quantity || 1,
+          subtotal:
+            itemData.subtotal || product.price * (itemData.quantity || 1),
+        };
+      })
+      .filter((item: any): item is CartItem => item !== null);
+
+    setSale((prev) => ({
+      ...prev,
+      items: backendItems,
+    }));
+  }, [sale.currentOrder, products]);
 
   const fetchData = async () => {
     try {
@@ -218,9 +278,13 @@ export default function SalesPage() {
       const existingOrder = await ordersService.getOrder(orderId);
       console.log("Existing order loaded:", existingOrder);
 
+      // Handle both direct properties and _props structure
+      const orderData = (existingOrder._props || existingOrder) as any;
+      console.log("Order items:", orderData.items);
+      console.log("Order items length:", orderData.items?.length);
+
       // Check if order belongs to current cashier
-      const orderCashierId =
-        existingOrder.cashierId || existingOrder._props?.cashierId;
+      const orderCashierId = orderData.cashierId;
       if (orderCashierId !== user?.id) {
         toast({
           title: "Access Denied",
@@ -230,25 +294,59 @@ export default function SalesPage() {
         return;
       }
 
+      console.log("Available products:", products.length);
+      console.log(
+        "Available product IDs:",
+        products.map((p) => p.id)
+      );
+
       // Map order items to cart items
       const cartItems =
-        existingOrder.items?.map((item) => ({
-          product: products.find((p) => p.id === item.productId)!,
-          quantity: item.quantity || 1,
-          subtotal: item.subtotal || 0,
-        })) || [];
+        orderData.items
+          ?.map((item: any) => {
+            // Handle nested _props structure for items
+            const itemData = item._props || item;
+            console.log(`Looking for product with ID: ${itemData.productId}`);
+            const product = products.find((p) => p.id === itemData.productId);
+            if (!product) {
+              console.warn(`Product not found for item: ${itemData.productId}`);
+              return null;
+            }
+            console.log(`Found product: ${product.name}`);
+            return {
+              product,
+              quantity: itemData.quantity || 1,
+              subtotal: itemData.subtotal || 0,
+            };
+          })
+          .filter((item: any): item is CartItem => item !== null) || [];
 
-      // Set customer if order has one - simplified to avoid type issues
-      let customer = null;
+      // Set customer if order has one
+      const customer = (existingOrder as any).customer
+        ? ({
+            id: (existingOrder as any).customer.id,
+            name: (existingOrder as any).customer.name,
+            email: (existingOrder as any).customer.email,
+            phone: "",
+            address: "",
+            documentNumber: "",
+            isActive: true,
+            business: { id: "", name: "" },
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          } as Customer)
+        : null;
+
+      console.log("Cart items after mapping:", cartItems);
+      console.log("Cart items length:", cartItems.length);
+      console.log("Customer:", customer);
 
       // Update sale state with existing order data
       const updatedSale = {
-        items: cartItems,
         customer: customer,
-        subtotal:
-          existingOrder.subtotal || existingOrder._props?.totalAmount || 0,
-        tax: existingOrder.taxTotal || existingOrder._props?.taxAmount || 0,
-        total: existingOrder.total || existingOrder._props?.total || 0,
+        subtotal: (orderData as any).totalAmount || 0,
+        tax: (orderData as any).taxAmount || 0,
+        total: orderData.total || 0,
         discount: 0,
         discountType: "percentage" as const,
         selectedPaymentMethod: sale.selectedPaymentMethod,
@@ -256,7 +354,8 @@ export default function SalesPage() {
         currentOrder: existingOrder,
       };
 
-      setSale(calculateTotals(updatedSale));
+      console.log("Updated sale data:", updatedSale);
+      setSale((prev) => calculateTotals({ ...prev, ...updatedSale }));
       setLoadedOrderId(orderId);
 
       toast({
@@ -348,7 +447,9 @@ export default function SalesPage() {
 
       // Add item to order via backend
       const addItemData = {
-        barcode: product.barcode || "",
+        ...(product.barcode
+          ? { barcode: product.barcode }
+          : { productId: product.id }),
         quantity: 1,
         taxes: taxes.map((tax) => ({ taxId: tax.id })),
       };
@@ -358,11 +459,12 @@ export default function SalesPage() {
         addItemData,
       });
 
+      // Add item to order and get the updated order directly
       const updatedOrder = await ordersService.addItem(orderId, addItemData);
-
-      console.log("Order updated successfully:", updatedOrder);
-
-      setSale((prev) => ({ ...prev, currentOrder: updatedOrder }));
+      console.log(
+        "Item added to order successfully, updated order:",
+        updatedOrder
+      );
 
       // Debug the response structure
       console.log("Updated order structure:", {
@@ -374,26 +476,46 @@ export default function SalesPage() {
       });
 
       // Sync local cart state with backend order state
-      const backendItems =
-        updatedOrder.items?.map((item) => ({
-          product: products.find((p) => p.id === item.productId)!,
-          quantity: item.quantity || 1,
-          subtotal: item.subtotal || 0,
-        })) || [];
+      const backendItems = (updatedOrder.items || [])
+        .map((item: any) => {
+          const itemData = item._props || item;
+          console.log("Processing item:", itemData);
+          const product = products.find((p) => p.id === itemData.productId);
+          if (!product) {
+            console.warn(`Product not found for item: ${itemData.productId}`);
+            console.log(
+              "Available products:",
+              products.map((p) => ({ id: p.id, name: p.name }))
+            );
+            return null;
+          }
+          const cartItem = {
+            product,
+            quantity: itemData.quantity || 1,
+            subtotal:
+              itemData.subtotal || product.price * (itemData.quantity || 1),
+          };
+          console.log("Created cart item:", cartItem);
+          return cartItem;
+        })
+        .filter((item: any): item is CartItem => item !== null);
 
       console.log("Backend items mapped:", backendItems);
+      console.log("Backend items count:", backendItems.length);
 
-      setSale((prev) => {
-        const newSaleData = {
-          ...prev,
-          items: backendItems,
-          currentOrder: updatedOrder,
-        };
+      // Use a more direct approach to update state
+      const newSaleData = {
+        ...sale,
+        items: backendItems,
+        currentOrder: updatedOrder,
+      };
 
-        const calculatedSale = calculateTotals(newSaleData);
-        console.log("Calculated sale data:", calculatedSale);
-        return calculatedSale;
-      });
+      const calculatedSale = calculateTotals(newSaleData);
+      console.log("Final calculated sale:", calculatedSale);
+      console.log("Items to be set:", calculatedSale.items.length);
+
+      // Update state directly
+      setSale(calculatedSale);
 
       toast({
         title: "Added to cart",
@@ -428,32 +550,98 @@ export default function SalesPage() {
           throw new Error("Order ID is missing");
         }
 
+        // Handle both direct properties and _props structure for order items
+        const orderData =
+          (sale.currentOrder as any)._props || sale.currentOrder;
+        const orderItems = orderData.items || [];
+
         // Find the order item ID
-        const orderItem = sale.currentOrder.items.find(
-          (item) => item.productId === productId
-        );
+        const orderItem = orderItems.find((item: any) => {
+          const itemData = item._props || item;
+          return itemData.productId === productId;
+        });
 
         if (orderItem) {
+          const itemData = orderItem._props || orderItem;
+          console.log("Updating quantity for item:", {
+            orderId,
+            itemId: itemData.id,
+            productId,
+            newQuantity,
+          });
+
           const updatedOrder = await ordersService.updateItemQuantity(
             orderId,
-            orderItem.id,
+            itemData.id,
             newQuantity
           );
 
-          // Sync local cart state with backend order state
-          const backendItems = updatedOrder.items.map((item) => ({
-            product: products.find((p) => p.id === item.productId)!,
-            quantity: item.quantity,
-            subtotal: item.subtotal,
-          }));
+          console.log("Updated order response:", updatedOrder);
+          console.log("Updated order items:", updatedOrder.items);
+          console.log(
+            "Updated order items length:",
+            updatedOrder.items?.length
+          );
 
-          setSale((prev) => {
-            return calculateTotals({
-              ...prev,
-              items: backendItems,
-              currentOrder: updatedOrder,
-            });
-          });
+          // Check if the response has items, if not fetch the complete order
+          let finalOrder = updatedOrder;
+          if (!updatedOrder.items || updatedOrder.items.length === 0) {
+            console.log(
+              "Updated order has no items, fetching complete order..."
+            );
+            finalOrder = await ordersService.getOrder(orderId);
+            console.log("Fetched complete order:", finalOrder);
+            console.log("Fetched order items:", finalOrder.items);
+          }
+
+          // Sync local cart state with backend order state
+          const backendItems = (finalOrder.items || [])
+            .map((item: any) => {
+              const itemData = item._props || item;
+              console.log("Processing updated item:", itemData);
+              const product = products.find((p) => p.id === itemData.productId);
+              if (!product) {
+                console.warn(
+                  `Product not found for item: ${itemData.productId}`
+                );
+                return null;
+              }
+              const cartItem = {
+                product,
+                quantity: itemData.quantity,
+                subtotal:
+                  itemData.subtotal || product.price * itemData.quantity,
+              };
+              console.log("Created cart item from update:", cartItem);
+              return cartItem;
+            })
+            .filter((item: any): item is CartItem => item !== null);
+
+          console.log("Backend items after update:", backendItems);
+          console.log("Backend items count after update:", backendItems.length);
+
+          const newSaleData = {
+            ...sale,
+            items: backendItems,
+            currentOrder: finalOrder,
+          };
+
+          const calculatedSale = calculateTotals(newSaleData);
+          console.log("Calculated sale after update:", calculatedSale);
+          console.log(
+            "Items to be set after update:",
+            calculatedSale.items.length
+          );
+
+          console.log(
+            "Setting sale state with calculated data:",
+            calculatedSale
+          );
+          // Use a more explicit state update
+          setSale(() => calculatedSale);
+
+          // Force a re-render immediately
+          console.log("Force update triggered for quantity update");
         }
       }
     } catch (error: any) {
@@ -479,31 +667,95 @@ export default function SalesPage() {
           throw new Error("Order ID is missing");
         }
 
-        const orderItem = sale.currentOrder.items.find(
-          (item) => item.productId === productId
-        );
+        // Handle both direct properties and _props structure for order items
+        const orderData =
+          (sale.currentOrder as any)._props || sale.currentOrder;
+        const orderItems = orderData.items || [];
+
+        const orderItem = orderItems.find((item: any) => {
+          const itemData = item._props || item;
+          return itemData.productId === productId;
+        });
 
         if (orderItem) {
+          const itemData = orderItem._props || orderItem;
+          console.log("Removing item:", {
+            orderId,
+            itemId: itemData.id,
+            productId,
+          });
+
           const updatedOrder = await ordersService.removeItem(
             orderId,
-            orderItem.id
+            itemData.id
           );
 
-          // Sync local cart state with backend order state
-          const backendItems =
-            updatedOrder.items?.map((item) => ({
-              product: products.find((p) => p.id === item.productId)!,
-              quantity: item.quantity,
-              subtotal: item.subtotal,
-            })) || [];
+          console.log("Updated order after remove:", updatedOrder);
+          console.log("Updated order items after remove:", updatedOrder.items);
+          console.log(
+            "Updated order items length after remove:",
+            updatedOrder.items?.length
+          );
 
-          setSale((prev) => {
-            return calculateTotals({
-              ...prev,
-              items: backendItems,
-              currentOrder: updatedOrder,
-            });
-          });
+          // Check if the response has items, if not fetch the complete order
+          let finalOrder = updatedOrder;
+          if (!updatedOrder.items || updatedOrder.items.length === 0) {
+            console.log(
+              "Updated order has no items after remove, fetching complete order..."
+            );
+            finalOrder = await ordersService.getOrder(orderId);
+            console.log("Fetched complete order after remove:", finalOrder);
+            console.log("Fetched order items after remove:", finalOrder.items);
+          }
+
+          // Sync local cart state with backend order state
+          const backendItems = (finalOrder.items || [])
+            .map((item: any) => {
+              const itemData = item._props || item;
+              console.log("Processing item after remove:", itemData);
+              const product = products.find((p) => p.id === itemData.productId);
+              if (!product) {
+                console.warn(
+                  `Product not found for item: ${itemData.productId}`
+                );
+                return null;
+              }
+              const cartItem = {
+                product,
+                quantity: itemData.quantity,
+                subtotal:
+                  itemData.subtotal || product.price * itemData.quantity,
+              };
+              console.log("Created cart item after remove:", cartItem);
+              return cartItem;
+            })
+            .filter((item: any): item is CartItem => item !== null);
+
+          console.log("Backend items after remove:", backendItems);
+          console.log("Backend items count after remove:", backendItems.length);
+
+          const newSaleData = {
+            ...sale,
+            items: backendItems,
+            currentOrder: finalOrder,
+          };
+
+          const calculatedSale = calculateTotals(newSaleData);
+          console.log("Calculated sale after remove:", calculatedSale);
+          console.log(
+            "Items to be set after remove:",
+            calculatedSale.items.length
+          );
+
+          console.log(
+            "Setting sale state with calculated data after remove:",
+            calculatedSale
+          );
+          // Use a more explicit state update
+          setSale(() => calculatedSale);
+
+          // Force a re-render immediately
+          console.log("Force update triggered for remove");
         }
       }
     } catch (error: any) {
@@ -517,13 +769,23 @@ export default function SalesPage() {
   };
 
   const calculateTotals = (saleData: SaleData): SaleData => {
-    // If we have a current order with backend totals, use those
+    // Always preserve the items array from the input
+    const result = {
+      ...saleData,
+      items: saleData.items || [], // Ensure items are preserved
+    };
+
+    // If we have a current order with backend totals, use those for calculations
     if (saleData.currentOrder) {
+      // Handle both direct properties and _props structure
+      const order = saleData.currentOrder as any;
+      const orderData = order._props || order;
+
       return {
-        ...saleData,
-        subtotal: saleData.currentOrder.subtotal,
-        tax: saleData.currentOrder.taxTotal,
-        total: saleData.currentOrder.total,
+        ...result,
+        subtotal: orderData.totalAmount || orderData.subtotal || 0,
+        tax: orderData.taxAmount || orderData.taxTotal || 0,
+        total: orderData.finalAmount || orderData.total || 0,
       };
     }
 
@@ -541,7 +803,7 @@ export default function SalesPage() {
     const total = subtotal + tax - discount;
 
     return {
-      ...saleData,
+      ...result,
       subtotal,
       tax,
       total,
@@ -580,22 +842,80 @@ export default function SalesPage() {
     }
   };
 
-  const clearSale = () => {
-    setSale({
-      items: [],
-      customer: null,
-      subtotal: 0,
-      tax: 0,
-      total: 0,
-      discount: 0,
-      discountType: "percentage",
-      selectedPaymentMethod:
-        paymentMethods.find((method) => method.paymentMethod.code === "CASH") ||
-        null,
-      amountTendered: 0,
-      currentOrder: null,
-    });
-    setLoadedOrderId(null);
+  const clearSale = async () => {
+    try {
+      if (sale.currentOrder && sale.items.length > 0) {
+        const orderId =
+          (sale.currentOrder as any)?._props?.id ||
+          (sale.currentOrder as any)?.id;
+
+        if (orderId) {
+          // Remove all items in parallel and wait for all to finish
+          const orderData =
+            (sale.currentOrder as any)._props || sale.currentOrder;
+          const orderItems = orderData.items || [];
+
+          await Promise.all(
+            orderItems.map(async (item: any) => {
+              const itemData = item._props || item;
+              await ordersService.removeItem(orderId, itemData.id);
+            })
+          );
+
+          // Fetch the updated (now empty) order
+          const updatedOrder = await ordersService.getOrder(orderId);
+
+          // Update the local state with the cleared order, but keep currentOrder
+          setSale((prev) => ({
+            ...prev,
+            items: [],
+            subtotal: 0,
+            tax: 0,
+            total: 0,
+            discount: 0,
+            amountTendered: 0,
+            currentOrder: updatedOrder,
+          }));
+          setLoadedOrderId(orderId);
+          setJustCleared(true);
+          toast({
+            title: "Sale cleared",
+            description: "All items have been removed from the order",
+          });
+          return;
+        }
+      }
+
+      // If no current order, reset everything (new sale)
+      setSale({
+        items: [],
+        customer: null,
+        subtotal: 0,
+        tax: 0,
+        total: 0,
+        discount: 0,
+        discountType: "percentage",
+        selectedPaymentMethod:
+          paymentMethods.find(
+            (method) => method.paymentMethod.code === "CASH"
+          ) || null,
+        amountTendered: 0,
+        currentOrder: null,
+      });
+      setLoadedOrderId(null);
+      setJustCleared(true);
+      toast({
+        title: "Sale cleared",
+        description: "All items have been removed from the order",
+      });
+    } catch (error: any) {
+      console.error("Error clearing sale:", error);
+      toast({
+        title: "Error",
+        description: "Failed to clear sale. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const selectPaymentMethod = (paymentMethod: BusinessPaymentMethod) => {
@@ -687,7 +1007,7 @@ export default function SalesPage() {
       });
 
       // Clear sale after successful payment
-      clearSale();
+      await clearSale();
     } catch (error: any) {
       console.error("Error processing payment:", error);
       toast({
@@ -790,7 +1110,11 @@ export default function SalesPage() {
             )}
           </div>
           <div className="flex items-center space-x-4">
-            <Button variant="outline" onClick={clearSale}>
+            <Button
+              variant="outline"
+              onClick={() => clearSale()}
+              disabled={isLoading}
+            >
               <X className="h-4 w-4 mr-2" />
               Clear Sale
             </Button>
@@ -809,266 +1133,372 @@ export default function SalesPage() {
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Panel - Products */}
-        <div className="flex-1 flex flex-col">
-          {/* Search and Filters */}
-          <div className="bg-white border-b p-4">
-            <div className="flex gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Search products by name, description, or barcode..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Main Content Area */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Left Panel - Products */}
+          <div className="flex-1 flex flex-col">
+            {/* Search and Filters */}
+            <div className="bg-white border-b p-4">
+              <div className="flex gap-4">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    placeholder="Search products by name, description, or barcode..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">All Categories</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.name}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">All Categories</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.name}>
-                    {category.name}
-                  </option>
+            </div>
+
+            {/* Products Grid */}
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                {filteredProducts.map((product) => (
+                  <Card
+                    key={product.id}
+                    className="cursor-pointer hover:shadow-lg transition-shadow"
+                    onClick={() => addToCart(product)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="aspect-square relative mb-3">
+                        {product.imageUrl ? (
+                          <Image
+                            src={product.imageUrl}
+                            alt={product.name}
+                            fill
+                            className="object-cover rounded-lg"
+                            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
+                            <Package className="h-8 w-8 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
+                      <h3 className="font-semibold text-sm mb-1 line-clamp-2">
+                        {product.name}
+                      </h3>
+                      <p className="text-lg font-bold text-green-600">
+                        ${Number(product.price).toFixed(2)}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Stock: {product.stock || 0}
+                      </p>
+                      {product.categoryName && (
+                        <Badge variant="outline" className="text-xs mt-1">
+                          {product.categoryName}
+                        </Badge>
+                      )}
+                    </CardContent>
+                  </Card>
                 ))}
-              </select>
+              </div>
             </div>
           </div>
 
-          {/* Products Grid */}
-          <div className="flex-1 overflow-y-auto p-4">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              {filteredProducts.map((product) => (
-                <Card
-                  key={product.id}
-                  className="cursor-pointer hover:shadow-lg transition-shadow"
-                  onClick={() => addToCart(product)}
+          {/* Right Panel - Cart */}
+          <div className="w-96 bg-white border-l flex flex-col h-full">
+            {/* Cart Items */}
+            <div className="flex-1 overflow-y-auto p-3 bg-gray-50 min-h-0">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-bold text-gray-900 flex items-center">
+                  <ShoppingCart className="h-4 w-4 mr-2 text-blue-600" />
+                  Cart Items
+                </h3>
+                <Badge variant="secondary" className="text-xs px-2 py-0.5">
+                  {sale.items.length}{" "}
+                  {sale.items.length === 1 ? "item" : "items"}
+                </Badge>
+              </div>
+
+              {sale.items.length === 0 ? (
+                <div className="text-center text-gray-500 py-8">
+                  <ShoppingCart className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  <p className="text-base font-medium">No items in cart</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Add products to start a sale
+                  </p>
+                </div>
+              ) : (
+                <div
+                  className="space-y-2"
+                  key={`cart-items-${sale.items.length}`}
                 >
-                  <CardContent className="p-4">
-                    <div className="aspect-square relative mb-3">
-                      {product.imageUrl ? (
-                        <Image
-                          src={product.imageUrl}
-                          alt={product.name}
-                          fill
-                          className="object-cover rounded-lg"
-                          sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
-                          <Package className="h-8 w-8 text-gray-400" />
+                  {sale.items.map((item, index) => (
+                    <div
+                      key={`${item.product.id}-${item.quantity}-${index}`}
+                      className="bg-white border border-gray-300 rounded-md p-2 shadow-sm hover:shadow-md transition-all duration-200"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <h4 className="font-bold text-gray-900 text-sm truncate">
+                              {item.product.name}
+                            </h4>
+                            <p className="text-sm font-bold text-green-600 ml-2">
+                              ${(item.subtotal || 0).toFixed(2)}
+                            </p>
+                          </div>
+                          <p className="text-xs text-gray-600 mb-2">
+                            ${Number(item.product.price).toFixed(2)} each
+                          </p>
+
+                          {/* Quantity Controls */}
+                          <div className="flex items-center space-x-2">
+                            <div className="flex items-center space-x-1 bg-blue-50 border border-blue-200 rounded px-2 py-0.5">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-5 w-5 p-0 hover:bg-blue-100 text-blue-600"
+                                onClick={() =>
+                                  updateQuantity(
+                                    item.product.id,
+                                    item.quantity - 1
+                                  )
+                                }
+                              >
+                                <Minus className="h-2.5 w-2.5" />
+                              </Button>
+                              <span className="w-6 text-center font-bold text-blue-900 text-xs">
+                                {item.quantity}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-5 w-5 p-0 hover:bg-blue-100 text-blue-600"
+                                onClick={() =>
+                                  updateQuantity(
+                                    item.product.id,
+                                    item.quantity + 1
+                                  )
+                                }
+                              >
+                                <Plus className="h-2.5 w-2.5" />
+                              </Button>
+                            </div>
+
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 px-1.5 py-0.5 border border-red-200 rounded text-xs"
+                              onClick={() => removeFromCart(item.product.id)}
+                            >
+                              <Trash2 className="h-2.5 w-2.5 mr-1" />
+                              Remove
+                            </Button>
+                          </div>
                         </div>
-                      )}
+                      </div>
                     </div>
-                    <h3 className="font-semibold text-sm mb-1 line-clamp-2">
-                      {product.name}
-                    </h3>
-                    <p className="text-lg font-bold text-green-600">
-                      ${Number(product.price).toFixed(2)}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Stock: {product.stock || 0}
-                    </p>
-                    {product.categoryName && (
-                      <Badge variant="outline" className="text-xs mt-1">
-                        {product.categoryName}
-                      </Badge>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Order Summary */}
+            <div className="flex-shrink-0 border-t bg-gray-50 p-4">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-lg font-bold text-gray-900">
+                  Order Summary
+                </h3>
+              </div>
+
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Subtotal:</span>
+                  <span className="font-medium">
+                    ${(sale.subtotal || 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">
+                    Tax (
+                    {(
+                      taxes.reduce((sum, tax) => sum + tax.rate, 0) * 100
+                    ).toFixed(1)}
+                    %):
+                  </span>
+                  <span className="font-medium">
+                    ${(sale.tax || 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Discount:</span>
+                  <span className="font-medium text-red-600">
+                    -${(sale.discount || 0).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-300 pt-3 mt-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-lg font-bold text-gray-900">
+                    Total:
+                  </span>
+                  <span className="text-xl font-bold text-green-600">
+                    ${(sale.total || 0).toFixed(2)}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Right Panel - Cart */}
-        <div className="w-96 bg-white border-l flex flex-col">
-          {/* Customer Selection */}
-          <div className="p-4 border-b">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold">Customer</h3>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowCustomerModal(true)}
-              >
-                <User className="h-4 w-4 mr-1" />
-                Select
-              </Button>
-            </div>
-            {sale.customer ? (
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <p className="font-medium">{sale.customer.name}</p>
-                <p className="text-sm text-gray-600">{sale.customer.email}</p>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500">No customer selected</p>
-            )}
-          </div>
-
-          {/* Payment Method Selection */}
-          <div className="p-4 border-b">
-            <h3 className="font-semibold mb-2">Payment Method</h3>
-            <div className="space-y-2">
-              {paymentMethods.map((method) => (
-                <div
-                  key={method.id}
-                  className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                    sale.selectedPaymentMethod?.id === method.id
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                  onClick={() => selectPaymentMethod(method)}
+        {/* Bottom Section - Customer, Payment, Amount Tendered */}
+        <div className="bg-white border-t p-4">
+          <div className="flex gap-6">
+            {/* Customer Selection */}
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-gray-900">
+                  Customer
+                </h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowCustomerModal(true)}
+                  className="hover:bg-blue-50 hover:border-blue-300 text-xs px-2 py-1"
                 >
+                  <User className="h-3 w-3 mr-1" />
+                  Select
+                </Button>
+              </div>
+              {sale.customer ? (
+                <div className="bg-blue-50 border border-blue-200 p-2 rounded-md">
                   <div className="flex items-center space-x-2">
-                    {getPaymentMethodIcon(method.paymentMethod.code)}
-                    <span className="font-medium">
-                      {method.paymentMethod.name}
-                    </span>
-                    {method.isDefault && (
-                      <Badge variant="outline" className="text-xs">
-                        Default
-                      </Badge>
-                    )}
+                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                      <User className="h-3 w-3 text-blue-600" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-blue-900 text-sm truncate">
+                        {sale.customer.name}
+                      </p>
+                      <p className="text-xs text-blue-700 truncate">
+                        {sale.customer.email}
+                      </p>
+                    </div>
                   </div>
-                  {method.paymentMethod.description && (
-                    <p className="text-sm text-gray-600 mt-1">
-                      {method.paymentMethod.description}
-                    </p>
-                  )}
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Amount Tendered (for cash payments) */}
-          {sale.selectedPaymentMethod?.paymentMethod.code === "CASH" && (
-            <div className="p-4 border-b">
-              <h3 className="font-semibold mb-2">Amount Tendered</h3>
-              <Input
-                type="number"
-                placeholder="Enter amount tendered"
-                value={sale.amountTendered || ""}
-                onChange={(e) =>
-                  setSale((prev) => ({
-                    ...prev,
-                    amountTendered: parseFloat(e.target.value) || 0,
-                  }))
-                }
-                step="0.01"
-                min="0"
-              />
-              {sale.amountTendered > 0 && (
-                <div className="mt-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>Change:</span>
-                    <span className="font-medium">
-                      $
-                      {Math.max(
-                        0,
-                        (sale.amountTendered || 0) - (sale.total || 0)
-                      ).toFixed(2)}
-                    </span>
+              ) : (
+                <div className="bg-gray-50 border border-gray-200 p-2 rounded-md">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center">
+                      <User className="h-3 w-3 text-gray-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-600">
+                        No customer selected
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
-          )}
 
-          {/* Cart Items */}
-          <div className="flex-1 overflow-y-auto p-4">
-            <h3 className="font-semibold mb-4">Cart Items</h3>
-            {sale.items.length === 0 ? (
-              <div className="text-center text-gray-500 py-8">
-                <ShoppingCart className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-                <p>No items in cart</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {sale.items.map((item) => (
+            {/* Payment Method Selection */}
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">
+                Payment Method
+              </h3>
+              <div className="space-y-1">
+                {paymentMethods.map((method) => (
                   <div
-                    key={item.product.id}
-                    className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg"
+                    key={method.id}
+                    className={`p-2 border rounded-md cursor-pointer transition-all ${
+                      sale.selectedPaymentMethod?.id === method.id
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:border-blue-300 hover:bg-blue-25"
+                    }`}
+                    onClick={() => selectPaymentMethod(method)}
                   >
-                    <div className="flex-1">
-                      <h4 className="font-medium text-sm">
-                        {item.product.name}
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        ${Number(item.product.price).toFixed(2)} each
-                      </p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          updateQuantity(item.product.id, item.quantity - 1)
-                        }
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span className="w-8 text-center font-medium">
-                        {item.quantity}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          updateQuantity(item.product.id, item.quantity + 1)
-                        }
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => removeFromCart(item.product.id)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold">
-                        ${(item.subtotal || 0).toFixed(2)}
-                      </p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <div
+                          className={`p-1 rounded ${
+                            sale.selectedPaymentMethod?.id === method.id
+                              ? "bg-blue-100"
+                              : "bg-gray-100"
+                          }`}
+                        >
+                          {getPaymentMethodIcon(method.paymentMethod.code)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <span className="font-medium text-gray-900 text-sm">
+                            {method.paymentMethod.name}
+                          </span>
+                          {method.isDefault && (
+                            <Badge variant="outline" className="ml-1 text-xs">
+                              Default
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      {sale.selectedPaymentMethod?.id === method.id && (
+                        <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center ml-2">
+                          <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* Totals */}
-          <div className="border-t p-4 space-y-3">
-            <div className="flex justify-between">
-              <span>Subtotal:</span>
-              <span>${(sale.subtotal || 0).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>
-                Tax (
-                {(taxes.reduce((sum, tax) => sum + tax.rate, 0) * 100).toFixed(
-                  1
-                )}
-                %):
-              </span>
-              <span>${(sale.tax || 0).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Discount:</span>
-              <span>-${(sale.discount || 0).toFixed(2)}</span>
-            </div>
-            <div className="border-t pt-3">
-              <div className="flex justify-between text-lg font-bold">
-                <span>Total:</span>
-                <span>${(sale.total || 0).toFixed(2)}</span>
+            {/* Amount Tendered (for cash payments) */}
+            {sale.selectedPaymentMethod?.paymentMethod.code === "CASH" && (
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-gray-900 mb-2">
+                  Amount Tendered
+                </h3>
+                <div className="space-y-2">
+                  <Input
+                    type="number"
+                    placeholder="Enter amount"
+                    value={sale.amountTendered || ""}
+                    onChange={(e) =>
+                      setSale((prev) => ({
+                        ...prev,
+                        amountTendered: parseFloat(e.target.value) || 0,
+                      }))
+                    }
+                    step="0.01"
+                    min="0"
+                    className="text-sm"
+                  />
+                  {sale.amountTendered > 0 && (
+                    <div className="bg-green-50 border border-green-200 p-2 rounded-md">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-medium text-green-800">
+                          Change:
+                        </span>
+                        <span className="text-sm font-bold text-green-600">
+                          $
+                          {Math.max(
+                            0,
+                            (sale.amountTendered || 0) - (sale.total || 0)
+                          ).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

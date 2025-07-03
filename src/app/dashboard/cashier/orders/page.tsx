@@ -15,6 +15,7 @@ import {
   CheckCircle,
   XCircle,
   DollarSign,
+  RefreshCw,
 } from "lucide-react";
 
 const getStatusColor = (status: string) => {
@@ -60,27 +61,54 @@ export default function CashierOrdersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      if (user?.branch?.business?.id) {
-        try {
-          // For cashiers, we'll get orders filtered by their business and cashier ID
-          const response = await ordersService.getOrders({
-            businessId: user.branch.business.id,
-            cashierId: user.id, // Filter by current cashier
+  const fetchOrders = async () => {
+    if (user?.branch?.business?.id) {
+      try {
+        setLoading(true);
+        // For cashiers, we'll get orders filtered by their business and cashier ID
+        const response = await ordersService.getOrders({
+          businessId: user.branch.business.id,
+          cashierId: user.id, // Filter by current cashier
+        });
+        console.log("Orders response:", response); // Debug log
+
+        // Debug: Check customer data for each order
+        response.forEach((order, index) => {
+          console.log(`Order ${index + 1}:`, {
+            id: order.id || order._props?.id,
+            customerId: order.customerId || order._props?.customerId,
+            customer: order.customer,
+            hasCustomer: !!order.customer,
+            customerName: order.customer?.name,
           });
-          console.log("Orders response:", response); // Debug log
-          setOrders(response);
-          setFilteredOrders(response);
-        } catch (error) {
-          console.error("Error fetching orders:", error);
-        } finally {
-          setLoading(false);
-        }
+        });
+
+        setOrders(response);
+        setFilteredOrders(response);
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+      } finally {
+        setLoading(false);
       }
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, [user]);
+
+  // Refresh orders when user returns to the page (e.g., from sales page)
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log("Page focused, refreshing orders...");
+      fetchOrders();
     };
 
-    fetchOrders();
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
   }, [user]);
 
   useEffect(() => {
@@ -160,6 +188,15 @@ export default function CashierOrdersPage() {
           <option value="COMPLETED">Completed</option>
           <option value="CANCELLED">Cancelled</option>
         </select>
+        <Button
+          variant="outline"
+          onClick={fetchOrders}
+          disabled={loading}
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
       </div>
 
       {/* Orders List */}
@@ -238,6 +275,19 @@ export default function CashierOrdersPage() {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <h4 className="font-semibold mb-2">Customer</h4>
+                    {(() => {
+                      console.log(
+                        `Order ${order.id || order._props?.id} customer data:`,
+                        {
+                          customerId:
+                            order.customerId || order._props?.customerId,
+                          customer: order.customer,
+                          hasCustomer: !!order.customer,
+                          customerName: order.customer?.name,
+                        }
+                      );
+                      return null;
+                    })()}
                     <p className="text-muted-foreground">
                       {order.customer?.name || "No customer assigned"}
                     </p>

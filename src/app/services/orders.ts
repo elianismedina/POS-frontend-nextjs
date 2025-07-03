@@ -59,7 +59,8 @@ export interface CreateOrderRequest {
 }
 
 export interface AddItemRequest {
-  barcode: string;
+  barcode?: string;
+  productId?: string;
   quantity?: number;
   taxes?: Array<{
     taxId: string;

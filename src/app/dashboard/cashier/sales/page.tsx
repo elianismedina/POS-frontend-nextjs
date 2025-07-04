@@ -22,6 +22,7 @@ import {
 import { ordersService, Order } from "@/app/services/orders";
 import { shiftsService, Shift } from "@/app/services/shifts";
 import { Pagination } from "@/components/ui/pagination";
+import { BarcodeScanner } from "@/components/ui/barcode-scanner";
 import {
   Search,
   ShoppingCart,
@@ -39,6 +40,7 @@ import {
   CreditCard as CreditCardIcon,
   Loader2,
   Clock,
+  Scan,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -94,6 +96,10 @@ export default function SalesPage() {
     estimatedTime: "",
     notes: "",
   });
+
+  // Barcode scanner state
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+  const [isProcessingBarcode, setIsProcessingBarcode] = useState(false);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -186,6 +192,68 @@ export default function SalesPage() {
 
     if (businessId) {
       loadProducts(businessId, page);
+    }
+  };
+
+  // Handle barcode scanning
+  const handleBarcodeScanned = async (barcode: string) => {
+    try {
+      setIsProcessingBarcode(true);
+      setShowBarcodeScanner(false);
+
+      // Find product by barcode
+      const product = await productsService.getByBarcode(barcode);
+
+      if (product) {
+        // Check if product belongs to current business
+        let businessId: string | undefined;
+        if (user?.business?.[0]?.id) {
+          businessId = user.business[0].id;
+        } else if (user?.branch?.business?.id) {
+          businessId = user.branch.business.id;
+        }
+
+        if (product.businessId !== businessId) {
+          toast({
+            title: "Product Not Found",
+            description: "This product doesn't belong to your business",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Add product to cart
+        await addToCart(product);
+
+        toast({
+          title: "Product Added",
+          description: `${product.name} added to cart via barcode scan`,
+        });
+      } else {
+        toast({
+          title: "Product Not Found",
+          description: `No product found with barcode: ${barcode}`,
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error processing barcode:", error);
+
+      if (error.response?.status === 404) {
+        toast({
+          title: "Product Not Found",
+          description: `No product found with barcode: ${barcode}`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to process barcode. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsProcessingBarcode(false);
     }
   };
 
@@ -1356,14 +1424,16 @@ export default function SalesPage() {
             )}
           </div>
           <div className="flex items-center space-x-4">
-            <Button
-              variant="outline"
-              onClick={() => clearSale()}
-              disabled={isLoading || isOrderCompleted()}
-            >
-              <X className="h-4 w-4 mr-2" />
-              Clear Sale
-            </Button>
+            {sale.items.length > 0 && (
+              <Button
+                variant="outline"
+                onClick={() => clearSale()}
+                disabled={isLoading || isOrderCompleted()}
+              >
+                <X className="h-4 w-4 mr-2" />
+                Clear Sale
+              </Button>
+            )}
             <Button
               onClick={processPayment}
               disabled={
@@ -1402,6 +1472,19 @@ export default function SalesPage() {
                     className="pl-10"
                   />
                 </div>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowBarcodeScanner(true)}
+                  disabled={isOrderCompleted() || isProcessingBarcode}
+                  className="flex items-center gap-2"
+                >
+                  {isProcessingBarcode ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Scan className="h-4 w-4" />
+                  )}
+                  Scan
+                </Button>
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
@@ -2012,6 +2095,15 @@ export default function SalesPage() {
           </div>
         </div>
       )}
+
+      {/* Barcode Scanner Modal */}
+      <BarcodeScanner
+        isOpen={showBarcodeScanner}
+        onClose={() => setShowBarcodeScanner(false)}
+        onBarcodeScanned={handleBarcodeScanned}
+        title="Scan Product Barcode"
+        placeholder="Scan or enter product barcode..."
+      />
     </div>
   );
 }

@@ -81,6 +81,13 @@ export const productsService = {
     return response.data;
   },
 
+  async getByBarcode(barcode: string): Promise<Product> {
+    const response = await api.get(
+      `/products/by-barcode?barcode=${encodeURIComponent(barcode)}`
+    );
+    return response.data;
+  },
+
   async create(
     data: Omit<Product, "id" | "createdAt" | "updatedAt">
   ): Promise<Product> {

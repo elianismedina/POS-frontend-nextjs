@@ -86,7 +86,7 @@ export interface AddItemRequest {
 }
 
 export interface CompleteOrderRequest {
-  completionType: "PICKUP" | "DELIVERY";
+  completionType: "PICKUP" | "DELIVERY" | "DINE_IN";
   deliveryAddress?: string;
   estimatedTime?: string;
   notes?: string;
@@ -155,6 +155,11 @@ class OrdersService {
     data: Partial<CreateOrderRequest>
   ): Promise<Order> {
     const response = await api.patch(`/orders/${orderId}`, data);
+    return response.data;
+  }
+
+  async confirmOrder(orderId: string, notes?: string): Promise<Order> {
+    const response = await api.post(`/orders/${orderId}/confirm`, { notes });
     return response.data;
   }
 

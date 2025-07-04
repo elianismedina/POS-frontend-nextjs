@@ -20,6 +20,7 @@ import {
   LogOut,
   User,
   ListOrdered,
+  Clock,
 } from "lucide-react";
 
 interface SidebarItemProps {
@@ -39,7 +40,7 @@ function SidebarItem({ icon, label, href, isActive }: SidebarItemProps) {
       onClick={() => router.push(href)}
     >
       {icon}
-      <span className="ml-2">{label}</span>
+      <span className="ml-2 hidden sm:inline">{label}</span>
     </Button>
   );
 }
@@ -52,7 +53,9 @@ export function CashierSidebar() {
     <SidebarProvider defaultCollapsed={false}>
       <Sidebar>
         <SidebarHeader className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Cashier Panel</h2>
+          <h2 className="text-lg font-semibold hidden sm:block">
+            Cashier Panel
+          </h2>
           <SidebarTrigger />
         </SidebarHeader>
         <SidebarContent>
@@ -88,6 +91,12 @@ export function CashierSidebar() {
               isActive={pathname === "/dashboard/cashier/orders"}
             />
             <SidebarItem
+              icon={<Clock className="h-4 w-4" />}
+              label="My Shifts"
+              href="/dashboard/cashier/shifts"
+              isActive={pathname === "/dashboard/cashier/shifts"}
+            />
+            <SidebarItem
               icon={<User className="h-4 w-4" />}
               label="Profile"
               href="/dashboard/cashier/profile"
@@ -97,7 +106,7 @@ export function CashierSidebar() {
         </SidebarContent>
         <SidebarFooter>
           <div className="flex flex-col gap-2">
-            <div className="px-4 py-2 text-sm text-muted-foreground">
+            <div className="px-4 py-2 text-sm text-muted-foreground hidden sm:block">
               {user?.email}
             </div>
             <Button
@@ -106,7 +115,7 @@ export function CashierSidebar() {
               onClick={() => logout()}
             >
               <LogOut className="h-4 w-4" />
-              <span className="ml-2">Logout</span>
+              <span className="ml-2 hidden sm:inline">Logout</span>
             </Button>
           </div>
         </SidebarFooter>

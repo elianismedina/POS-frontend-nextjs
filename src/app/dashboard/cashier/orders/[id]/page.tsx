@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ordersService, Order } from "@/app/services/orders";
+import { shiftsService, Shift } from "@/app/services/shifts";
 import {
   ArrowLeft,
   Clock,
@@ -18,6 +19,7 @@ import {
   FileText,
   Play,
   X,
+  AlertTriangle,
 } from "lucide-react";
 
 const getStatusColor = (status: string) => {
@@ -64,9 +66,11 @@ export default function OrderDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [activeShift, setActiveShift] = useState<Shift | null>(null);
+  const [shiftLoading, setShiftLoading] = useState(true);
 
   useEffect(() => {
-    const fetchOrder = async () => {
+    const fetchData = async () => {
       if (!orderId) {
         setError("Order ID is required");
         setLoading(false);
@@ -74,21 +78,49 @@ export default function OrderDetailsPage() {
       }
 
       try {
-        const response = await ordersService.getOrder(orderId);
-        setOrder(response);
+        // Fetch order and active shift in parallel
+        const [orderResponse, shiftResponse] = await Promise.all([
+          ordersService.getOrder(orderId),
+          shiftsService.getActiveShift(user?.id || ""),
+        ]);
+
+        setOrder(orderResponse);
+        setActiveShift(shiftResponse);
       } catch (error) {
-        console.error("Error fetching order:", error);
+        console.error("Error fetching data:", error);
         setError("Failed to load order details");
       } finally {
         setLoading(false);
+        setShiftLoading(false);
       }
     };
 
-    fetchOrder();
-  }, [orderId]);
+    if (!isLoading && user?.id) {
+      fetchData();
+    }
+  }, [orderId, user?.id, isLoading]);
+
+  // Helper function to check if order is pending and requires active shift
+  const isPendingOrderRequiringShift = () => {
+    if (!order) return false;
+    const orderStatus = order.status || order._props?.status || "UNKNOWN";
+    return orderStatus === "PENDING" || orderStatus === "CONFIRMED";
+  };
+
+  // Helper function to check if cashier can modify the order
+  const canModifyOrder = () => {
+    if (!isPendingOrderRequiringShift()) return true;
+    return !!activeShift;
+  };
 
   const handleCompleteOrder = async () => {
     if (!order) return;
+
+    // Check if cashier has active shift for pending orders
+    if (isPendingOrderRequiringShift() && !activeShift) {
+      setError("You need an active shift to complete pending orders");
+      return;
+    }
 
     setActionLoading(true);
     try {
@@ -110,6 +142,12 @@ export default function OrderDetailsPage() {
   const handleCancelOrder = async () => {
     if (!order) return;
 
+    // Check if cashier has active shift for pending orders
+    if (isPendingOrderRequiringShift() && !activeShift) {
+      setError("You need an active shift to cancel pending orders");
+      return;
+    }
+
     setActionLoading(true);
     try {
       await ordersService.cancelOrder(order.id || order._props?.id || "");
@@ -124,7 +162,7 @@ export default function OrderDetailsPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || shiftLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -169,6 +207,35 @@ export default function OrderDetailsPage() {
     );
   }
 
+  // Show shift warning for pending orders without active shift
+  if (isPendingOrderRequiringShift() && !activeShift) {
+    return (
+      <div className="container mx-auto py-6 md:py-10 px-4">
+        <div className="text-center max-w-md mx-auto">
+          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle className="w-8 h-8 text-yellow-600" />
+          </div>
+          <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+            No Active Shift
+          </h2>
+          <p className="text-gray-500 mb-6">
+            You need to start a shift before you can view or modify pending
+            orders. Please go to your dashboard and start a shift.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <Button onClick={() => router.push("/dashboard/cashier")}>
+              Go to Dashboard
+            </Button>
+            <Button variant="outline" onClick={() => router.back()}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Go Back
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const orderIdDisplay =
     order.id || order._props?.id
       ? (order.id || order._props?.id || "").slice(-8)
@@ -199,6 +266,15 @@ export default function OrderDetailsPage() {
             <p className="text-muted-foreground">
               Order details and information
             </p>
+            {activeShift && (
+              <div className="flex items-center gap-2 mt-1">
+                <Clock className="h-3 w-3 text-green-600" />
+                <span className="text-xs text-green-600">
+                  Active Shift - Started:{" "}
+                  {new Date(activeShift.startTime).toLocaleTimeString()}
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <Badge className={getStatusColor(orderStatus)}>
@@ -213,7 +289,7 @@ export default function OrderDetailsPage() {
               <div className="flex gap-2">
                 <Button
                   onClick={handleCompleteOrder}
-                  disabled={actionLoading}
+                  disabled={actionLoading || !canModifyOrder()}
                   className="bg-green-600 hover:bg-green-700"
                 >
                   <Play className="h-4 w-4 mr-2" />
@@ -222,7 +298,7 @@ export default function OrderDetailsPage() {
                 <Button
                   variant="destructive"
                   onClick={handleCancelOrder}
-                  disabled={actionLoading}
+                  disabled={actionLoading || !canModifyOrder()}
                 >
                   <X className="h-4 w-4 mr-2" />
                   Cancel Order
@@ -232,6 +308,24 @@ export default function OrderDetailsPage() {
           </div>
         </div>
       </div>
+
+      {/* Shift Warning Banner for Pending Orders */}
+      {isPendingOrderRequiringShift() && !activeShift && (
+        <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-yellow-600" />
+            <div>
+              <h3 className="text-sm font-medium text-yellow-800">
+                No Active Shift
+              </h3>
+              <p className="text-sm text-yellow-700 mt-1">
+                You need to start a shift to modify this pending order. The
+                order details are shown in read-only mode.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-6 md:grid-cols-3">
         {/* Order Summary */}

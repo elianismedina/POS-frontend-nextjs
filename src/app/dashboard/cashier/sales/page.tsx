@@ -86,6 +86,15 @@ export default function SalesPage() {
   const [loadedOrderId, setLoadedOrderId] = useState<string | null>(null);
   const [justCleared, setJustCleared] = useState(false);
 
+  // Order completion state
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [completionDetails, setCompletionDetails] = useState({
+    completionType: "PICKUP" as "PICKUP" | "DELIVERY" | "DINE_IN",
+    deliveryAddress: "",
+    estimatedTime: "",
+    notes: "",
+  });
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -106,6 +115,14 @@ export default function SalesPage() {
     amountTendered: 0,
     currentOrder: null,
   });
+
+  // Helper function to check if order is completed (read-only)
+  const isOrderCompleted = () => {
+    if (!sale.currentOrder) return false;
+    const orderStatus =
+      (sale.currentOrder as any)._props?.status || sale.currentOrder.status;
+    return orderStatus === "COMPLETED";
+  };
 
   useEffect(() => {
     if (!authLoading) {
@@ -1120,6 +1137,11 @@ export default function SalesPage() {
       }
     }
 
+    // Show completion modal to get order details
+    setShowCompletionModal(true);
+  };
+
+  const handleCompleteOrder = async () => {
     try {
       setIsProcessing(true);
 
@@ -1133,39 +1155,100 @@ export default function SalesPage() {
         throw new Error("Order ID is missing");
       }
 
-      // Complete the order first
-      const completeOrderData = {
-        completionType: "PICKUP" as const,
-        notes: sale.customer ? `Customer: ${sale.customer.name}` : "",
-      };
+      // Validate delivery address if delivery is selected
+      if (
+        completionDetails.completionType === "DELIVERY" &&
+        !completionDetails.deliveryAddress.trim()
+      ) {
+        toast({
+          title: "Delivery address required",
+          description: "Please provide a delivery address for delivery orders",
+          variant: "destructive",
+        });
+        return;
+      }
 
-      await ordersService.completeOrder(orderId, completeOrderData);
+      // Check if order already has a payment before processing
+      try {
+        // First confirm the order (PENDING -> CONFIRMED)
+        await ordersService.confirmOrder(
+          orderId,
+          "Order confirmed for payment processing"
+        );
 
-      // Process payment
-      const paymentData = {
-        orderId: orderId,
-        paymentMethodId: sale.selectedPaymentMethod.paymentMethodId,
-        amount: sale.total,
-        amountTendered:
-          sale.selectedPaymentMethod.paymentMethod.code === "CASH"
-            ? sale.amountTendered
-            : undefined,
-        transactionReference: `TRX-${Date.now()}`,
-        notes: `Payment processed for order ${orderId}`,
-        status: "COMPLETED" as const,
-      };
+        // Then process payment (CONFIRMED -> PAID)
+        const paymentData = {
+          orderId: orderId,
+          paymentMethodId: sale.selectedPaymentMethod!.paymentMethodId,
+          amount: sale.total,
+          amountTendered:
+            sale.selectedPaymentMethod!.paymentMethod.code === "CASH"
+              ? sale.amountTendered
+              : undefined,
+          transactionReference: `TRX-${Date.now()}`,
+          notes: `Payment processed for order ${orderId}`,
+          status: "COMPLETED" as const,
+        };
 
-      await ordersService.processPayment(paymentData);
+        await ordersService.processPayment(paymentData);
+      } catch (error: any) {
+        // If payment already exists, continue with order completion
+        if (
+          error.response?.status === 409 &&
+          error.response?.data?.message?.includes(
+            "already has a completed payment"
+          )
+        ) {
+          console.log(
+            "Payment already exists for this order, continuing with completion..."
+          );
+          // Continue with order completion without creating a new payment
+        } else {
+          // Re-throw other errors
+          throw error;
+        }
+      }
+
+      // Check current order status before attempting completion
+      const currentOrder = await ordersService.getOrder(orderId);
+      const orderStatus =
+        (currentOrder as any)._props?.status || currentOrder.status;
+
+      // Only complete the order if it's not already completed
+      if (orderStatus !== "COMPLETED") {
+        // Then complete the order with user-specified details (this sets status to COMPLETED)
+        const completeOrderData = {
+          completionType: completionDetails.completionType,
+          deliveryAddress: completionDetails.deliveryAddress || undefined,
+          estimatedTime: completionDetails.estimatedTime || undefined,
+          notes:
+            completionDetails.notes ||
+            (sale.customer ? `Customer: ${sale.customer.name}` : ""),
+        };
+
+        await ordersService.completeOrder(orderId, completeOrderData);
+      } else {
+        console.log("Order is already completed, skipping completion step");
+      }
 
       toast({
         title: "Payment processed",
         description: `Sale completed for $${(sale.total || 0).toFixed(
           2
-        )} using ${sale.selectedPaymentMethod.paymentMethod.name}`,
+        )} using ${sale.selectedPaymentMethod!.paymentMethod.name}`,
       });
 
       // Clear sale after successful payment
       await clearSale();
+      setShowCompletionModal(false);
+
+      // Reset completion details
+      setCompletionDetails({
+        completionType: "PICKUP",
+        deliveryAddress: "",
+        estimatedTime: "",
+        notes: "",
+      });
     } catch (error: any) {
       console.error("Error processing payment:", error);
       toast({
@@ -1255,6 +1338,11 @@ export default function SalesPage() {
                     Existing Order Loaded
                   </span>
                 )}
+                {isOrderCompleted() && (
+                  <span className="inline-block bg-red-100 text-red-800 text-xs px-3 py-1 rounded-full border border-red-200 ml-2">
+                    Order Completed - Read Only
+                  </span>
+                )}
               </div>
             )}
             {activeShift && (
@@ -1271,21 +1359,27 @@ export default function SalesPage() {
             <Button
               variant="outline"
               onClick={() => clearSale()}
-              disabled={isLoading}
+              disabled={isLoading || isOrderCompleted()}
             >
               <X className="h-4 w-4 mr-2" />
               Clear Sale
             </Button>
             <Button
               onClick={processPayment}
-              disabled={sale.items.length === 0 || isProcessing}
+              disabled={
+                sale.items.length === 0 || isProcessing || isOrderCompleted()
+              }
             >
               {isProcessing ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <CreditCard className="h-4 w-4 mr-2" />
               )}
-              {isProcessing ? "Processing..." : "Process Payment"}
+              {isProcessing
+                ? "Processing..."
+                : isOrderCompleted()
+                ? "Order Completed"
+                : "Process Payment"}
             </Button>
           </div>
         </div>
@@ -1339,8 +1433,14 @@ export default function SalesPage() {
                       {products.map((product) => (
                         <Card
                           key={product.id}
-                          className="cursor-pointer hover:shadow-lg transition-shadow"
-                          onClick={() => addToCart(product)}
+                          className={`transition-shadow ${
+                            isOrderCompleted()
+                              ? "cursor-not-allowed opacity-50"
+                              : "cursor-pointer hover:shadow-lg"
+                          }`}
+                          onClick={() =>
+                            !isOrderCompleted() && addToCart(product)
+                          }
                         >
                           <CardContent className="p-4">
                             <div className="aspect-square relative mb-3">
@@ -1445,47 +1545,62 @@ export default function SalesPage() {
 
                           {/* Quantity Controls */}
                           <div className="flex items-center space-x-2">
-                            <div className="flex items-center space-x-1 bg-blue-50 border border-blue-200 rounded px-2 py-0.5">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-5 w-5 p-0 hover:bg-blue-100 text-blue-600"
-                                onClick={() =>
-                                  updateQuantity(
-                                    item.product.id,
-                                    item.quantity - 1
-                                  )
-                                }
-                              >
-                                <Minus className="h-2.5 w-2.5" />
-                              </Button>
-                              <span className="w-6 text-center font-bold text-blue-900 text-xs">
-                                {item.quantity}
-                              </span>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-5 w-5 p-0 hover:bg-blue-100 text-blue-600"
-                                onClick={() =>
-                                  updateQuantity(
-                                    item.product.id,
-                                    item.quantity + 1
-                                  )
-                                }
-                              >
-                                <Plus className="h-2.5 w-2.5" />
-                              </Button>
-                            </div>
+                            {!isOrderCompleted() ? (
+                              <>
+                                <div className="flex items-center space-x-1 bg-blue-50 border border-blue-200 rounded px-2 py-0.5">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 w-5 p-0 hover:bg-blue-100 text-blue-600"
+                                    onClick={() =>
+                                      updateQuantity(
+                                        item.product.id,
+                                        item.quantity - 1
+                                      )
+                                    }
+                                  >
+                                    <Minus className="h-2.5 w-2.5" />
+                                  </Button>
+                                  <span className="w-6 text-center font-bold text-blue-900 text-xs">
+                                    {item.quantity}
+                                  </span>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 w-5 p-0 hover:bg-blue-100 text-blue-600"
+                                    onClick={() =>
+                                      updateQuantity(
+                                        item.product.id,
+                                        item.quantity + 1
+                                      )
+                                    }
+                                  >
+                                    <Plus className="h-2.5 w-2.5" />
+                                  </Button>
+                                </div>
 
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50 px-1.5 py-0.5 border border-red-200 rounded text-xs"
-                              onClick={() => removeFromCart(item.product.id)}
-                            >
-                              <Trash2 className="h-2.5 w-2.5 mr-1" />
-                              Remove
-                            </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 px-1.5 py-0.5 border border-red-200 rounded text-xs"
+                                  onClick={() =>
+                                    removeFromCart(item.product.id)
+                                  }
+                                >
+                                  <Trash2 className="h-2.5 w-2.5 mr-1" />
+                                  Remove
+                                </Button>
+                              </>
+                            ) : (
+                              <div className="flex items-center space-x-1 bg-gray-50 border border-gray-200 rounded px-2 py-0.5">
+                                <span className="w-6 text-center font-bold text-gray-700 text-xs">
+                                  {item.quantity}
+                                </span>
+                                <span className="text-xs text-gray-500 ml-1">
+                                  (Read-only)
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1557,7 +1672,12 @@ export default function SalesPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => setShowCustomerModal(true)}
-                  className="hover:bg-blue-50 hover:border-blue-300 text-xs px-2 py-1"
+                  disabled={isOrderCompleted()}
+                  className={`text-xs px-2 py-1 ${
+                    isOrderCompleted()
+                      ? "opacity-50 cursor-not-allowed"
+                      : "hover:bg-blue-50 hover:border-blue-300"
+                  }`}
                 >
                   <User className="h-3 w-3 mr-1" />
                   Select
@@ -1604,12 +1724,18 @@ export default function SalesPage() {
                 {paymentMethods.map((method) => (
                   <div
                     key={method.id}
-                    className={`p-2 border rounded-md cursor-pointer transition-all ${
+                    className={`p-2 border rounded-md transition-all ${
+                      isOrderCompleted()
+                        ? "opacity-50 cursor-not-allowed"
+                        : "cursor-pointer"
+                    } ${
                       sale.selectedPaymentMethod?.id === method.id
                         ? "border-blue-500 bg-blue-50"
                         : "border-gray-200 hover:border-blue-300 hover:bg-blue-25"
                     }`}
-                    onClick={() => selectPaymentMethod(method)}
+                    onClick={() =>
+                      !isOrderCompleted() && selectPaymentMethod(method)
+                    }
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
@@ -1663,7 +1789,10 @@ export default function SalesPage() {
                     }
                     step="0.01"
                     min="0"
-                    className="text-sm"
+                    disabled={isOrderCompleted()}
+                    className={`text-sm ${
+                      isOrderCompleted() ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
                   />
                   {sale.amountTendered > 0 && (
                     <div className="bg-green-50 border border-green-200 p-2 rounded-md">
@@ -1687,6 +1816,156 @@ export default function SalesPage() {
           </div>
         </div>
       </div>
+
+      {/* Order Completion Modal */}
+      {showCompletionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">
+                Order Completion Details
+              </h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowCompletionModal(false)}
+                disabled={isProcessing}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Completion Type */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Completion Type
+                </label>
+                <select
+                  value={completionDetails.completionType}
+                  onChange={(e) =>
+                    setCompletionDetails((prev) => ({
+                      ...prev,
+                      completionType: e.target.value as
+                        | "PICKUP"
+                        | "DELIVERY"
+                        | "DINE_IN",
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="PICKUP">Pickup</option>
+                  <option value="DELIVERY">Delivery</option>
+                  <option value="DINE_IN">Dine In</option>
+                </select>
+              </div>
+
+              {/* Delivery Address - only show for delivery */}
+              {completionDetails.completionType === "DELIVERY" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Delivery Address *
+                  </label>
+                  <textarea
+                    value={completionDetails.deliveryAddress}
+                    onChange={(e) =>
+                      setCompletionDetails((prev) => ({
+                        ...prev,
+                        deliveryAddress: e.target.value,
+                      }))
+                    }
+                    placeholder="Enter delivery address..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows={3}
+                  />
+                </div>
+              )}
+
+              {/* Estimated Time */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Estimated Time (optional)
+                </label>
+                <input
+                  type="text"
+                  value={completionDetails.estimatedTime}
+                  onChange={(e) =>
+                    setCompletionDetails((prev) => ({
+                      ...prev,
+                      estimatedTime: e.target.value,
+                    }))
+                  }
+                  placeholder="e.g., 30 minutes, 1 hour"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Additional Notes (optional)
+                </label>
+                <textarea
+                  value={completionDetails.notes}
+                  onChange={(e) =>
+                    setCompletionDetails((prev) => ({
+                      ...prev,
+                      notes: e.target.value,
+                    }))
+                  }
+                  placeholder="Any special instructions or notes..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={3}
+                />
+              </div>
+
+              {/* Order Summary */}
+              <div className="bg-gray-50 p-4 rounded-md">
+                <h4 className="font-medium text-gray-900 mb-2">
+                  Order Summary
+                </h4>
+                <div className="text-sm text-gray-600 space-y-1">
+                  <div>Items: {sale.items.length}</div>
+                  <div>Total: ${(sale.total || 0).toFixed(2)}</div>
+                  <div>Customer: {sale.customer?.name || "No customer"}</div>
+                  <div>
+                    Payment: {sale.selectedPaymentMethod?.paymentMethod.name}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCompletionModal(false)}
+                  disabled={isProcessing}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCompleteOrder}
+                  disabled={isProcessing}
+                  className="flex-1"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Complete Order & Process Payment
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Customer Selection Modal */}
       {showCustomerModal && (

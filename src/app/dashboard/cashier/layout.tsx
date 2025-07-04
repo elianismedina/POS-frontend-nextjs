@@ -46,7 +46,9 @@ export default function CashierLayout({
   return (
     <div className="flex h-screen">
       <CashierSidebar />
-      <main className="flex-1 overflow-auto bg-background">{children}</main>
+      <main className="flex-1 overflow-auto bg-background md:ml-0 ml-[60px]">
+        {children}
+      </main>
     </div>
   );
 }

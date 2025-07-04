@@ -30,6 +30,7 @@ import {
   subcategoriesService,
   Subcategory,
 } from "@/app/services/subcategories";
+import { Pagination } from "@/components/ui/pagination";
 import Image from "next/image";
 
 export default function CashierProductsPage() {
@@ -47,6 +48,11 @@ export default function CashierProductsPage() {
   const [selectedSubcategoryId, setSelectedSubcategoryId] =
     useState<string>("");
   const [searchTerm, setSearchTerm] = useState<string>("");
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [productsPerPage] = useState(20);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -71,6 +77,11 @@ export default function CashierProductsPage() {
   useEffect(() => {
     applyFilters();
   }, [allProducts, selectedCategoryId, selectedSubcategoryId, searchTerm]);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategoryId, selectedSubcategoryId, searchTerm]);
 
   const fetchProducts = async () => {
     try {
@@ -129,7 +140,6 @@ export default function CashierProductsPage() {
         );
       });
 
-      setProducts(validProducts);
       setAllProducts(validProducts);
     } catch (error: any) {
       console.error("Error fetching products:", {
@@ -186,18 +196,18 @@ export default function CashierProductsPage() {
   };
 
   const applyFilters = () => {
-    let filteredProducts = [...allProducts];
+    let filtered = [...allProducts];
 
     // Filter by category
     if (selectedCategoryId) {
-      filteredProducts = filteredProducts.filter(
+      filtered = filtered.filter(
         (product) => product.categoryId === selectedCategoryId
       );
     }
 
     // Filter by subcategory
     if (selectedSubcategoryId) {
-      filteredProducts = filteredProducts.filter(
+      filtered = filtered.filter(
         (product) => product.subcategoryId === selectedSubcategoryId
       );
     }
@@ -205,7 +215,7 @@ export default function CashierProductsPage() {
     // Filter by search term
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
-      filteredProducts = filteredProducts.filter(
+      filtered = filtered.filter(
         (product) =>
           product.name.toLowerCase().includes(term) ||
           product.description.toLowerCase().includes(term) ||
@@ -213,7 +223,17 @@ export default function CashierProductsPage() {
       );
     }
 
-    setProducts(filteredProducts);
+    setFilteredProducts(filtered);
+  };
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
+  const startIndex = (currentPage - 1) * productsPerPage;
+  const endIndex = startIndex + productsPerPage;
+  const currentProducts = filteredProducts.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
 
   const clearFilters = () => {
@@ -334,14 +354,17 @@ export default function CashierProductsPage() {
             {/* Results Count */}
             <div className="flex items-end">
               <div className="text-sm text-gray-600">
-                Showing {products.length} of {allProducts.length} products
+                Showing {currentProducts.length} of {filteredProducts.length}{" "}
+                products
+                {filteredProducts.length !== allProducts.length &&
+                  ` (filtered from ${allProducts.length} total)`}
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {products.length === 0 ? (
+      {filteredProducts.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <div className="text-center max-w-md mx-auto">
@@ -362,7 +385,9 @@ export default function CashierProductsPage() {
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Product List ({products.length} products)</CardTitle>
+            <CardTitle>
+              Product List ({filteredProducts.length} products)
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {/* Desktop Table View */}
@@ -381,7 +406,7 @@ export default function CashierProductsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {products.map((product, index) => (
+                    {currentProducts.map((product, index) => (
                       <TableRow key={product.id || `product-${index}`}>
                         <TableCell>
                           {product.imageUrl ? (
@@ -442,7 +467,7 @@ export default function CashierProductsPage() {
 
             {/* Mobile Card View */}
             <div className="md:hidden space-y-4">
-              {products.map((product, index) => (
+              {currentProducts.map((product, index) => (
                 <Card
                   key={product.id || `product-${index}`}
                   className="overflow-hidden"
@@ -573,6 +598,22 @@ export default function CashierProductsPage() {
                 </Card>
               ))}
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-6 flex items-center justify-between">
+                <div className="text-sm text-gray-500">
+                  Showing {startIndex + 1} to{" "}
+                  {Math.min(endIndex, filteredProducts.length)} of{" "}
+                  {filteredProducts.length} products
+                </div>
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

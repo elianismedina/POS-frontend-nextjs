@@ -117,7 +117,7 @@ export function AdminSidebar() {
 
   return (
     <SidebarProvider>
-      <Sidebar>
+      <Sidebar className="pattern-bg">
         <SidebarHeader>
           <SidebarHeaderContent />
         </SidebarHeader>

@@ -19,6 +19,33 @@ export interface Product {
   updatedAt: string;
 }
 
+export interface ProductVariant {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  sku?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateProductVariantData {
+  name: string;
+  description?: string;
+  price: number;
+  sku?: string;
+  isActive?: boolean;
+}
+
+export interface UpdateProductVariantData {
+  name?: string;
+  description?: string;
+  price?: number;
+  sku?: string;
+  isActive?: boolean;
+}
+
 export interface PaginatedProductsResponse {
   products: Product[];
   total: number;
@@ -35,6 +62,22 @@ export interface ProductsListParams {
   categoryId?: string;
   categoryName?: string;
   subcategoryId?: string;
+}
+
+export interface BulkCreateProductError {
+  row: number;
+  message: string;
+}
+
+export interface BulkCreateProductResult {
+  total: number;
+  successful: number;
+  failed: number;
+  errors: BulkCreateProductError[];
+}
+
+export interface BulkCreateProductsResponse {
+  result: BulkCreateProductResult;
 }
 
 export const productsService = {
@@ -102,5 +145,60 @@ export const productsService = {
 
   async delete(id: string): Promise<void> {
     await api.delete(`/products/${id}`);
+  },
+
+  async bulkCreate(file: File): Promise<BulkCreateProductsResponse> {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await api.post("/products/bulk", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return response.data;
+  },
+
+  // Product Variants methods
+  async getProductVariants(productId: string): Promise<ProductVariant[]> {
+    const response = await api.get(`/products/${productId}/variants`);
+    return response.data;
+  },
+
+  async getProductVariant(
+    productId: string,
+    variantId: string
+  ): Promise<ProductVariant> {
+    const response = await api.get(
+      `/products/${productId}/variants/${variantId}`
+    );
+    return response.data;
+  },
+
+  async createProductVariant(
+    productId: string,
+    data: CreateProductVariantData
+  ): Promise<ProductVariant> {
+    const response = await api.post(`/products/${productId}/variants`, data);
+    return response.data;
+  },
+
+  async updateProductVariant(
+    productId: string,
+    variantId: string,
+    data: UpdateProductVariantData
+  ): Promise<ProductVariant> {
+    const response = await api.put(
+      `/products/${productId}/variants/${variantId}`,
+      data
+    );
+    return response.data;
+  },
+
+  async deleteProductVariant(
+    productId: string,
+    variantId: string
+  ): Promise<void> {
+    await api.delete(`/products/${productId}/variants/${variantId}`);
   },
 };

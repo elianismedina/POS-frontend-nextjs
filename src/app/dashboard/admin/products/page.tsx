@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Filter, X } from "lucide-react";
+import { Plus, Filter, X, Upload } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -23,6 +23,7 @@ import {
   Subcategory,
 } from "@/app/services/subcategories";
 import { CreateProductForm } from "@/components/products/CreateProductForm";
+import { BulkUploadForm } from "@/components/products/BulkUploadForm";
 import Image from "next/image";
 
 export default function ProductsPage() {
@@ -35,6 +36,7 @@ export default function ProductsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
 
   // Filter states
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
@@ -217,6 +219,15 @@ export default function ProductsPage() {
     setShowCreateModal(false);
   };
 
+  const handleBulkUploadSuccess = () => {
+    setShowBulkUploadModal(false);
+    fetchProducts(); // Refresh the products list
+  };
+
+  const handleBulkUploadCancel = () => {
+    setShowBulkUploadModal(false);
+  };
+
   if (!isAuthenticated) {
     router.replace("/");
     return null;
@@ -239,10 +250,20 @@ export default function ProductsPage() {
     <div className="container mx-auto py-10 px-4">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Products</h1>
-        <Button onClick={() => setShowCreateModal(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Product
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowBulkUploadModal(true)}
+            className="flex items-center gap-2"
+          >
+            <Upload className="h-4 w-4" />
+            Bulk Upload
+          </Button>
+          <Button onClick={() => setShowCreateModal(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Product
+          </Button>
+        </div>
       </div>
 
       {/* Filters Section */}
@@ -357,13 +378,23 @@ export default function ProductsPage() {
                 Get started by adding your first product to your inventory.
                 Products help you manage your stock and sales effectively.
               </p>
-              <Button
-                onClick={() => setShowCreateModal(true)}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Create Your First Product
-              </Button>
+              <div className="flex gap-2 justify-center">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowBulkUploadModal(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Upload className="h-4 w-4" />
+                  Bulk Upload
+                </Button>
+                <Button
+                  onClick={() => setShowCreateModal(true)}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Your First Product
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -736,6 +767,45 @@ export default function ProductsPage() {
               <CreateProductForm
                 onSuccess={handleCreateSuccess}
                 onCancel={handleCreateCancel}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Upload Modal */}
+      {showBulkUploadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Bulk Upload Products
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleBulkUploadCancel}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </Button>
+              </div>
+              <BulkUploadForm
+                onSuccess={handleBulkUploadSuccess}
+                onCancel={handleBulkUploadCancel}
               />
             </div>
           </div>

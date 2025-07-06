@@ -63,7 +63,7 @@ function SidebarHeaderContent() {
   return (
     <div className="flex items-center justify-between">
       <h2 className={cn("text-lg font-semibold", collapsed && "hidden")}>
-        Admin Panel
+        Panel de Administración
       </h2>
       <SidebarTrigger />
     </div>
@@ -92,10 +92,10 @@ function SidebarFooterContent() {
         collapsed && "justify-center"
       )}
       onClick={handleLogout}
-      title={collapsed ? "Logout" : undefined}
+      title={collapsed ? "Cerrar Sesión" : undefined}
     >
       <LogOut className="h-4 w-4" />
-      {!collapsed && <span>Logout</span>}
+      {!collapsed && <span>Cerrar Sesión</span>}
     </Button>
   );
 }
@@ -125,63 +125,63 @@ export function AdminSidebar() {
           <SidebarGroup key="main-nav">
             <SidebarItem
               icon={<LayoutDashboard className="h-4 w-4" />}
-              label="Dashboard"
+              label="Panel Principal"
               href="/dashboard/admin"
               isActive={pathname === "/dashboard/admin"}
             />
             {user.business && (
               <SidebarItem
                 icon={<Store className="h-4 w-4" />}
-                label="My Business"
+                label="Mi Negocio"
                 href="/dashboard/admin/business"
                 isActive={pathname.includes("/business")}
               />
             )}
             <SidebarItem
               icon={<Building2 className="h-4 w-4" />}
-              label="Branches"
+              label="Sucursales"
               href="/dashboard/admin/branches"
               isActive={pathname.includes("/branches")}
             />
             <SidebarItem
               icon={<Package className="h-4 w-4" />}
-              label="Products"
+              label="Productos"
               href="/dashboard/admin/products"
               isActive={pathname.includes("/products")}
             />
             <SidebarItem
               icon={<List className="h-4 w-4" />}
-              label="Categories"
+              label="Categorías"
               href="/dashboard/admin/categories"
               isActive={pathname.includes("/categories")}
             />
             <SidebarItem
               icon={<Layers className="h-4 w-4" />}
-              label="Subcategories"
+              label="Subcategorías"
               href="/dashboard/admin/subcategories"
               isActive={pathname.includes("/subcategories")}
             />
             <SidebarItem
               icon={<Calculator className="h-4 w-4" />}
-              label="Taxes"
+              label="Impuestos"
               href="/dashboard/admin/taxes"
               isActive={pathname.includes("/taxes")}
             />
             <SidebarItem
               icon={<ShoppingCart className="h-4 w-4" />}
-              label="Orders"
+              label="Pedidos"
               href="/dashboard/admin/orders"
               isActive={pathname.includes("/orders")}
             />
             <SidebarItem
               icon={<Users className="h-4 w-4" />}
-              label="Customers"
+              label="Clientes"
               href="/dashboard/admin/customers"
               isActive={pathname.includes("/customers")}
             />
             <SidebarItem
               icon={<BarChart className="h-4 w-4" />}
-              label="Reports"
+              label="Reportes"
               href="/dashboard/admin/reports"
               isActive={pathname.includes("/reports")}
             />

@@ -132,7 +132,7 @@ export default function ProductsPage() {
         title: "Error",
         description:
           error.response?.data?.message ||
-          "Failed to load products. Please try again.",
+          "Error al cargar productos. Por favor intente de nuevo.",
         variant: "destructive",
       });
     } finally {
@@ -148,7 +148,7 @@ export default function ProductsPage() {
       console.error("Error fetching categories:", error);
       toast({
         title: "Error",
-        description: "Failed to load categories",
+        description: "Error al cargar categorías",
         variant: "destructive",
       });
     }
@@ -162,7 +162,7 @@ export default function ProductsPage() {
       console.error("Error fetching subcategories:", error);
       toast({
         title: "Error",
-        description: "Failed to load subcategories",
+        description: "Error al cargar subcategorías",
         variant: "destructive",
       });
     }
@@ -210,8 +210,8 @@ export default function ProductsPage() {
     setAllProducts((prev) => [...prev, newProduct]);
     setProducts((prev) => [...prev, newProduct]);
     toast({
-      title: "Success",
-      description: `Product "${newProduct.name}" created successfully`,
+      title: "Éxito",
+      description: `Producto "${newProduct.name}" creado exitosamente`,
     });
   };
 
@@ -237,9 +237,9 @@ export default function ProductsPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-4">Loading...</h2>
+          <h2 className="text-2xl font-semibold mb-4">Cargando...</h2>
           <p className="text-gray-500">
-            Please wait while we load your products
+            Por favor espere mientras cargamos sus productos
           </p>
         </div>
       </div>
@@ -249,7 +249,7 @@ export default function ProductsPage() {
   return (
     <div className="container mx-auto py-10 px-4">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Products</h1>
+        <h1 className="text-3xl font-bold">Productos</h1>
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -257,11 +257,11 @@ export default function ProductsPage() {
             className="flex items-center gap-2"
           >
             <Upload className="h-4 w-4" />
-            Bulk Upload
+            Carga Masiva
           </Button>
           <Button onClick={() => setShowCreateModal(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Add Product
+            Agregar Producto
           </Button>
         </div>
       </div>
@@ -272,7 +272,7 @@ export default function ProductsPage() {
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center">
               <Filter className="h-5 w-5 mr-2" />
-              Filters
+              Filtros
             </CardTitle>
             {(selectedCategoryId || selectedSubcategoryId || searchTerm) && (
               <Button
@@ -282,7 +282,7 @@ export default function ProductsPage() {
                 className="flex items-center"
               >
                 <X className="h-4 w-4 mr-1" />
-                Clear Filters
+                Limpiar Filtros
               </Button>
             )}
           </div>
@@ -292,11 +292,11 @@ export default function ProductsPage() {
             {/* Search Input */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Search Products
+                Buscar Productos
               </label>
               <input
                 type="text"
-                placeholder="Search by name, description, or barcode..."
+                placeholder="Buscar por nombre, descripción o código de barras..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -306,14 +306,14 @@ export default function ProductsPage() {
             {/* Category Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Category
+                Categoría
               </label>
               <select
                 value={selectedCategoryId}
                 onChange={(e) => setSelectedCategoryId(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">All Categories</option>
+                <option value="">Todas las Categorías</option>
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
@@ -325,7 +325,7 @@ export default function ProductsPage() {
             {/* Subcategory Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Subcategory
+                Subcategoría
               </label>
               <select
                 value={selectedSubcategoryId}
@@ -333,7 +333,7 @@ export default function ProductsPage() {
                 disabled={!selectedCategoryId}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               >
-                <option value="">All Subcategories</option>
+                <option value="">Todas las Subcategorías</option>
                 {subcategories.map((subcategory) => (
                   <option key={subcategory.id} value={subcategory.id}>
                     {subcategory.name}
@@ -345,7 +345,7 @@ export default function ProductsPage() {
             {/* Results Count */}
             <div className="flex items-end">
               <div className="text-sm text-gray-600">
-                Showing {products.length} of {allProducts.length} products
+                Mostrando {products.length} de {allProducts.length} productos
               </div>
             </div>
           </div>
@@ -372,11 +372,11 @@ export default function ProductsPage() {
                 </svg>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                No products yet
+                Aún no hay productos
               </h3>
               <p className="text-gray-500 mb-6">
-                Get started by adding your first product to your inventory.
-                Products help you manage your stock and sales effectively.
+                Comience agregando su primer producto a su inventario.
+                Los productos le ayudan a gestionar su stock y ventas de manera efectiva.
               </p>
               <div className="flex gap-2 justify-center">
                 <Button
@@ -385,14 +385,14 @@ export default function ProductsPage() {
                   className="flex items-center gap-2"
                 >
                   <Upload className="h-4 w-4" />
-                  Bulk Upload
+                  Carga Masiva
                 </Button>
                 <Button
                   onClick={() => setShowCreateModal(true)}
                   className="bg-blue-600 hover:bg-blue-700"
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Create Your First Product
+                  Crear Su Primer Producto
                 </Button>
               </div>
             </div>
@@ -401,7 +401,7 @@ export default function ProductsPage() {
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Product List ({products.length} products)</CardTitle>
+            <CardTitle>Lista de Productos ({products.length} productos)</CardTitle>
           </CardHeader>
           <CardContent>
             {/* Desktop Table View */}
@@ -409,14 +409,14 @@ export default function ProductsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Image</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Price</TableHead>
+                    <TableHead>Imagen</TableHead>
+                    <TableHead>Nombre</TableHead>
+                    <TableHead>Precio</TableHead>
                     <TableHead>Stock</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Subcategory</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Categoría</TableHead>
+                    <TableHead>Subcategoría</TableHead>
+                    <TableHead>Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -452,7 +452,7 @@ export default function ProductsPage() {
                         )}
                       </TableCell>
                       <TableCell className="font-medium">
-                        {product.name || "Unnamed Product"}
+                        {product.name || "Producto Sin Nombre"}
                       </TableCell>
                       <TableCell>
                         $
@@ -475,14 +475,14 @@ export default function ProductsPage() {
                         <Badge
                           variant={product.isActive ? "default" : "secondary"}
                         >
-                          {product.isActive ? "Active" : "Inactive"}
+                          {product.isActive ? "Activo" : "Inactivo"}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {product.categoryName || "No Category"}
+                        {product.categoryName || "Sin Categoría"}
                       </TableCell>
                       <TableCell>
-                        {product.subcategoryName || "No Subcategory"}
+                        {product.subcategoryName || "Sin Subcategoría"}
                       </TableCell>
                       <TableCell>
                         <Button
@@ -494,7 +494,7 @@ export default function ProductsPage() {
                             )
                           }
                         >
-                          Edit
+                          Editar
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -512,11 +512,11 @@ export default function ProductsPage() {
                     {/* Search Input */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Search Products
+                        Buscar Productos
                       </label>
                       <input
                         type="text"
-                        placeholder="Search by name, description, or barcode..."
+                        placeholder="Buscar por nombre, descripción o código de barras..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -526,14 +526,14 @@ export default function ProductsPage() {
                     {/* Category Filter */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Category
+                        Categoría
                       </label>
                       <select
                         value={selectedCategoryId}
                         onChange={(e) => setSelectedCategoryId(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
-                        <option value="">All Categories</option>
+                        <option value="">Todas las Categorías</option>
                         {categories.map((category) => (
                           <option key={category.id} value={category.id}>
                             {category.name}
@@ -545,7 +545,7 @@ export default function ProductsPage() {
                     {/* Subcategory Filter */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Subcategory
+                        Subcategoría
                       </label>
                       <select
                         value={selectedSubcategoryId}
@@ -555,7 +555,7 @@ export default function ProductsPage() {
                         disabled={!selectedCategoryId}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                       >
-                        <option value="">All Subcategories</option>
+                        <option value="">Todas las Subcategorías</option>
                         {subcategories.map((subcategory) => (
                           <option key={subcategory.id} value={subcategory.id}>
                             {subcategory.name}
@@ -575,15 +575,15 @@ export default function ProductsPage() {
                         className="w-full flex items-center justify-center"
                       >
                         <X className="h-4 w-4 mr-1" />
-                        Clear Filters
+                        Limpiar Filtros
                       </Button>
                     )}
 
                     {/* Results Count */}
                     <div className="text-center">
                       <div className="text-sm text-gray-600">
-                        Showing {products.length} of {allProducts.length}{" "}
-                        products
+                        Mostrando {products.length} de {allProducts.length}{" "}
+                        productos
                       </div>
                     </div>
                   </div>
@@ -632,7 +632,7 @@ export default function ProductsPage() {
                         {/* Product Name - More Prominent */}
                         <div className="mb-3">
                           <h3 className="text-xl font-bold text-gray-900 leading-tight">
-                            {product.name || "Unnamed Product"}
+                            {product.name || "Producto Sin Nombre"}
                           </h3>
                         </div>
 
@@ -648,7 +648,7 @@ export default function ProductsPage() {
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium text-gray-700">
-                              Price:
+                              Precio:
                             </span>
                             <span className="text-sm text-gray-900 font-semibold">
                               $
@@ -673,13 +673,13 @@ export default function ProductsPage() {
                               Stock:
                             </span>
                             <span className="text-sm text-gray-900">
-                              {product.stock || 0} units
+                              {product.stock || 0} unidades
                             </span>
                           </div>
 
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium text-gray-700">
-                              Status:
+                              Estado:
                             </span>
                             <Badge
                               variant={
@@ -687,25 +687,25 @@ export default function ProductsPage() {
                               }
                               className="text-xs"
                             >
-                              {product.isActive ? "Active" : "Inactive"}
+                              {product.isActive ? "Activo" : "Inactivo"}
                             </Badge>
                           </div>
 
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium text-gray-700">
-                              Category:
+                              Categoría:
                             </span>
                             <span className="text-sm text-gray-900">
-                              {product.categoryName || "No Category"}
+                              {product.categoryName || "Sin Categoría"}
                             </span>
                           </div>
 
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium text-gray-700">
-                              Subcategory:
+                              Subcategoría:
                             </span>
                             <span className="text-sm text-gray-900">
-                              {product.subcategoryName || "No Subcategory"}
+                              {product.subcategoryName || "Sin Subcategoría"}
                             </span>
                           </div>
                         </div>
@@ -721,7 +721,7 @@ export default function ProductsPage() {
                               )
                             }
                           >
-                            Edit Product
+                            Editar Producto
                           </Button>
                         </div>
                       </div>
@@ -741,7 +741,7 @@ export default function ProductsPage() {
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">
-                  Create New Product
+                  Crear Nuevo Producto
                 </h2>
                 <Button
                   variant="ghost"
@@ -780,7 +780,7 @@ export default function ProductsPage() {
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">
-                  Bulk Upload Products
+                  Carga Masiva de Productos
                 </h2>
                 <Button
                   variant="ghost"

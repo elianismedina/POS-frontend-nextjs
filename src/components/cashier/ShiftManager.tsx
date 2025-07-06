@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { shiftsService, Shift } from "@/app/services/shifts";
+import { formatPrice } from "@/lib/utils";
 import { Play, Square, Clock, DollarSign, TrendingUp } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
@@ -135,9 +136,9 @@ export function ShiftManager() {
       setFinalAmount("");
       toast({
         title: "Shift Ended",
-        description: `Shift ended successfully. Total sales: $${
-          endedShift.totalSales?.toFixed(2) || "0.00"
-        }`,
+        description: `Shift ended successfully. Total sales: ${formatPrice(
+          endedShift.totalSales || 0
+        )}`,
       });
     } catch (error: any) {
       console.error("Error ending shift:", error);
@@ -154,10 +155,10 @@ export function ShiftManager() {
   if (isLoading) {
     return (
       <Card>
-        <CardContent className="flex items-center justify-center py-8">
+        <CardContent className="flex items-center justify-center py-1">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Loading shift information...</p>
+            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-900 mx-auto"></div>
+            <p className="mt-1 text-xs text-gray-600">Loading...</p>
           </div>
         </CardContent>
       </Card>
@@ -166,134 +167,140 @@ export function ShiftManager() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Clock className="h-5 w-5" />
+      <CardHeader className="pb-1">
+        <CardTitle className="flex items-center gap-1 text-xs">
+          <Clock className="h-2.5 w-2.5" />
           Shift Management
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-1">
         {activeShift ? (
-          // Active Shift Display
-          <div className="space-y-4">
+          // Active Shift Display - Ultra Compact
+          <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <Badge variant="default" className="flex items-center gap-1">
-                <Play className="h-3 w-3" />
-                Active Shift
+              <Badge
+                variant="default"
+                className="flex items-center gap-1 text-xs"
+              >
+                <Play className="h-2 w-2" />
+                Active
               </Badge>
-              <span className="text-sm text-gray-600">
-                Started:{" "}
+              <span className="text-xs text-gray-600">
                 {activeShift.startTime
                   ? formatDate(activeShift.startTime)
-                  : "Unknown time"}
+                  : "Unknown"}
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                <DollarSign className="h-4 w-4 text-green-600" />
-                <div>
-                  <p className="text-sm text-gray-600">Initial Cash</p>
-                  <p className="font-semibold">
-                    ${activeShift.initialAmount.toFixed(2)}
+            {/* Ultra Compact Stats Grid */}
+            <div className="grid grid-cols-3 gap-1">
+              <div className="flex items-center gap-1 p-1 bg-gray-50 rounded text-xs">
+                <DollarSign className="h-2 w-2 text-green-600" />
+                <div className="min-w-0">
+                  <p className="text-xs text-gray-600">Initial</p>
+                  <p className="text-xs font-semibold truncate">
+                    {formatPrice(activeShift.initialAmount)}
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                <TrendingUp className="h-4 w-4 text-blue-600" />
-                <div>
-                  <p className="text-sm text-gray-600">Total Sales</p>
-                  <p className="font-semibold">
-                    ${activeShift.totalSales?.toFixed(2) || "0.00"}
+              <div className="flex items-center gap-1 p-1 bg-gray-50 rounded text-xs">
+                <TrendingUp className="h-2 w-2 text-blue-600" />
+                <div className="min-w-0">
+                  <p className="text-xs text-gray-600">Sales</p>
+                  <p className="text-xs font-semibold truncate">
+                    {formatPrice(activeShift.totalSales || 0)}
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                <Clock className="h-4 w-4 text-purple-600" />
-                <div>
-                  <p className="text-sm text-gray-600">Orders</p>
-                  <p className="font-semibold">
+              <div className="flex items-center gap-1 p-1 bg-gray-50 rounded text-xs">
+                <Clock className="h-2 w-2 text-purple-600" />
+                <div className="min-w-0">
+                  <p className="text-xs text-gray-600">Orders</p>
+                  <p className="text-xs font-semibold">
                     {activeShift.totalOrders || 0}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* End Shift Form */}
-            <div className="border-t pt-4">
-              <h4 className="font-medium mb-3">End Shift</h4>
-              <div className="flex flex-col sm:flex-row gap-3">
+            {/* Ultra Compact End Shift Form */}
+            <div className="border-t pt-1">
+              <div className="flex items-end gap-1">
                 <div className="flex-1">
-                  <Label htmlFor="finalAmount">Final Cash Amount</Label>
+                  <Label htmlFor="finalAmount" className="text-xs">
+                    Final Cash
+                  </Label>
                   <Input
                     id="finalAmount"
                     type="number"
                     step="0.01"
                     min="0"
-                    placeholder="Enter final cash amount"
+                    placeholder="Final amount"
                     value={finalAmount}
                     onChange={(e) => setFinalAmount(e.target.value)}
-                    className="mt-1"
+                    className="mt-1 h-6 text-xs"
                   />
                 </div>
-                <div className="flex items-end">
-                  <Button
-                    onClick={handleEndShift}
-                    disabled={isEndingShift || !finalAmount}
-                    variant="destructive"
-                    className="w-full sm:w-auto"
-                  >
-                    {isEndingShift ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    ) : (
-                      <Square className="h-4 w-4 mr-2" />
-                    )}
-                    End Shift
-                  </Button>
-                </div>
+                <Button
+                  onClick={handleEndShift}
+                  disabled={isEndingShift || !finalAmount}
+                  variant="destructive"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                >
+                  {isEndingShift ? (
+                    <div className="animate-spin rounded-full h-2 w-2 border-b-2 border-white mr-1"></div>
+                  ) : (
+                    <Square className="h-2 w-2 mr-1" />
+                  )}
+                  End
+                </Button>
               </div>
             </div>
           </div>
         ) : (
-          // Start Shift Form
-          <div className="space-y-4">
-            <div className="text-center py-4">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Clock className="h-8 w-8 text-gray-400" />
+          // Ultra Compact Start Shift Form
+          <div className="space-y-1">
+            <div className="text-center py-1">
+              <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-1">
+                <Clock className="h-3 w-3 text-gray-400" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <h3 className="text-xs font-medium text-gray-900 mb-1">
                 No Active Shift
               </h3>
-              <p className="text-gray-600">
+              <p className="text-xs text-gray-600">
                 Start your shift to begin processing sales
               </p>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-1">
               <div>
-                <Label htmlFor="initialAmount">Initial Cash Amount</Label>
+                <Label htmlFor="initialAmount" className="text-xs">
+                  Initial Cash
+                </Label>
                 <Input
                   id="initialAmount"
                   type="number"
                   step="0.01"
                   min="0"
-                  placeholder="Enter initial cash amount"
+                  placeholder="Enter initial amount"
                   value={initialAmount}
                   onChange={(e) => setInitialAmount(e.target.value)}
-                  className="mt-1"
+                  className="mt-1 h-6 text-xs"
                 />
               </div>
               <Button
                 onClick={handleStartShift}
                 disabled={isStartingShift || !initialAmount}
-                className="w-full"
+                size="sm"
+                className="w-full h-6 text-xs"
               >
                 {isStartingShift ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  <div className="animate-spin rounded-full h-2 w-2 border-b-2 border-white mr-1"></div>
                 ) : (
-                  <Play className="h-4 w-4 mr-2" />
+                  <Play className="h-2 w-2 mr-1" />
                 )}
                 Start Shift
               </Button>

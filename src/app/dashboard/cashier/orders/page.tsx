@@ -9,6 +9,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ordersService, Order } from "@/app/services/orders";
+import { formatPrice } from "@/lib/utils";
 import {
   Search,
   Eye,
@@ -17,6 +18,7 @@ import {
   XCircle,
   DollarSign,
   RefreshCw,
+  Receipt,
 } from "lucide-react";
 
 const getStatusColor = (status: string) => {
@@ -80,11 +82,96 @@ export default function CashierOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [dateFilter, setDateFilter] = useState("ALL");
+  const [customDateRange, setCustomDateRange] = useState({
+    startDate: "",
+    endDate: "",
+  });
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [ordersPerPage] = useState(10);
+
+  // Date filter options
+  const dateFilterOptions = [
+    { value: "ALL", label: "All Time" },
+    { value: "TODAY", label: "Today" },
+    { value: "YESTERDAY", label: "Yesterday" },
+    { value: "THIS_WEEK", label: "This Week" },
+    { value: "LAST_WEEK", label: "Last Week" },
+    { value: "THIS_MONTH", label: "This Month" },
+    { value: "LAST_MONTH", label: "Last Month" },
+    { value: "CUSTOM", label: "Custom Range" },
+  ];
+
+  // Helper function to get date range based on filter
+  const getDateRange = (filter: string) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    switch (filter) {
+      case "TODAY":
+        return {
+          start: today,
+          end: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1),
+        };
+      case "YESTERDAY":
+        return {
+          start: yesterday,
+          end: new Date(yesterday.getTime() + 24 * 60 * 60 * 1000 - 1),
+        };
+      case "THIS_WEEK":
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - today.getDay());
+        return {
+          start: startOfWeek,
+          end: new Date(startOfWeek.getTime() + 7 * 24 * 60 * 60 * 1000 - 1),
+        };
+      case "LAST_WEEK":
+        const lastWeekStart = new Date(today);
+        lastWeekStart.setDate(today.getDate() - today.getDay() - 7);
+        return {
+          start: lastWeekStart,
+          end: new Date(lastWeekStart.getTime() + 7 * 24 * 60 * 60 * 1000 - 1),
+        };
+      case "THIS_MONTH":
+        return {
+          start: new Date(now.getFullYear(), now.getMonth(), 1),
+          end: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59),
+        };
+      case "LAST_MONTH":
+        return {
+          start: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+          end: new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59),
+        };
+      case "CUSTOM":
+        if (customDateRange.startDate && customDateRange.endDate) {
+          return {
+            start: new Date(customDateRange.startDate),
+            end: new Date(customDateRange.endDate + "T23:59:59"),
+          };
+        }
+        return null;
+      default:
+        return null;
+    }
+  };
+
+  // Helper function to check if order is within date range
+  const isOrderInDateRange = (
+    order: Order,
+    dateRange: { start: Date; end: Date } | null
+  ) => {
+    if (!dateRange) return true;
+
+    const orderDate = new Date(
+      order.createdAt || order._props?.createdAt || new Date()
+    );
+    return orderDate >= dateRange.start && orderDate <= dateRange.end;
+  };
 
   const fetchOrders = async () => {
     if (user?.branch?.business?.id) {
@@ -217,9 +304,13 @@ export default function CashierOrdersPage() {
       );
     }
 
+    // Filter by date
+    const dateRange = getDateRange(dateFilter);
+    filtered = filtered.filter((order) => isOrderInDateRange(order, dateRange));
+
     setFilteredOrders(filtered);
     setCurrentPage(1); // Reset to first page when filters change
-  }, [orders, searchTerm, statusFilter]);
+  }, [orders, searchTerm, statusFilter, dateFilter, customDateRange]);
 
   // Calculate pagination
   const { totalPages, startIndex, endIndex, currentOrders } =
@@ -272,6 +363,17 @@ export default function CashierOrdersPage() {
           <option value="COMPLETED">Completed</option>
           <option value="CANCELLED">Cancelled</option>
         </select>
+        <select
+          value={dateFilter}
+          onChange={(e) => setDateFilter(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          {dateFilterOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
         <Button
           variant="outline"
           onClick={fetchOrders}
@@ -286,6 +388,214 @@ export default function CashierOrdersPage() {
             Last updated: {lastRefresh.toLocaleTimeString()}
           </div>
         )}
+      </div>
+
+      {/* Custom Date Range Inputs */}
+      {dateFilter === "CUSTOM" && (
+        <div className="mb-4 p-4 bg-gray-50 rounded-lg border">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Start Date
+              </label>
+              <input
+                type="date"
+                value={customDateRange.startDate}
+                onChange={(e) =>
+                  setCustomDateRange((prev) => ({
+                    ...prev,
+                    startDate: e.target.value,
+                  }))
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                End Date
+              </label>
+              <input
+                type="date"
+                value={customDateRange.endDate}
+                onChange={(e) =>
+                  setCustomDateRange((prev) => ({
+                    ...prev,
+                    endDate: e.target.value,
+                  }))
+                }
+                min={customDateRange.startDate}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          {customDateRange.startDate && customDateRange.endDate && (
+            <div className="mt-2 text-sm text-gray-600">
+              Showing orders from{" "}
+              {new Date(customDateRange.startDate).toLocaleDateString()} to{" "}
+              {new Date(customDateRange.endDate).toLocaleDateString()}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Filter Summary */}
+      {(searchTerm || statusFilter !== "ALL" || dateFilter !== "ALL") && (
+        <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm font-medium text-blue-900">
+              Active Filters:
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {searchTerm && (
+              <Badge variant="outline" className="text-xs">
+                Search: "{searchTerm}"
+              </Badge>
+            )}
+            {statusFilter !== "ALL" && (
+              <Badge variant="outline" className="text-xs">
+                Status: {statusFilter}
+              </Badge>
+            )}
+            {dateFilter !== "ALL" && (
+              <Badge variant="outline" className="text-xs">
+                Date:{" "}
+                {
+                  dateFilterOptions.find((opt) => opt.value === dateFilter)
+                    ?.label
+                }
+                {dateFilter === "CUSTOM" &&
+                  customDateRange.startDate &&
+                  customDateRange.endDate && (
+                    <span className="ml-1">
+                      (
+                      {new Date(customDateRange.startDate).toLocaleDateString()}{" "}
+                      - {new Date(customDateRange.endDate).toLocaleDateString()}
+                      )
+                    </span>
+                  )}
+              </Badge>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSearchTerm("");
+                setStatusFilter("ALL");
+                setDateFilter("ALL");
+                setCustomDateRange({ startDate: "", endDate: "" });
+              }}
+              className="text-xs h-6 px-2"
+            >
+              Clear All
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Orders Summary */}
+      <div className="mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Total Orders */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Orders
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {filteredOrders.length}
+                  </p>
+                </div>
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Receipt className="h-6 w-6 text-blue-600" />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                {filteredOrders.length === orders.length
+                  ? "All orders"
+                  : `Filtered from ${orders.length} total orders`}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Total Amount */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Amount
+                  </p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {formatPrice(
+                      filteredOrders.reduce((sum, order) => {
+                        const orderTotal =
+                          order.total || order._props?.total || 0;
+                        return sum + orderTotal;
+                      }, 0)
+                    )}
+                  </p>
+                </div>
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <DollarSign className="h-6 w-6 text-green-600" />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Average:{" "}
+                {filteredOrders.length > 0
+                  ? formatPrice(
+                      filteredOrders.reduce((sum, order) => {
+                        const orderTotal =
+                          order.total || order._props?.total || 0;
+                        return sum + orderTotal;
+                      }, 0) / filteredOrders.length
+                    )
+                  : formatPrice(0)}{" "}
+                per order
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Status Breakdown */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">
+                    Status Breakdown
+                  </p>
+                  <div className="text-xs text-gray-500 mt-1 space-y-1">
+                    {[
+                      "PENDING",
+                      "CONFIRMED",
+                      "PAID",
+                      "COMPLETED",
+                      "CANCELLED",
+                    ].map((status) => {
+                      const count = filteredOrders.filter(
+                        (order) =>
+                          (order.status || order._props?.status) === status
+                      ).length;
+                      return count > 0 ? (
+                        <div key={status} className="flex justify-between">
+                          <span className="capitalize">
+                            {status.toLowerCase()}:
+                          </span>
+                          <span className="font-medium">{count}</span>
+                        </div>
+                      ) : null;
+                    })}
+                  </div>
+                </div>
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <CheckCircle className="h-6 w-6 text-purple-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Orders List */}
@@ -373,12 +683,7 @@ export default function CashierOrdersPage() {
                     <div className="flex items-center gap-4 flex-1 justify-end">
                       <div className="text-right">
                         <p className="text-lg font-bold text-green-600">
-                          $
-                          {order.total || order._props?.total
-                            ? (order.total || order._props?.total || 0).toFixed(
-                                2
-                              )
-                            : "0.00"}
+                          {formatPrice(order.total || order._props?.total || 0)}
                         </p>
                         <p className="text-xs text-gray-500">
                           {order.createdAt || order._props?.createdAt ? (

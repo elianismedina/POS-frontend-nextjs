@@ -9,6 +9,17 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { formatPrice } from "@/lib/utils";
+import {
   productsService,
   Product,
   PaginatedProductsResponse,
@@ -41,6 +52,7 @@ import {
   Loader2,
   Clock,
   Scan,
+  AlertTriangle,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -100,6 +112,24 @@ export default function SalesPage() {
   // Barcode scanner state
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [isProcessingBarcode, setIsProcessingBarcode] = useState(false);
+
+  // Cancel order modal state
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [customCancelReason, setCustomCancelReason] = useState("");
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  // Common cancellation reasons
+  const cancellationReasons = [
+    "Customer changed mind",
+    "Item out of stock",
+    "Price too high",
+    "Customer left without purchasing",
+    "Technical issue",
+    "Duplicate order",
+    "Wrong order created",
+    "Other",
+  ];
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -1236,29 +1266,52 @@ export default function SalesPage() {
         return;
       }
 
+      // Check current order status before processing
+      const currentOrder = await ordersService.getOrder(orderId);
+      const orderStatus =
+        (currentOrder as any)._props?.status || currentOrder.status;
+
+      console.log("Current order status:", orderStatus);
+
       // Check if order already has a payment before processing
       try {
-        // First confirm the order (PENDING -> CONFIRMED)
-        await ordersService.confirmOrder(
-          orderId,
-          "Order confirmed for payment processing"
-        );
+        // Only confirm the order if it's in PENDING status
+        if (orderStatus === "PENDING") {
+          console.log("Confirming order from PENDING status...");
+          await ordersService.confirmOrder(
+            orderId,
+            "Order confirmed for payment processing"
+          );
+        } else if (orderStatus === "CONFIRMED" || orderStatus === "PAID") {
+          console.log(
+            "Order is already confirmed or paid, skipping confirmation..."
+          );
+        } else {
+          throw new Error(
+            `Cannot process payment for order in status: ${orderStatus}`
+          );
+        }
 
-        // Then process payment (CONFIRMED -> PAID)
-        const paymentData = {
-          orderId: orderId,
-          paymentMethodId: sale.selectedPaymentMethod!.paymentMethodId,
-          amount: sale.total,
-          amountTendered:
-            sale.selectedPaymentMethod!.paymentMethod.code === "CASH"
-              ? sale.amountTendered
-              : undefined,
-          transactionReference: `TRX-${Date.now()}`,
-          notes: `Payment processed for order ${orderId}`,
-          status: "COMPLETED" as const,
-        };
+        // Only process payment if order is not already paid
+        if (orderStatus !== "PAID") {
+          console.log("Processing payment...");
+          const paymentData = {
+            orderId: orderId,
+            paymentMethodId: sale.selectedPaymentMethod!.paymentMethodId,
+            amount: sale.total,
+            amountTendered:
+              sale.selectedPaymentMethod!.paymentMethod.code === "CASH"
+                ? sale.amountTendered
+                : undefined,
+            transactionReference: `TRX-${Date.now()}`,
+            notes: `Payment processed for order ${orderId}`,
+            status: "COMPLETED" as const,
+          };
 
-        await ordersService.processPayment(paymentData);
+          await ordersService.processPayment(paymentData);
+        } else {
+          console.log("Order is already paid, skipping payment processing...");
+        }
       } catch (error: any) {
         // If payment already exists, continue with order completion
         if (
@@ -1278,12 +1331,15 @@ export default function SalesPage() {
       }
 
       // Check current order status before attempting completion
-      const currentOrder = await ordersService.getOrder(orderId);
-      const orderStatus =
-        (currentOrder as any)._props?.status || currentOrder.status;
+      const updatedOrder = await ordersService.getOrder(orderId);
+      const updatedOrderStatus =
+        (updatedOrder as any)._props?.status || updatedOrder.status;
+
+      console.log("Updated order status:", updatedOrderStatus);
 
       // Only complete the order if it's not already completed
-      if (orderStatus !== "COMPLETED") {
+      if (updatedOrderStatus !== "COMPLETED") {
+        console.log("Completing order...");
         // Then complete the order with user-specified details (this sets status to COMPLETED)
         const completeOrderData = {
           completionType: completionDetails.completionType,
@@ -1301,8 +1357,8 @@ export default function SalesPage() {
 
       toast({
         title: "Payment processed",
-        description: `Sale completed for $${(sale.total || 0).toFixed(
-          2
+        description: `Sale completed for ${formatPrice(
+          sale.total || 0
         )} using ${sale.selectedPaymentMethod!.paymentMethod.name}`,
       });
 
@@ -1338,6 +1394,122 @@ export default function SalesPage() {
         return <CreditCardIcon className="h-4 w-4" />;
       default:
         return <CreditCard className="h-4 w-4" />;
+    }
+  };
+
+  const handleCancelOrder = async () => {
+    if (!sale.currentOrder) {
+      toast({
+        title: "No order to cancel",
+        description: "There is no active order to cancel",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const orderId =
+      (sale.currentOrder as any)?._props?.id || (sale.currentOrder as any)?.id;
+
+    if (!orderId) {
+      toast({
+        title: "Error",
+        description: "Order ID is missing",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if order is already completed
+    if (isOrderCompleted()) {
+      toast({
+        title: "Cannot cancel",
+        description: "Cannot cancel a completed order",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Show the cancel modal instead of directly cancelling
+    setShowCancelModal(true);
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!sale.currentOrder) {
+      toast({
+        title: "No order to cancel",
+        description: "There is no active order to cancel",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const orderId =
+      (sale.currentOrder as any)?._props?.id || (sale.currentOrder as any)?.id;
+
+    if (!orderId) {
+      toast({
+        title: "Error",
+        description: "Order ID is missing",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate that a reason is selected
+    if (!cancelReason) {
+      toast({
+        title: "Reason Required",
+        description: "Please select a reason for cancellation",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // If "Other" is selected, require custom reason
+    if (cancelReason === "Other" && !customCancelReason.trim()) {
+      toast({
+        title: "Custom Reason Required",
+        description: "Please provide a custom reason for cancellation",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsCancelling(true);
+
+      // Prepare the cancellation notes
+      const finalReason =
+        cancelReason === "Other" ? customCancelReason : cancelReason;
+      const cancellationNotes = `Order cancelled: ${finalReason}`;
+
+      // Cancel the order with reason
+      await ordersService.cancelOrder(orderId);
+
+      toast({
+        title: "Order cancelled",
+        description: "The order has been cancelled successfully",
+      });
+
+      // Clear the sale and redirect to dashboard
+      await clearSale();
+      router.push("/dashboard/cashier");
+
+      // Reset modal state
+      setShowCancelModal(false);
+      setCancelReason("");
+      setCustomCancelReason("");
+    } catch (error: any) {
+      console.error("Error cancelling order:", error);
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.message ||
+          "Failed to cancel order. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -1424,6 +1596,24 @@ export default function SalesPage() {
             )}
           </div>
           <div className="flex items-center space-x-4">
+            {/* Cancel Order Button - Only show for existing orders that are not completed */}
+            {sale.currentOrder &&
+              searchParams.get("orderId") &&
+              !isOrderCompleted() && (
+                <Button
+                  variant="destructive"
+                  onClick={handleCancelOrder}
+                  disabled={isProcessing}
+                  className="flex items-center gap-2"
+                >
+                  {isProcessing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <X className="h-4 w-4" />
+                  )}
+                  Cancel Order
+                </Button>
+              )}
             {sale.items.length > 0 && (
               <Button
                 variant="outline"
@@ -1545,7 +1735,7 @@ export default function SalesPage() {
                               {product.name}
                             </h3>
                             <p className="text-lg font-bold text-green-600">
-                              ${Number(product.price).toFixed(2)}
+                              {formatPrice(product.price)}
                             </p>
                             <p className="text-xs text-gray-500">
                               Stock: {product.stock || 0}
@@ -1619,11 +1809,11 @@ export default function SalesPage() {
                               {item.product.name}
                             </h4>
                             <p className="text-sm font-bold text-green-600 ml-2">
-                              ${(item.subtotal || 0).toFixed(2)}
+                              {formatPrice(item.subtotal || 0)}
                             </p>
                           </div>
                           <p className="text-xs text-gray-600 mb-2">
-                            ${Number(item.product.price).toFixed(2)} each
+                            {formatPrice(item.product.price)} each
                           </p>
 
                           {/* Quantity Controls */}
@@ -1705,7 +1895,7 @@ export default function SalesPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-600">Subtotal:</span>
                   <span className="font-medium">
-                    ${(sale.subtotal || 0).toFixed(2)}
+                    {formatPrice(sale.subtotal || 0)}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -1717,13 +1907,13 @@ export default function SalesPage() {
                     %):
                   </span>
                   <span className="font-medium">
-                    ${(sale.tax || 0).toFixed(2)}
+                    {formatPrice(sale.tax || 0)}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Discount:</span>
                   <span className="font-medium text-red-600">
-                    -${(sale.discount || 0).toFixed(2)}
+                    -{formatPrice(sale.discount || 0)}
                   </span>
                 </div>
               </div>
@@ -1734,7 +1924,7 @@ export default function SalesPage() {
                     Total:
                   </span>
                   <span className="text-xl font-bold text-green-600">
-                    ${(sale.total || 0).toFixed(2)}
+                    {formatPrice(sale.total || 0)}
                   </span>
                 </div>
               </div>
@@ -2009,7 +2199,7 @@ export default function SalesPage() {
                 </h4>
                 <div className="text-sm text-gray-600 space-y-1">
                   <div>Items: {sale.items.length}</div>
-                  <div>Total: ${(sale.total || 0).toFixed(2)}</div>
+                  <div>Total: {formatPrice(sale.total || 0)}</div>
                   <div>Customer: {sale.customer?.name || "No customer"}</div>
                   <div>
                     Payment: {sale.selectedPaymentMethod?.paymentMethod.name}
@@ -2104,6 +2294,125 @@ export default function SalesPage() {
         title="Scan Product Barcode"
         placeholder="Scan or enter product barcode..."
       />
+
+      {/* Cancel Order Modal */}
+      <Sheet open={showCancelModal} onOpenChange={setShowCancelModal}>
+        <SheetContent className="w-[400px] sm:w-[540px]">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-600" />
+              Cancel Order
+            </SheetTitle>
+            <SheetDescription>
+              Please provide a reason for cancelling this order. This action
+              cannot be undone.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="space-y-6 py-6">
+            {/* Order Information */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h4 className="font-medium text-gray-900 mb-2">Order Details</h4>
+              <div className="text-sm text-gray-600 space-y-1">
+                <div>
+                  Order ID:{" "}
+                  {(sale.currentOrder as any)?._props?.id ||
+                    (sale.currentOrder as any)?.id}
+                </div>
+                <div>Items: {sale.items.length}</div>
+                <div>Total: ${(sale.total || 0).toFixed(2)}</div>
+                <div>Customer: {sale.customer?.name || "No customer"}</div>
+              </div>
+            </div>
+
+            {/* Cancellation Reason */}
+            <div className="space-y-3">
+              <Label htmlFor="cancel-reason" className="text-base font-medium">
+                Reason for Cancellation *
+              </Label>
+
+              <div className="space-y-2">
+                {cancellationReasons.map((reason) => (
+                  <div key={reason} className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id={`reason-${reason}`}
+                      name="cancelReason"
+                      value={reason}
+                      checked={cancelReason === reason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
+                    />
+                    <Label
+                      htmlFor={`reason-${reason}`}
+                      className="text-sm cursor-pointer"
+                    >
+                      {reason}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+
+              {/* Custom Reason Input */}
+              {cancelReason === "Other" && (
+                <div className="mt-4">
+                  <Label
+                    htmlFor="custom-reason"
+                    className="text-sm font-medium"
+                  >
+                    Please specify the reason *
+                  </Label>
+                  <Textarea
+                    id="custom-reason"
+                    value={customCancelReason}
+                    onChange={(e) => setCustomCancelReason(e.target.value)}
+                    placeholder="Enter the specific reason for cancellation..."
+                    className="mt-2"
+                    rows={3}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <SheetFooter className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCancelModal(false);
+                setCancelReason("");
+                setCustomCancelReason("");
+              }}
+              disabled={isCancelling}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmCancel}
+              disabled={
+                isCancelling ||
+                !cancelReason ||
+                (cancelReason === "Other" && !customCancelReason.trim())
+              }
+              className="flex-1"
+            >
+              {isCancelling ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Cancelling...
+                </>
+              ) : (
+                <>
+                  <X className="h-4 w-4 mr-2" />
+                  Confirm Cancellation
+                </>
+              )}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

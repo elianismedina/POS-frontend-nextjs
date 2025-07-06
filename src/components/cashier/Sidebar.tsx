@@ -51,10 +51,10 @@ export function CashierSidebar() {
 
   return (
     <SidebarProvider defaultCollapsed={false}>
-      <Sidebar>
+      <Sidebar className="pattern-bg">
         <SidebarHeader className="flex items-center justify-between">
           <h2 className="text-lg font-semibold hidden sm:block">
-            Cashier Panel
+            Panel de Cajero
           </h2>
           <SidebarTrigger />
         </SidebarHeader>
@@ -62,43 +62,43 @@ export function CashierSidebar() {
           <SidebarGroup>
             <SidebarItem
               icon={<LayoutDashboard className="h-4 w-4" />}
-              label="Dashboard"
+              label="Panel Principal"
               href="/dashboard/cashier"
               isActive={pathname === "/dashboard/cashier"}
             />
             <SidebarItem
               icon={<ShoppingCart className="h-4 w-4" />}
-              label="New Sale"
+              label="Nueva Venta"
               href="/dashboard/cashier/sales"
               isActive={pathname === "/dashboard/cashier/sales"}
             />
             <SidebarItem
               icon={<Package className="h-4 w-4" />}
-              label="Products"
+              label="Productos"
               href="/dashboard/cashier/products"
               isActive={pathname === "/dashboard/cashier/products"}
             />
             <SidebarItem
               icon={<Users className="h-4 w-4" />}
-              label="Customers"
+              label="Clientes"
               href="/dashboard/cashier/customers"
               isActive={pathname === "/dashboard/cashier/customers"}
             />
             <SidebarItem
               icon={<ListOrdered className="h-4 w-4" />}
-              label="Orders"
+              label="Pedidos"
               href="/dashboard/cashier/orders"
               isActive={pathname === "/dashboard/cashier/orders"}
             />
             <SidebarItem
               icon={<Clock className="h-4 w-4" />}
-              label="My Shifts"
+              label="Mis Turnos"
               href="/dashboard/cashier/shifts"
               isActive={pathname === "/dashboard/cashier/shifts"}
             />
             <SidebarItem
               icon={<User className="h-4 w-4" />}
-              label="Profile"
+              label="Perfil"
               href="/dashboard/cashier/profile"
               isActive={pathname === "/dashboard/cashier/profile"}
             />
@@ -115,7 +115,7 @@ export function CashierSidebar() {
               onClick={() => logout()}
             >
               <LogOut className="h-4 w-4" />
-              <span className="ml-2 hidden sm:inline">Logout</span>
+              <span className="ml-2 hidden sm:inline">Cerrar Sesión</span>
             </Button>
           </div>
         </SidebarFooter>

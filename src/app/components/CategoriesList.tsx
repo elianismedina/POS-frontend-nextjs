@@ -88,9 +88,14 @@ export const CategoriesList: React.FC<CategoriesListProps> = ({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-gray-900">
-              {category.name}
-            </h3>
+            <div>
+              <h3 className="text-sm font-medium text-gray-900">
+                {category.name}
+              </h3>
+              <p className="text-xs text-gray-400 font-mono">
+                ID: {category.id}
+              </p>
+            </div>
             <span
               className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                 category.isActive
@@ -156,8 +161,13 @@ export const CategoriesList: React.FC<CategoriesListProps> = ({
           </div>
         )}
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-        {category.name}
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div>
+          <div className="text-sm font-medium text-gray-900">
+            {category.name}
+          </div>
+          <div className="text-xs text-gray-400 font-mono">{category.id}</div>
+        </div>
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
         {category.description || "-"}

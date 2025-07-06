@@ -25,23 +25,26 @@ function SidebarProvider({
 
   // Handle mobile view
   React.useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 768) {
-        // md breakpoint
-        setCollapsed(true);
-      } else {
-        setCollapsed(defaultCollapsed);
-      }
-    };
+    // Only run on client side
+    if (typeof window !== "undefined") {
+      const handleResize = () => {
+        if (window.innerWidth < 768) {
+          // md breakpoint
+          setCollapsed(true);
+        } else {
+          setCollapsed(defaultCollapsed);
+        }
+      };
 
-    // Set initial state
-    handleResize();
+      // Set initial state
+      handleResize();
 
-    // Add event listener
-    window.addEventListener("resize", handleResize);
+      // Add event listener
+      window.addEventListener("resize", handleResize);
 
-    // Cleanup
-    return () => window.removeEventListener("resize", handleResize);
+      // Cleanup
+      return () => window.removeEventListener("resize", handleResize);
+    }
   }, [defaultCollapsed]);
 
   return (

@@ -74,10 +74,11 @@ export const TaxesList: React.FC<TaxesListProps> = ({
     return `(${rate.toFixed(3)})`;
   };
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return "N/A";
+  const formatDate = (date: string | Date) => {
+    if (!date) return "N/A";
     try {
-      return new Date(dateString).toLocaleDateString();
+      const dateObj = typeof date === "string" ? new Date(date) : date;
+      return dateObj.toLocaleDateString();
     } catch (error) {
       return "Invalid Date";
     }

@@ -19,6 +19,12 @@ const TaxesPage = () => {
   const businessId = user?.business?.[0]?.id;
 
   const fetchTaxes = async () => {
+    if (!businessId) {
+      setError("No business ID available");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
       const response = await taxesService.listTaxes(businessId);
@@ -33,8 +39,10 @@ const TaxesPage = () => {
   };
 
   useEffect(() => {
-    fetchTaxes();
-  }, []);
+    if (businessId) {
+      fetchTaxes();
+    }
+  }, [businessId]);
 
   const handleCreateSuccess = async (data: {
     name: string;

@@ -1,5 +1,9 @@
 "use client";
 
+// Disable static generation for this page
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
@@ -29,7 +33,7 @@ interface BranchData {
   isActive: boolean;
 }
 
-export default function BranchManagerDashboard() {
+function BranchManagerDashboardContent() {
   const { isAuthenticated, user, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
@@ -106,7 +110,7 @@ export default function BranchManagerDashboard() {
         <div className="text-center">
           <h2 className="text-2xl font-semibold mb-4 text-red-600">Error</h2>
           <p className="text-gray-500 mb-6">{error}</p>
-          <Button onClick={() => window.location.reload()}>Try Again</Button>
+          <Button onClick={() => router.refresh()}>Try Again</Button>
         </div>
       </div>
     );
@@ -286,3 +290,29 @@ export default function BranchManagerDashboard() {
     </div>
   );
 }
+
+// Client-side only wrapper
+function BranchManagerDashboard() {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  if (!isClient) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold mb-4">Loading...</h2>
+          <p className="text-gray-500">
+            Please wait while we load the dashboard
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return <BranchManagerDashboardContent />;
+}
+
+export default BranchManagerDashboard;

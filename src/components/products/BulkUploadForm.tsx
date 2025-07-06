@@ -14,6 +14,7 @@ import {
   AlertCircle,
   CheckCircle,
   XCircle,
+  Info,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -50,13 +51,21 @@ export function BulkUploadForm({ onSuccess, onCancel }: BulkUploadFormProps) {
     setUploadResult(null);
 
     try {
-      const result = await productsService.bulkCreate(file);
-      setUploadResult(result);
+      const response = await productsService.bulkCreate(file);
 
-      if (result.result.successful > 0) {
+      // Handle both response structures (with and without result wrapper)
+      const result = response.result || response;
+
+      if (!result || typeof result !== "object") {
+        throw new Error("Invalid response format from server");
+      }
+
+      setUploadResult({ result });
+
+      if (result.successful > 0) {
         toast({
           title: "Upload Successful",
-          description: `Successfully created ${result.result.successful} products`,
+          description: `Successfully created ${result.successful} products`,
         });
         onSuccess();
       } else {
@@ -68,10 +77,29 @@ export function BulkUploadForm({ onSuccess, onCancel }: BulkUploadFormProps) {
       }
     } catch (error: any) {
       console.error("Bulk upload error:", error);
+
+      // Provide more specific error messages
+      let errorMessage = "Failed to upload products";
+
+      if (error.response?.data?.message) {
+        const message = error.response.data.message;
+        if (message.includes("Invalid Record Length")) {
+          errorMessage =
+            "CSV format error: The file has inconsistent column counts. Please ensure all rows have the same number of columns and use commas as separators.";
+        } else if (message.includes("CSV file is empty")) {
+          errorMessage =
+            "The CSV file is empty. Please add product data to the file.";
+        } else if (message.includes("Missing required fields")) {
+          errorMessage =
+            "CSV error: Some required fields (name, price, stock) are missing or invalid.";
+        } else {
+          errorMessage = message;
+        }
+      }
+
       toast({
         title: "Upload Error",
-        description:
-          error.response?.data?.message || "Failed to upload products",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -92,19 +120,19 @@ export function BulkUploadForm({ onSuccess, onCancel }: BulkUploadFormProps) {
   };
 
   const downloadTemplate = () => {
-    const csvContent = `name,description,price,stock,imageUrl,barcode,discountable,categoryId,subcategoryId
-"Sample Product","A sample product description",29.99,100,"https://example.com/image.jpg","1234567890128",true,"",""
-"Another Product","Another sample product",49.99,50,"","",true,"",""`;
+    // Use the existing products.csv file from public assets
+    const templateUrl = "/assets/files/products.csv";
 
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "products_template.csv";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+    // Create a link element to download the file
+    const link = document.createElement("a");
+    link.href = templateUrl;
+    link.download = "products_template.csv";
+    link.target = "_blank";
+
+    // Append to body, click, and remove
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -156,6 +184,29 @@ export function BulkUploadForm({ onSuccess, onCancel }: BulkUploadFormProps) {
                 subcategory
               </li>
             </ul>
+
+            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <div className="flex items-start gap-2">
+                <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="text-xs text-blue-800">
+                  <p className="font-medium mb-1">CSV Format Requirements:</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Use commas (,) as column separators</li>
+                    <li>
+                      Enclose text fields in double quotes (") if they contain
+                      commas
+                    </li>
+                    <li>Ensure all rows have exactly 9 columns</li>
+                    <li>
+                      Leave optional fields empty (no quotes needed for empty
+                      fields)
+                    </li>
+                    <li>Use decimal points (.) for prices, not commas</li>
+                    <li>Save the file with UTF-8 encoding</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="flex gap-2">

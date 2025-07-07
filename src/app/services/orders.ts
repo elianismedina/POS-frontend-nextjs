@@ -35,6 +35,13 @@ export interface Order {
       name: string;
     };
   };
+  tableOrderId?: string;
+  tableOrder?: {
+    id: string;
+    tableNumber: string;
+    tableName?: string;
+    status: string;
+  };
   items: OrderItem[];
   subtotal: number;
   taxTotal: number;
@@ -48,6 +55,7 @@ export interface Order {
     businessId: string;
     cashierId: string;
     customerId?: string;
+    tableOrderId?: string;
     cashier?: {
       id: string;
       name: string;
@@ -74,6 +82,7 @@ export interface CreateOrderRequest {
   cashierId: string;
   customerId?: string;
   notes?: string;
+  tableOrderId?: string;
 }
 
 export interface AddItemRequest {

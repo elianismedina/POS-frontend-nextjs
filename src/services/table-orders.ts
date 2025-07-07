@@ -19,8 +19,7 @@ export interface TableOrder {
 }
 
 export interface CreateTableOrderDto {
-  tableNumber: string;
-  tableName?: string;
+  physicalTableId: string;
   notes?: string;
   numberOfCustomers?: number;
   businessId: string;
@@ -37,6 +36,11 @@ export class TableOrdersService {
 
   static async getTableOrders(): Promise<TableOrder[]> {
     const response = await api.get("/table-orders");
+    return response.data;
+  }
+
+  static async getActiveTableOrders(): Promise<TableOrder[]> {
+    const response = await api.get("/table-orders/active");
     return response.data;
   }
 

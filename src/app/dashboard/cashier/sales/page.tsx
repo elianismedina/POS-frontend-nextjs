@@ -32,8 +32,19 @@ import {
 } from "@/app/services/business-payment-methods";
 import { ordersService, Order } from "@/app/services/orders";
 import { shiftsService, Shift } from "@/app/services/shifts";
+import {
+  TableOrdersService,
+  TableOrder,
+  CreateTableOrderDto,
+} from "@/services/table-orders";
+import {
+  PhysicalTablesService,
+  PhysicalTable,
+  CreatePhysicalTableDto,
+} from "@/services/physical-tables";
 import { Pagination } from "@/components/ui/pagination";
 import { BarcodeScanner } from "@/components/ui/barcode-scanner";
+import { ExistingTablesDisplay } from "@/components/cashier/ExistingTablesDisplay";
 import {
   Search,
   ShoppingCart,
@@ -53,6 +64,12 @@ import {
   Clock,
   Scan,
   AlertTriangle,
+  Users,
+  MapPin,
+  RefreshCw,
+  Eye,
+  Info,
+  FileText,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -65,6 +82,7 @@ interface CartItem {
 interface SaleData {
   items: CartItem[];
   customer: Customer | null;
+  customerName?: string;
   subtotal: number;
   tax: number;
   total: number;
@@ -119,6 +137,31 @@ export default function SalesPage() {
   const [customCancelReason, setCustomCancelReason] = useState("");
   const [isCancelling, setIsCancelling] = useState(false);
 
+  // Physical table state
+  const [availablePhysicalTables, setAvailablePhysicalTables] = useState<
+    PhysicalTable[]
+  >([]);
+  const [selectedPhysicalTable, setSelectedPhysicalTable] =
+    useState<PhysicalTable | null>(null);
+  const [showPhysicalTablesModal, setShowPhysicalTablesModal] = useState(false);
+  const [isLoadingPhysicalTables, setIsLoadingPhysicalTables] = useState(false);
+
+  // Table order state
+  const [currentTableOrder, setCurrentTableOrder] = useState<TableOrder | null>(
+    null
+  );
+  const [showTableOrderModal, setShowTableOrderModal] = useState(false);
+  const [isCreatingTableOrder, setIsCreatingTableOrder] = useState(false);
+  const [tableOrderForm, setTableOrderForm] = useState({
+    notes: "",
+    numberOfCustomers: 1,
+  });
+
+  // Existing tables selection state
+  const [showExistingTablesModal, setShowExistingTablesModal] = useState(false);
+  const [existingTables, setExistingTables] = useState<TableOrder[]>([]);
+  const [isLoadingExistingTables, setIsLoadingExistingTables] = useState(false);
+
   // Common cancellation reasons
   const cancellationReasons = [
     "Customer changed mind",
@@ -142,6 +185,7 @@ export default function SalesPage() {
   const [sale, setSale] = useState<SaleData>({
     items: [],
     customer: null,
+    customerName: undefined,
     subtotal: 0,
     tax: 0,
     total: 0,
@@ -151,6 +195,19 @@ export default function SalesPage() {
     amountTendered: 0,
     currentOrder: null,
   });
+
+  // Add state for search
+  const [tableSearch, setTableSearch] = useState("");
+
+  // Filter tables based on search
+  const filteredPhysicalTables = availablePhysicalTables.filter(
+    (t) =>
+      t.tableNumber.toLowerCase().includes(tableSearch.toLowerCase()) ||
+      (t.tableName &&
+        t.tableName.toLowerCase().includes(tableSearch.toLowerCase())) ||
+      (t.location &&
+        t.location.toLowerCase().includes(tableSearch.toLowerCase()))
+  );
 
   // Helper function to check if order is completed (read-only)
   const isOrderCompleted = () => {
@@ -183,6 +240,15 @@ export default function SalesPage() {
       loadExistingOrder(orderId);
     }
   }, [searchParams, isLoading, products, loadedOrderId, justCleared]);
+
+  // Load table order if tableOrderId is provided in URL
+  useEffect(() => {
+    const tableOrderId = searchParams.get("tableOrderId");
+    if (tableOrderId && !currentTableOrder) {
+      // Load the table order and set it as current
+      loadTableOrder(tableOrderId);
+    }
+  }, [searchParams, currentTableOrder]);
 
   useEffect(() => {
     if (justCleared) {
@@ -470,112 +536,92 @@ export default function SalesPage() {
   const loadExistingOrder = async (orderId: string) => {
     try {
       console.log("Loading existing order:", orderId);
+      const order = await ordersService.getOrder(orderId);
+      console.log("Loaded order:", order);
 
-      const existingOrder = await ordersService.getOrder(orderId);
-      console.log("Existing order loaded:", existingOrder);
-      console.log("Existing order structure:", {
-        hasCustomer: !!(existingOrder as any).customer,
-        customer: (existingOrder as any).customer,
-        customerId: (existingOrder as any).customerId,
-        orderKeys: Object.keys(existingOrder),
-        orderProps: (existingOrder as any)._props,
-      });
+      if (order) {
+        // Set the loaded order ID to prevent infinite loops
+        setLoadedOrderId(orderId);
 
-      // Handle both direct properties and _props structure
-      const orderData = (existingOrder._props || existingOrder) as any;
-      console.log("Order items:", orderData.items);
-      console.log("Order items length:", orderData.items?.length);
-
-      // Check if order belongs to current cashier
-      const orderCashierId = orderData.cashierId;
-      if (orderCashierId !== user?.id) {
-        toast({
-          title: "Access Denied",
-          description: "You can only access your own orders",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      console.log("Available products:", products.length);
-      console.log(
-        "Available product IDs:",
-        products.map((p) => p.id)
-      );
-
-      // Map order items to cart items
-      const cartItems =
-        orderData.items
-          ?.map((item: any) => {
-            // Handle nested _props structure for items
+        // Convert order items to cart items
+        const orderData = (order as any)._props || order;
+        const cartItems = (orderData.items || [])
+          .map((item: any) => {
             const itemData = item._props || item;
-            console.log(`Looking for product with ID: ${itemData.productId}`);
             const product = products.find((p) => p.id === itemData.productId);
             if (!product) {
               console.warn(`Product not found for item: ${itemData.productId}`);
               return null;
             }
-            console.log(`Found product: ${product.name}`);
             return {
               product,
               quantity: itemData.quantity || 1,
-              subtotal: itemData.subtotal || 0,
+              subtotal:
+                itemData.subtotal || product.price * (itemData.quantity || 1),
             };
           })
-          .filter((item: any): item is CartItem => item !== null) || [];
+          .filter((item: any): item is CartItem => item !== null);
 
-      // Set customer if order has one - handle both direct and _props structure
-      const orderCustomer =
-        (existingOrder as any).customer ||
-        (existingOrder as any)._props?.customer;
-      const customer = orderCustomer
-        ? ({
-            id: orderCustomer.id,
-            name: orderCustomer.name,
-            email: orderCustomer.email,
-            phone: orderCustomer.phone || "",
-            address: orderCustomer.address || "",
-            documentNumber: orderCustomer.documentNumber || "",
-            isActive:
-              orderCustomer.isActive !== undefined
-                ? orderCustomer.isActive
-                : true,
-            business: orderCustomer.business || { id: "", name: "" },
-            createdAt: orderCustomer.createdAt || new Date(),
-            updatedAt: orderCustomer.updatedAt || new Date(),
-          } as Customer)
-        : null;
+        // Update sale state with the loaded order
+        const updatedSale = {
+          items: cartItems,
+          customer: orderData.customer || null,
+          customerName: orderData.customerName,
+          subtotal: orderData.totalAmount || 0,
+          tax: orderData.taxAmount || 0,
+          total: orderData.finalAmount || orderData.total || 0,
+          discount: 0,
+          discountType: "percentage" as const,
+          selectedPaymentMethod:
+            paymentMethods.find(
+              (method) => method.paymentMethod.code === "CASH"
+            ) || null,
+          amountTendered: 0,
+          currentOrder: order,
+        };
 
-      console.log("Cart items after mapping:", cartItems);
-      console.log("Cart items length:", cartItems.length);
-      console.log("Customer:", customer);
+        const calculatedSale = calculateTotals(updatedSale);
+        setSale(calculatedSale);
 
-      // Update sale state with existing order data
-      const updatedSale = {
-        customer: customer,
-        subtotal: (orderData as any).totalAmount || 0,
-        tax: (orderData as any).taxAmount || 0,
-        total: orderData.total || 0,
-        discount: 0,
-        discountType: "percentage" as const,
-        selectedPaymentMethod: sale.selectedPaymentMethod,
-        amountTendered: 0,
-        currentOrder: existingOrder,
-      };
+        // Set table order if the order has one
+        if (orderData.tableOrderId) {
+          // Load the actual table order data
+          await loadTableOrder(orderData.tableOrderId);
+        }
 
-      console.log("Updated sale data:", updatedSale);
-      setSale((prev) => calculateTotals({ ...prev, ...updatedSale }));
-      setLoadedOrderId(orderId);
-
-      toast({
-        title: "Order Loaded",
-        description: `Order #${orderId.slice(-8)} loaded successfully`,
-      });
+        toast({
+          title: "Order loaded",
+          description: "Existing order has been loaded successfully",
+        });
+      }
     } catch (error: any) {
       console.error("Error loading existing order:", error);
       toast({
         title: "Error",
-        description: "Failed to load order",
+        description: "Failed to load existing order",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const loadTableOrder = async (tableOrderId: string) => {
+    try {
+      console.log("Loading table order:", tableOrderId);
+      const tableOrder = await TableOrdersService.getTableOrder(tableOrderId);
+      console.log("Loaded table order:", tableOrder);
+
+      if (tableOrder) {
+        setCurrentTableOrder(tableOrder);
+        toast({
+          title: "Table order loaded",
+          description: `Table ${tableOrder.tableNumber} has been loaded`,
+        });
+      }
+    } catch (error: any) {
+      console.error("Error loading table order:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load table order",
         variant: "destructive",
       });
     }
@@ -608,6 +654,9 @@ export default function SalesPage() {
         cashierId: user!.id,
         customerId: sale.customer?.id,
         notes: "",
+        ...(currentTableOrder && { tableOrderId: currentTableOrder.id }),
+        ...(currentTableOrder &&
+          sale.customerName && { customerName: sale.customerName }),
       };
 
       console.log("Order data being sent:", orderData);
@@ -1088,6 +1137,50 @@ export default function SalesPage() {
     }
   };
 
+  const removeCustomer = async () => {
+    try {
+      // Update local state first
+      setSale((prev) => ({ ...prev, customer: null }));
+
+      // Update the order to remove customer ID if we have a current order
+      if (sale.currentOrder) {
+        const orderId =
+          (sale.currentOrder as any)?._props?.id ||
+          (sale.currentOrder as any)?.id;
+
+        if (orderId) {
+          console.log("Removing customer from order:", orderId);
+          const updatedOrder = await ordersService.updateOrder(orderId, {
+            customerId: undefined,
+          });
+          console.log("Received updated order without customer:", updatedOrder);
+
+          // Update currentOrder in local state
+          setSale((prev) => ({
+            ...prev,
+            currentOrder: updatedOrder,
+            customer: null,
+          }));
+
+          // Set flag to refresh orders list when returning
+          sessionStorage.setItem("shouldRefreshOrders", "true");
+
+          toast({
+            title: "Customer removed",
+            description: "Customer has been removed from the order",
+          });
+        }
+      }
+    } catch (error: any) {
+      console.error("Error removing customer from order:", error);
+      toast({
+        title: "Error",
+        description: "Failed to remove customer from order",
+        variant: "destructive",
+      });
+    }
+  };
+
   const clearSale = async () => {
     try {
       if (sale.currentOrder && sale.items.length > 0) {
@@ -1173,6 +1266,9 @@ export default function SalesPage() {
       });
       setLoadedOrderId(null);
       setJustCleared(true);
+
+      // Clear table order when clearing sale
+      setCurrentTableOrder(null);
 
       // Set flag to refresh orders list when returning
       sessionStorage.setItem("shouldRefreshOrders", "true");
@@ -1513,6 +1609,276 @@ export default function SalesPage() {
     }
   };
 
+  // Table order functions
+  const loadAvailablePhysicalTables = async () => {
+    try {
+      setIsLoadingPhysicalTables(true);
+      const tables = await PhysicalTablesService.getAvailablePhysicalTables();
+      setAvailablePhysicalTables(tables);
+    } catch (error: any) {
+      console.error("Error loading available physical tables:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load available tables",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingPhysicalTables(false);
+    }
+  };
+
+  const selectPhysicalTable = (physicalTable: PhysicalTable) => {
+    setSelectedPhysicalTable(physicalTable);
+    setShowPhysicalTablesModal(false);
+    toast({
+      title: "Mesa seleccionada",
+      description: `Mesa ${physicalTable.tableNumber} ha sido seleccionada`,
+    });
+  };
+
+  const createTableOrder = async () => {
+    if (!selectedPhysicalTable) {
+      toast({
+        title: "Error",
+        description: "Please select a physical table first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCreatingTableOrder(true);
+    try {
+      let businessId = "";
+      let branchId = "";
+
+      if (user?.business?.[0]?.id) {
+        businessId = user.business[0].id;
+        branchId = user?.branch?.id || "";
+      } else if (user?.branch?.business?.id) {
+        businessId = user.branch.business.id;
+        branchId = user.branch.id;
+      }
+
+      if (!businessId || !branchId) {
+        throw new Error("Business or branch information not available");
+      }
+
+      const tableOrderData: CreateTableOrderDto = {
+        physicalTableId: selectedPhysicalTable.id,
+        notes: tableOrderForm.notes || undefined,
+        numberOfCustomers: tableOrderForm.numberOfCustomers,
+        businessId,
+        branchId,
+      };
+
+      const newTableOrder = await TableOrdersService.createTableOrder(
+        tableOrderData
+      );
+      setCurrentTableOrder(newTableOrder);
+      setShowTableOrderModal(false);
+
+      toast({
+        title: "Mesa creada exitosamente",
+        description: `Mesa ${selectedPhysicalTable.tableNumber} ha sido creada`,
+      });
+
+      // Reset form
+      setTableOrderForm({
+        notes: "",
+        numberOfCustomers: 1,
+      });
+    } catch (error: any) {
+      console.error("Error creating table order:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create table order. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingTableOrder(false);
+    }
+  };
+
+  const clearTableOrder = () => {
+    setCurrentTableOrder(null);
+    toast({
+      title: "Mesa liberada",
+      description: "La mesa ha sido liberada",
+    });
+  };
+
+  const loadExistingTables = async () => {
+    try {
+      setIsLoadingExistingTables(true);
+      const tables = await TableOrdersService.getActiveTableOrders();
+      setExistingTables(tables);
+
+      if (tables.length === 0) {
+        toast({
+          title: "No hay mesas activas",
+          description: "No se encontraron mesas activas en este momento",
+        });
+      } else {
+        toast({
+          title: "Mesas cargadas",
+          description: `Se encontraron ${tables.length} mesa${
+            tables.length !== 1 ? "s" : ""
+          } activa${tables.length !== 1 ? "s" : ""}`,
+        });
+      }
+    } catch (error: any) {
+      console.error("Error loading existing tables:", error);
+      toast({
+        title: "Error al cargar mesas",
+        description:
+          "No se pudieron cargar las mesas existentes. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingExistingTables(false);
+    }
+  };
+
+  const selectExistingTable = (tableOrder: TableOrder) => {
+    setCurrentTableOrder(tableOrder);
+    setShowExistingTablesModal(false);
+
+    // Check if the table has orders and provide appropriate feedback
+    const hasOrders = tableOrder.orders && tableOrder.orders.length > 0;
+
+    toast({
+      title: "Mesa seleccionada",
+      description: `Mesa ${tableOrder.tableNumber} ha sido seleccionada${
+        hasOrders
+          ? ` con ${tableOrder.orders?.length || 0} pedido${
+              (tableOrder.orders?.length || 0) !== 1 ? "s" : ""
+            }`
+          : ""
+      }`,
+    });
+
+    // If the table has orders, we might want to load the most recent order
+    if (hasOrders && tableOrder.orders && tableOrder.orders.length > 0) {
+      // Find the most recent order
+      const orders = tableOrder.orders;
+      const mostRecentOrder = orders.reduce((latest, current) => {
+        const latestDate = new Date(latest.createdAt || latest.created_at || 0);
+        const currentDate = new Date(
+          current.createdAt || current.created_at || 0
+        );
+        return currentDate > latestDate ? current : latest;
+      });
+
+      // Load the most recent order if it exists
+      if (mostRecentOrder?.id) {
+        loadExistingOrder(mostRecentOrder.id);
+      }
+    }
+  };
+
+  const createNewOrderForTable = async () => {
+    try {
+      // Get the table order ID from the current order if currentTableOrder is not set
+      let tableOrderId = currentTableOrder?.id;
+      if (!tableOrderId && sale.currentOrder) {
+        const orderData =
+          (sale.currentOrder as any)._props || sale.currentOrder;
+        tableOrderId = orderData.tableOrderId;
+      }
+
+      // Clear the current sale state but keep the table order
+      setSale({
+        items: [],
+        customer: null,
+        customerName: undefined,
+        subtotal: 0,
+        tax: 0,
+        total: 0,
+        discount: 0,
+        discountType: "percentage",
+        selectedPaymentMethod:
+          paymentMethods.find(
+            (method) => method.paymentMethod.code === "CASH"
+          ) || null,
+        amountTendered: 0,
+        currentOrder: null,
+      });
+      setLoadedOrderId(null);
+      setJustCleared(true);
+
+      // If we have a tableOrderId but no currentTableOrder, load it
+      if (tableOrderId && !currentTableOrder) {
+        await loadTableOrder(tableOrderId);
+      }
+
+      // Set flag to refresh orders list when returning
+      sessionStorage.setItem("shouldRefreshOrders", "true");
+
+      toast({
+        title: "Nuevo pedido listo",
+        description: "Listo para crear un nuevo pedido para la misma mesa",
+      });
+    } catch (error: any) {
+      console.error("Error creating new order for table:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo crear un nuevo pedido para la mesa",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const viewTableDetails = (tableOrder: TableOrder) => {
+    // This function can be expanded to show detailed table information
+    // For now, we'll show a toast with table details
+    const details = [
+      `Mesa: ${tableOrder.tableNumber}`,
+      `Clientes: ${tableOrder.numberOfCustomers}`,
+      `Total: ${formatPrice(tableOrder.totalAmount)}`,
+      `Estado: ${tableOrder.status}`,
+      `Creada: ${new Date(tableOrder.createdAt).toLocaleDateString()}`,
+    ];
+
+    if (tableOrder.notes) {
+      details.push(`Notas: ${tableOrder.notes}`);
+    }
+
+    if (tableOrder.orders && tableOrder.orders.length > 0) {
+      details.push(`Pedidos: ${tableOrder.orders.length}`);
+    }
+
+    toast({
+      title: `Detalles de Mesa ${tableOrder.tableNumber}`,
+      description: details.join(" • "),
+    });
+  };
+
+  // In the SalesPage component, add this handler:
+  const handleStartNewOrder = () => {
+    setSale({
+      items: [],
+      customer: null,
+      customerName: undefined,
+      subtotal: 0,
+      tax: 0,
+      total: 0,
+      discount: 0,
+      discountType: "percentage",
+      selectedPaymentMethod:
+        paymentMethods.find((method) => method.paymentMethod.code === "CASH") ||
+        null,
+      amountTendered: 0,
+      currentOrder: null,
+    });
+    setLoadedOrderId(null);
+    setJustCleared(true);
+    // Do NOT clear currentTableOrder
+    toast({
+      title: "Ready for new order",
+      description: "You can now start a new sale for the same table.",
+    });
+  };
+
   if (!isAuthenticated) {
     router.replace("/");
     return null;
@@ -1559,43 +1925,69 @@ export default function SalesPage() {
       {/* Header */}
       <div className="bg-white border-b px-6 py-4">
         <div className="flex items-center justify-between">
-          <div>
+          <div className="flex items-center gap-4">
             <h1 className="text-2xl font-bold text-gray-900">
               {searchParams.get("orderId") ? "Continue Order" : "New Sale"}
             </h1>
-            <p className="text-sm text-gray-600">
-              {user?.branch?.business?.name} - {user?.branch?.name}
-            </p>
-            {sale.currentOrder && (
-              <div className="mt-2">
-                <span className="inline-block bg-blue-100 text-blue-800 text-xs font-mono px-3 py-1 rounded-full border border-blue-200">
-                  Order ID:{" "}
-                  {(sale.currentOrder as any)?._props?.id ||
-                    (sale.currentOrder as any)?.id}
-                </span>
-                {searchParams.get("orderId") && (
-                  <span className="inline-block bg-green-100 text-green-800 text-xs px-3 py-1 rounded-full border border-green-200 ml-2">
-                    Existing Order Loaded
-                  </span>
-                )}
-                {isOrderCompleted() && (
-                  <span className="inline-block bg-red-100 text-red-800 text-xs px-3 py-1 rounded-full border border-red-200 ml-2">
-                    Order Completed - Read Only
-                  </span>
-                )}
-              </div>
-            )}
-            {activeShift && (
-              <div className="flex items-center gap-2 mt-1">
-                <Clock className="h-3 w-3 text-green-600" />
-                <span className="text-xs text-green-600">
-                  Active Shift - Started:{" "}
-                  {new Date(activeShift.startTime).toLocaleTimeString()}
-                </span>
-              </div>
-            )}
+            <Button
+              variant="outline"
+              onClick={handleStartNewOrder}
+              className="ml-2"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              New Order
+            </Button>
           </div>
           <div className="flex items-center space-x-4">
+            {/* Table Order Section */}
+            <div className="flex items-center gap-2">
+              {currentTableOrder ? (
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant="secondary"
+                    className="bg-green-100 text-green-800"
+                  >
+                    Mesa {currentTableOrder.tableNumber}
+                  </Badge>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={clearTableOrder}
+                    disabled={isProcessing}
+                  >
+                    Liberar Mesa
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      loadAvailablePhysicalTables();
+                      setShowPhysicalTablesModal(true);
+                    }}
+                    disabled={isProcessing || isOrderCompleted()}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Seleccionar Mesa
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      await loadExistingTables();
+                      setShowExistingTablesModal(true);
+                    }}
+                    disabled={isProcessing || isOrderCompleted()}
+                    className="flex items-center gap-2"
+                  >
+                    <Search className="h-4 w-4" />
+                    Mesas Activas
+                  </Button>
+                </div>
+              )}
+            </div>
+
             {/* Cancel Order Button - Only show for existing orders that are not completed */}
             {sale.currentOrder &&
               searchParams.get("orderId") &&
@@ -1614,6 +2006,24 @@ export default function SalesPage() {
                   Cancel Order
                 </Button>
               )}
+
+            {/* New Order Button - Show when there's an existing order and table */}
+            {sale.currentOrder &&
+              (currentTableOrder ||
+                (sale.currentOrder as any)?._props?.tableOrderId ||
+                (sale.currentOrder as any)?.tableOrderId) &&
+              !isOrderCompleted() && (
+                <Button
+                  variant="outline"
+                  onClick={createNewOrderForTable}
+                  disabled={isProcessing}
+                  className="flex items-center gap-2 bg-green-50 text-green-700 hover:bg-green-100 border-green-300"
+                >
+                  <Plus className="h-4 w-4" />
+                  New Order
+                </Button>
+              )}
+
             {sale.items.length > 0 && (
               <Button
                 variant="outline"
@@ -1642,6 +2052,45 @@ export default function SalesPage() {
                 : "Process Payment"}
             </Button>
           </div>
+        </div>
+        <div className="mt-2">
+          <p className="text-sm text-gray-600">
+            {user?.branch?.business?.name} - {user?.branch?.name}
+          </p>
+          {sale.currentOrder && (
+            <div className="mt-2">
+              <span className="inline-block bg-blue-100 text-blue-800 text-xs font-mono px-3 py-1 rounded-full border border-blue-200">
+                Order ID:{" "}
+                {(sale.currentOrder as any)?._props?.id ||
+                  (sale.currentOrder as any)?.id}
+              </span>
+              {searchParams.get("orderId") && (
+                <span className="inline-block bg-green-100 text-green-800 text-xs px-3 py-1 rounded-full border border-green-200 ml-2">
+                  Existing Order Loaded
+                </span>
+              )}
+              {isOrderCompleted() && (
+                <span className="inline-block bg-red-100 text-red-800 text-xs px-3 py-1 rounded-full border border-red-200 ml-2">
+                  Order Completed - Read Only
+                </span>
+              )}
+              {(sale.currentOrder as any)?._props?.tableOrderId ||
+              (sale.currentOrder as any)?.tableOrderId ? (
+                <span className="inline-block bg-purple-100 text-purple-800 text-xs px-3 py-1 rounded-full border border-purple-200 ml-2">
+                  Mesa: {currentTableOrder?.tableNumber || "Asociada"}
+                </span>
+              ) : null}
+            </div>
+          )}
+          {activeShift && (
+            <div className="flex items-center gap-2 mt-1">
+              <Clock className="h-3 w-3 text-green-600" />
+              <span className="text-xs text-green-600">
+                Active Shift - Started:{" "}
+                {new Date(activeShift.startTime).toLocaleTimeString()}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1941,20 +2390,34 @@ export default function SalesPage() {
                 <h3 className="text-sm font-semibold text-gray-900">
                   Customer
                 </h3>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowCustomerModal(true)}
-                  disabled={isOrderCompleted()}
-                  className={`text-xs px-2 py-1 ${
-                    isOrderCompleted()
-                      ? "opacity-50 cursor-not-allowed"
-                      : "hover:bg-blue-50 hover:border-blue-300"
-                  }`}
-                >
-                  <User className="h-3 w-3 mr-1" />
-                  Select
-                </Button>
+                <div className="flex gap-2">
+                  {sale.customer && !isOrderCompleted() && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={removeCustomer}
+                      disabled={isOrderCompleted()}
+                      className="text-xs px-2 py-1 text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-300"
+                    >
+                      <X className="h-3 w-3 mr-1" />
+                      Remove
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowCustomerModal(true)}
+                    disabled={isOrderCompleted()}
+                    className={`text-xs px-2 py-1 ${
+                      isOrderCompleted()
+                        ? "opacity-50 cursor-not-allowed"
+                        : "hover:bg-blue-50 hover:border-blue-300"
+                    }`}
+                  >
+                    <User className="h-3 w-3 mr-1" />
+                    {sale.customer ? "Change" : "Select"}
+                  </Button>
+                </div>
               </div>
               {sale.customer ? (
                 <div className="bg-blue-50 border border-blue-200 p-2 rounded-md">
@@ -1986,6 +2449,29 @@ export default function SalesPage() {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Customer Name Input */}
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-gray-900">
+                  Customer Name
+                </h3>
+              </div>
+              <Input
+                placeholder="Enter customer name (optional)"
+                value={sale.customerName || ""}
+                onChange={(e) =>
+                  setSale((prev) => ({
+                    ...prev,
+                    customerName: e.target.value,
+                  }))
+                }
+                disabled={isOrderCompleted()}
+                className={`text-sm ${
+                  isOrderCompleted() ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+              />
             </div>
 
             {/* Payment Method Selection */}
@@ -2411,6 +2897,271 @@ export default function SalesPage() {
               )}
             </Button>
           </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      {/* Table Order Modal */}
+      <Sheet open={showTableOrderModal} onOpenChange={setShowTableOrderModal}>
+        <SheetContent className="w-[400px] sm:w-[540px]">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-blue-600" />
+              Crear Nueva Mesa
+            </SheetTitle>
+            <SheetDescription>
+              Crea una nueva mesa para gestionar pedidos de clientes.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="space-y-6 py-6">
+            {/* Selected Physical Table Display */}
+            {selectedPhysicalTable && (
+              <div className="space-y-2">
+                <Label className="text-base font-medium">
+                  Mesa Seleccionada
+                </Label>
+                <div className="bg-blue-50 border border-blue-200 p-3 rounded-md">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                      <Package className="h-3 w-3 text-blue-600" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-blue-900 text-sm">
+                        {selectedPhysicalTable.tableNumber}
+                      </p>
+                      <p className="text-xs text-blue-700">
+                        {selectedPhysicalTable.tableName || "Mesa"} - Capacidad:{" "}
+                        {selectedPhysicalTable.capacity}
+                        {selectedPhysicalTable.location &&
+                          ` - ${selectedPhysicalTable.location}`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Number of Customers */}
+            <div className="space-y-2">
+              <Label htmlFor="customers" className="text-base font-medium">
+                Número de Clientes
+              </Label>
+              <Input
+                id="customers"
+                type="number"
+                min="1"
+                placeholder="1"
+                value={tableOrderForm.numberOfCustomers}
+                onChange={(e) =>
+                  setTableOrderForm({
+                    ...tableOrderForm,
+                    numberOfCustomers: parseInt(e.target.value) || 1,
+                  })
+                }
+              />
+            </div>
+
+            {/* Customer Name */}
+            <div className="space-y-2">
+              <Label htmlFor="customer-name" className="text-base font-medium">
+                Nombre del Cliente (Opcional)
+              </Label>
+              <Input
+                id="customer-name"
+                placeholder="Ej: John, Cliente 1, etc."
+                value={sale.customerName || ""}
+                onChange={(e) =>
+                  setSale((prev) => ({
+                    ...prev,
+                    customerName: e.target.value,
+                  }))
+                }
+              />
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label htmlFor="notes" className="text-base font-medium">
+                Notas (Opcional)
+              </Label>
+              <Textarea
+                id="notes"
+                placeholder="Notas adicionales sobre la mesa..."
+                value={tableOrderForm.notes}
+                onChange={(e) =>
+                  setTableOrderForm({
+                    ...tableOrderForm,
+                    notes: e.target.value,
+                  })
+                }
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <SheetFooter className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowTableOrderModal(false);
+                setTableOrderForm({
+                  notes: "",
+                  numberOfCustomers: 1,
+                });
+                setSelectedPhysicalTable(null);
+              }}
+              disabled={isCreatingTableOrder}
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={createTableOrder}
+              disabled={isCreatingTableOrder || !selectedPhysicalTable}
+              className="flex-1"
+            >
+              {isCreatingTableOrder ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creando...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Crear Mesa
+                </>
+              )}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      {/* Physical Tables Modal */}
+      <Sheet
+        open={showPhysicalTablesModal}
+        onOpenChange={setShowPhysicalTablesModal}
+      >
+        <SheetContent className="w-[400px] sm:w-[540px]">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-blue-600" />
+              Seleccionar Mesa Física
+            </SheetTitle>
+            <SheetDescription>
+              Selecciona una mesa física disponible para crear un pedido.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="space-y-4 py-6">
+            {/* Search input */}
+            <Input
+              placeholder="Buscar mesa por número, nombre o ubicación..."
+              value={tableSearch}
+              onChange={(e) => setTableSearch(e.target.value)}
+              className="mb-2"
+            />
+            {isLoadingPhysicalTables ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                  <p className="text-sm text-gray-500">Loading tables...</p>
+                </div>
+              </div>
+            ) : filteredPhysicalTables.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center p-8">
+                <div className="text-center">
+                  <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    No Available Tables
+                  </h3>
+                  <p className="text-sm text-gray-500 mb-4">
+                    No tables match your search.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto">
+                <div className="grid grid-cols-1 gap-2">
+                  {filteredPhysicalTables.map((table) => (
+                    <Card
+                      key={table.id}
+                      className={`min-w-[100px] p-2 transition-shadow ${
+                        isOrderCompleted()
+                          ? "cursor-not-allowed opacity-50"
+                          : "cursor-pointer hover:shadow-lg"
+                      }`}
+                      onClick={() => selectPhysicalTable(table)}
+                    >
+                      <CardContent className="p-2">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Package className="h-5 w-5 text-gray-400" />
+                          <span className="font-semibold text-xs">
+                            {table.tableNumber}
+                          </span>
+                          <span className="text-xs font-bold text-green-600">
+                            {table.tableName || "Mesa"}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] px-2 py-0.5"
+                          >
+                            Available
+                          </Badge>
+                          {table.capacity > 0 && (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] px-2 py-0.5"
+                            >
+                              {table.capacity}
+                            </Badge>
+                          )}
+                          {table.location && (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] px-2 py-0.5"
+                            >
+                              {table.location}
+                            </Badge>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Existing Tables Modal */}
+      <Sheet
+        open={showExistingTablesModal}
+        onOpenChange={setShowExistingTablesModal}
+      >
+        <SheetContent className="w-[600px] sm:w-[700px]">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Search className="h-5 w-5 text-blue-600" />
+              Mesas Activas
+            </SheetTitle>
+            <SheetDescription>
+              Selecciona una mesa existente para gestionar pedidos y ver el
+              estado actual.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="space-y-6 py-6">
+            <ExistingTablesDisplay
+              tables={existingTables}
+              isLoading={isLoadingExistingTables}
+              onTableSelect={selectExistingTable}
+              onRefresh={loadExistingTables}
+              onViewDetails={viewTableDetails}
+            />
+          </div>
         </SheetContent>
       </Sheet>
     </div>

@@ -19,7 +19,27 @@ export const branchesService = {
   },
 
   async getAllBranches(): Promise<Branch[]> {
-    const response = await api.get("/branches");
-    return response.data;
+    try {
+      const response = await api.get("/branches/my-business-simple");
+      // Handle the _props wrapper if present
+      const branches = response.data.map((branch: any) => {
+        const branchData = branch._props || branch;
+        return {
+          id: branchData.id,
+          name: branchData.name,
+          address: branchData.address,
+          phone: branchData.phone,
+          email: branchData.email,
+          isActive: branchData.isActive,
+          businessId: branchData.businessId,
+          createdAt: branchData.createdAt,
+          updatedAt: branchData.updatedAt,
+        };
+      });
+      return branches;
+    } catch (error) {
+      console.error("Error fetching branches:", error);
+      throw error;
+    }
   },
 };

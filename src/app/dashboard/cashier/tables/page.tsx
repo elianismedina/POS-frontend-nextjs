@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { CreateTableOrderForm } from "@/components/cashier/CreateTableOrderForm";
 import { TableOrdersList } from "@/components/cashier/TableOrdersList";
+import { TableOrderDetail } from "@/components/cashier/TableOrderDetail";
 import { TableOrder } from "@/services/table-orders";
 import { useAuth } from "@/lib/auth/AuthContext";
 
@@ -15,8 +16,19 @@ export default function TablesPage() {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const businessId = user?.business?.[0]?.id || "";
-  const branchId = user?.branch?.id || "";
+  // Get business ID based on user type (admin vs cashier)
+  let businessId = "";
+  let branchId = "";
+
+  if (user?.business?.[0]?.id) {
+    // Admin user
+    businessId = user.business[0].id;
+    branchId = user?.branch?.id || "";
+  } else if (user?.branch?.business?.id) {
+    // Cashier user
+    businessId = user.branch.business.id;
+    branchId = user.branch.id;
+  }
 
   const handleCreateSuccess = (tableOrder: TableOrder) => {
     setShowCreateForm(false);
@@ -28,12 +40,16 @@ export default function TablesPage() {
 
   const handleTableSelect = (tableOrder: TableOrder) => {
     setSelectedTable(tableOrder);
-    // TODO: Navigate to table detail page or open modal
-    toast({
-      title: "Mesa seleccionada",
-      description: `Has seleccionado la mesa ${tableOrder.tableNumber}.`,
-    });
   };
+
+  // Debug logging
+  console.log("Tables page - User data:", {
+    user: user,
+    businessId: businessId,
+    branchId: branchId,
+    hasBusiness: !!user?.business?.[0]?.id,
+    hasBranch: !!user?.branch?.business?.id,
+  });
 
   if (!businessId || !branchId) {
     return (
@@ -42,6 +58,10 @@ export default function TablesPage() {
           <CardContent className="pt-6">
             <p className="text-center text-gray-500">
               No se pudo cargar la información del negocio.
+            </p>
+            <p className="text-center text-sm text-gray-400 mt-2">
+              Business ID: {businessId || "No disponible"} | Branch ID:{" "}
+              {branchId || "No disponible"}
             </p>
           </CardContent>
         </Card>
@@ -136,61 +156,14 @@ export default function TablesPage() {
       </div>
 
       {selectedTable && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">
-                Mesa {selectedTable.tableNumber}
-              </h2>
-              <Button variant="outline" onClick={() => setSelectedTable(null)}>
-                Cerrar
-              </Button>
-            </div>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-600">
-                    Estado
-                  </label>
-                  <p className="text-lg">{selectedTable.status}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">
-                    Clientes
-                  </label>
-                  <p className="text-lg">{selectedTable.numberOfCustomers}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">
-                    Total
-                  </label>
-                  <p className="text-lg font-semibold">
-                    ${selectedTable.totalAmount}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">
-                    Órdenes
-                  </label>
-                  <p className="text-lg">{selectedTable.orders?.length || 0}</p>
-                </div>
-              </div>
-              {selectedTable.notes && (
-                <div>
-                  <label className="text-sm font-medium text-gray-600">
-                    Notas
-                  </label>
-                  <p className="text-sm">{selectedTable.notes}</p>
-                </div>
-              )}
-              <div className="flex gap-2 pt-4">
-                <Button className="flex-1">Ver Órdenes</Button>
-                <Button variant="outline">Editar Mesa</Button>
-                <Button variant="destructive">Cerrar Mesa</Button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <TableOrderDetail
+          tableOrder={selectedTable}
+          onClose={() => setSelectedTable(null)}
+          onRefresh={() => {
+            // Refresh the table orders list
+            // This will be handled by the TableOrdersList component
+          }}
+        />
       )}
     </div>
   );

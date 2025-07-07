@@ -27,6 +27,7 @@ import {
   Building2,
   Calculator,
   BarChart,
+  Table,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -142,6 +143,12 @@ export function AdminSidebar() {
               label="Sucursales"
               href="/dashboard/admin/branches"
               isActive={pathname.includes("/branches")}
+            />
+            <SidebarItem
+              icon={<Table className="h-4 w-4" />}
+              label="Mesas Físicas"
+              href="/dashboard/admin/physical-tables"
+              isActive={pathname.includes("/physical-tables")}
             />
             <SidebarItem
               icon={<Package className="h-4 w-4" />}

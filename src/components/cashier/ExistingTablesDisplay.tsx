@@ -132,7 +132,12 @@ export function ExistingTablesDisplay({
           <Card
             key={table.id}
             className="transition-all duration-200 cursor-pointer hover:shadow-lg hover:scale-[1.02] border-2 hover:border-blue-200"
-            onClick={() => onTableSelect(table)}
+            onClick={() => {
+              console.log("=== CARD CLICKED ===");
+              console.log("Table being selected:", table);
+              console.log("onTableSelect function:", onTableSelect);
+              onTableSelect(table);
+            }}
           >
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
@@ -219,6 +224,9 @@ export function ExistingTablesDisplay({
                     className="flex-1"
                     onClick={(e) => {
                       e.stopPropagation();
+                      console.log("=== BUTTON CLICKED ===");
+                      console.log("Table being selected:", table);
+                      console.log("onTableSelect function:", onTableSelect);
                       onTableSelect(table);
                     }}
                   >

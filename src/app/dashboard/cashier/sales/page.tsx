@@ -371,6 +371,29 @@ export default function SalesPage() {
     });
   }, [sale]);
 
+  // Debug useEffect to monitor currentTableOrder changes
+  useEffect(() => {
+    console.log("=== CURRENT TABLE ORDER CHANGED ===");
+    console.log("currentTableOrder:", currentTableOrder);
+    console.log(
+      "currentTableOrder?.tableNumber:",
+      currentTableOrder?.tableNumber
+    );
+    console.log("currentTableOrder?.id:", currentTableOrder?.id);
+    console.log("currentTableOrder?.orders:", currentTableOrder?.orders);
+  }, [currentTableOrder]);
+
+  // Debug useEffect to monitor existing tables modal
+  useEffect(() => {
+    if (showExistingTablesModal) {
+      console.log("=== EXISTING TABLES MODAL RENDER ===", {
+        showExistingTablesModal,
+        existingTables: existingTables.length,
+        isLoadingExistingTables,
+      });
+    }
+  }, [showExistingTablesModal, existingTables.length, isLoadingExistingTables]);
+
   useEffect(() => {
     if (!sale.currentOrder || products.length === 0) return;
 
@@ -1627,13 +1650,72 @@ export default function SalesPage() {
     }
   };
 
-  const selectPhysicalTable = (physicalTable: PhysicalTable) => {
-    setSelectedPhysicalTable(physicalTable);
-    setShowPhysicalTablesModal(false);
-    toast({
-      title: "Mesa seleccionada",
-      description: `Mesa ${physicalTable.tableNumber} ha sido seleccionada`,
-    });
+  // Add a function to refresh table data
+  const refreshTableData = async () => {
+    try {
+      // Refresh available physical tables
+      await loadAvailablePhysicalTables();
+
+      // If we have a current table order, refresh its data
+      if (currentTableOrder) {
+        const updatedTableOrder = await TableOrdersService.getTableOrder(
+          currentTableOrder.id
+        );
+        setCurrentTableOrder(updatedTableOrder);
+      }
+    } catch (error) {
+      console.error("Error refreshing table data:", error);
+    }
+  };
+
+  // Update the selectPhysicalTable function to refresh data
+  const selectPhysicalTable = async (physicalTable: PhysicalTable) => {
+    console.log("=== SELECTING PHYSICAL TABLE ===");
+    console.log("Physical table selected:", physicalTable);
+
+    try {
+      // Create a table order for the selected physical table
+      let businessId = "";
+      let branchId = "";
+
+      if (user?.business?.[0]?.id) {
+        businessId = user.business[0].id;
+        branchId = user?.branch?.id || "";
+      } else if (user?.branch?.business?.id) {
+        businessId = user.branch.business.id;
+        branchId = user.branch.id;
+      }
+
+      if (!businessId || !branchId) {
+        throw new Error("Business or branch information not available");
+      }
+
+      // For now, just set the physical table as selected without creating a table order
+      // This will show the table number temporarily
+      setSelectedPhysicalTable(physicalTable);
+      setShowPhysicalTablesModal(false);
+
+      toast({
+        title: "Mesa seleccionada",
+        description: `Mesa ${physicalTable.tableNumber} ha sido seleccionada temporalmente. Crea un pedido para confirmar.`,
+      });
+
+      // Refresh table data after selection
+      await refreshTableData();
+    } catch (error: any) {
+      console.error("=== ERROR CREATING TABLE ORDER ===");
+      console.error("Error object:", error);
+      console.error("Error message:", error.message);
+      console.error("Error response:", error.response);
+      console.error("Error response data:", error.response?.data);
+      toast({
+        title: "Error",
+        description: `No se pudo seleccionar la mesa: ${
+          error.message || "Error desconocido"
+        }`,
+        variant: "destructive",
+      });
+    }
   };
 
   const createTableOrder = async () => {
@@ -1699,8 +1781,13 @@ export default function SalesPage() {
     }
   };
 
-  const clearTableOrder = () => {
+  // Update the clearTableOrder function to refresh data
+  const clearTableOrder = async () => {
     setCurrentTableOrder(null);
+
+    // Refresh table data after clearing
+    await refreshTableData();
+
     toast({
       title: "Mesa liberada",
       description: "La mesa ha sido liberada",
@@ -1709,14 +1796,27 @@ export default function SalesPage() {
 
   const loadExistingTables = async () => {
     try {
+      console.log("=== LOADING EXISTING TABLES ===");
       setIsLoadingExistingTables(true);
-      const tables = await TableOrdersService.getActiveTableOrders();
+
+      // Add a shorter timeout to prevent hanging
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("Timeout after 5 seconds")), 5000);
+      });
+
+      const tables = await Promise.race([
+        TableOrdersService.getActiveTableOrders(),
+        timeoutPromise,
+      ]);
+
+      console.log("Loaded existing tables:", tables);
       setExistingTables(tables);
 
       if (tables.length === 0) {
         toast({
           title: "No hay mesas activas",
-          description: "No se encontraron mesas activas en este momento",
+          description:
+            "No se encontraron mesas activas en este momento. Puedes crear una nueva mesa seleccionando 'Seleccionar Mesa'.",
         });
       } else {
         toast({
@@ -1727,11 +1827,17 @@ export default function SalesPage() {
         });
       }
     } catch (error: any) {
-      console.error("Error loading existing tables:", error);
+      console.error("=== ERROR LOADING EXISTING TABLES ===");
+      console.error("Error object:", error);
+      console.error("Error message:", error.message);
+      console.error("Error response:", error.response);
+      console.error("Error response data:", error.response?.data);
+
       toast({
         title: "Error al cargar mesas",
-        description:
-          "No se pudieron cargar las mesas existentes. Inténtalo de nuevo.",
+        description: `No se pudieron cargar las mesas existentes: ${
+          error.message || "Error desconocido"
+        }`,
         variant: "destructive",
       });
     } finally {
@@ -1739,40 +1845,54 @@ export default function SalesPage() {
     }
   };
 
-  const selectExistingTable = (tableOrder: TableOrder) => {
-    setCurrentTableOrder(tableOrder);
-    setShowExistingTablesModal(false);
+  const selectExistingTable = async (tableOrder: TableOrder) => {
+    try {
+      console.log("=== SELECTING EXISTING TABLE ===");
+      console.log("Table order to select:", tableOrder);
+      console.log("Table number:", tableOrder.tableNumber);
+      console.log("Table ID:", tableOrder.id);
+      console.log("Table orders:", tableOrder.orders);
 
-    // Check if the table has orders and provide appropriate feedback
-    const hasOrders = tableOrder.orders && tableOrder.orders.length > 0;
+      // First, set the current table order
+      setCurrentTableOrder(tableOrder);
+      console.log("setCurrentTableOrder called with:", tableOrder);
+      setShowExistingTablesModal(false);
 
-    toast({
-      title: "Mesa seleccionada",
-      description: `Mesa ${tableOrder.tableNumber} ha sido seleccionada${
-        hasOrders
-          ? ` con ${tableOrder.orders?.length || 0} pedido${
-              (tableOrder.orders?.length || 0) !== 1 ? "s" : ""
-            }`
-          : ""
-      }`,
-    });
+      // Force a re-render to see if the state updates
+      setTimeout(() => {
+        console.log("=== AFTER SETTIMEOUT ===");
+        console.log("currentTableOrder should be:", tableOrder);
+      }, 100);
 
-    // If the table has orders, we might want to load the most recent order
-    if (hasOrders && tableOrder.orders && tableOrder.orders.length > 0) {
-      // Find the most recent order
-      const orders = tableOrder.orders;
-      const mostRecentOrder = orders.reduce((latest, current) => {
-        const latestDate = new Date(latest.createdAt || latest.created_at || 0);
-        const currentDate = new Date(
-          current.createdAt || current.created_at || 0
-        );
-        return currentDate > latestDate ? current : latest;
+      // Check if the table has orders and provide appropriate feedback
+      const hasOrders = tableOrder.orders && tableOrder.orders.length > 0;
+
+      toast({
+        title: "Mesa seleccionada",
+        description: `Mesa ${tableOrder.tableNumber} ha sido seleccionada${
+          hasOrders
+            ? ` con ${tableOrder.orders?.length || 0} pedido${
+                (tableOrder.orders?.length || 0) !== 1 ? "s" : ""
+              }`
+            : ""
+        }`,
       });
 
-      // Load the most recent order if it exists
-      if (mostRecentOrder?.id) {
-        loadExistingOrder(mostRecentOrder.id);
-      }
+      // Don't automatically load the most recent order
+      // Let the user decide if they want to load an existing order
+      // Just keep the table selected for new orders
+
+      console.log(
+        "Table selection completed. Current table order:",
+        tableOrder
+      );
+    } catch (error: any) {
+      console.error("Error selecting existing table:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo seleccionar la mesa correctamente",
+        variant: "destructive",
+      });
     }
   };
 
@@ -1941,51 +2061,180 @@ export default function SalesPage() {
           <div className="flex items-center space-x-4">
             {/* Table Order Section */}
             <div className="flex items-center gap-2">
-              {currentTableOrder ? (
-                <div className="flex items-center gap-2">
-                  <Badge
-                    variant="secondary"
-                    className="bg-green-100 text-green-800"
-                  >
-                    Mesa {currentTableOrder.tableNumber}
-                  </Badge>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={clearTableOrder}
-                    disabled={isProcessing}
-                  >
-                    Liberar Mesa
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      loadAvailablePhysicalTables();
-                      setShowPhysicalTablesModal(true);
-                    }}
-                    disabled={isProcessing || isOrderCompleted()}
-                    className="flex items-center gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Seleccionar Mesa
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={async () => {
-                      await loadExistingTables();
-                      setShowExistingTablesModal(true);
-                    }}
-                    disabled={isProcessing || isOrderCompleted()}
-                    className="flex items-center gap-2"
-                  >
-                    <Search className="h-4 w-4" />
-                    Mesas Activas
-                  </Button>
-                </div>
-              )}
+              {(() => {
+                const hasTableOrder = !!(
+                  currentTableOrder ||
+                  selectedPhysicalTable ||
+                  (sale.currentOrder &&
+                    ((sale.currentOrder as any)?._props?.tableOrderId ||
+                      (sale.currentOrder as any)?.tableOrderId))
+                );
+
+                console.log("Table selection debug:", {
+                  currentTableOrder: currentTableOrder?.tableNumber,
+                  selectedPhysicalTable: selectedPhysicalTable?.tableNumber,
+                  saleCurrentOrder: sale.currentOrder
+                    ? {
+                        id:
+                          (sale.currentOrder as any)?._props?.id ||
+                          (sale.currentOrder as any)?.id,
+                        tableOrderId:
+                          (sale.currentOrder as any)?._props?.tableOrderId ||
+                          (sale.currentOrder as any)?.tableOrderId,
+                      }
+                    : null,
+                  hasTableOrder,
+                });
+
+                return hasTableOrder ? (
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant="secondary"
+                      className="bg-green-100 text-green-800"
+                    >
+                      Mesa{" "}
+                      {currentTableOrder?.tableNumber ||
+                        selectedPhysicalTable?.tableNumber ||
+                        "Asociada"}
+                    </Badge>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearTableOrder}
+                      disabled={isProcessing}
+                    >
+                      Liberar Mesa
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        loadAvailablePhysicalTables();
+                        setShowPhysicalTablesModal(true);
+                      }}
+                      disabled={isProcessing || isOrderCompleted()}
+                    >
+                      Cambiar Mesa
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        if (selectedPhysicalTable) {
+                          try {
+                            console.log("=== TESTING TABLE ORDER CREATION ===");
+                            console.log(
+                              "Selected physical table:",
+                              selectedPhysicalTable
+                            );
+
+                            let businessId = "";
+                            let branchId = "";
+
+                            if (user?.business?.[0]?.id) {
+                              businessId = user.business[0].id;
+                              branchId = user?.branch?.id || "";
+                            } else if (user?.branch?.business?.id) {
+                              businessId = user.branch.business.id;
+                              branchId = user.branch.id;
+                            }
+
+                            const tableOrderData: CreateTableOrderDto = {
+                              physicalTableId: selectedPhysicalTable.id,
+                              notes: "Test table order",
+                              numberOfCustomers: 1,
+                              businessId,
+                              branchId,
+                            };
+
+                            console.log(
+                              "Creating test table order with data:",
+                              tableOrderData
+                            );
+
+                            const newTableOrder =
+                              await TableOrdersService.createTableOrder(
+                                tableOrderData
+                              );
+                            console.log(
+                              "Test table order created successfully:",
+                              newTableOrder
+                            );
+
+                            setCurrentTableOrder(newTableOrder);
+
+                            toast({
+                              title: "Test table order created",
+                              description: `Table order created for mesa ${selectedPhysicalTable.tableNumber}`,
+                            });
+                          } catch (error: any) {
+                            console.error(
+                              "=== TEST TABLE ORDER CREATION ERROR ==="
+                            );
+                            console.error("Error object:", error);
+                            console.error("Error message:", error.message);
+                            console.error("Error response:", error.response);
+                            console.error(
+                              "Error response data:",
+                              error.response?.data
+                            );
+
+                            toast({
+                              title: "Test table order creation failed",
+                              description: `Error: ${
+                                error.message || "Unknown error"
+                              }`,
+                              variant: "destructive",
+                            });
+                          }
+                        } else {
+                          toast({
+                            title: "No mesa selected",
+                            description: "Please select a mesa first",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                      disabled={
+                        isProcessing ||
+                        isOrderCompleted() ||
+                        !selectedPhysicalTable
+                      }
+                      className="bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border-yellow-300"
+                    >
+                      Test Create Table Order
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        loadAvailablePhysicalTables();
+                        setShowPhysicalTablesModal(true);
+                      }}
+                      disabled={isProcessing || isOrderCompleted()}
+                      className="flex items-center gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Seleccionar Mesa
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        console.log("=== OPENING EXISTING TABLES MODAL ===");
+                        loadExistingTables();
+                        setShowExistingTablesModal(true);
+                      }}
+                      disabled={isProcessing || isOrderCompleted()}
+                      className="flex items-center gap-2"
+                    >
+                      <Search className="h-4 w-4" />
+                      Mesas Activas
+                    </Button>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Cancel Order Button - Only show for existing orders that are not completed */}

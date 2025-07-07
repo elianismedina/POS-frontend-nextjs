@@ -7,12 +7,16 @@ import { useToast } from "@/components/ui/use-toast";
 import { CreateTableOrderForm } from "@/components/cashier/CreateTableOrderForm";
 import { TableOrdersList } from "@/components/cashier/TableOrdersList";
 import { TableOrderDetail } from "@/components/cashier/TableOrderDetail";
-import { TableOrder } from "@/services/table-orders";
+import { TableOrder, TableOrdersService } from "@/services/table-orders";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { RefreshCw, Loader2 } from "lucide-react";
 
 export default function TablesPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedTable, setSelectedTable] = useState<TableOrder | null>(null);
+  const [tableOrders, setTableOrders] = useState<TableOrder[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -30,8 +34,63 @@ export default function TablesPage() {
     branchId = user.branch.id;
   }
 
+  // Load table orders
+  const loadTableOrders = async () => {
+    try {
+      setIsRefreshing(true);
+      const orders = await TableOrdersService.getTableOrders();
+      setTableOrders(orders);
+    } catch (error) {
+      console.error("Error loading table orders:", error);
+      toast({
+        title: "Error al cargar mesas",
+        description: "No se pudieron cargar las mesas. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    loadTableOrders();
+
+    const interval = setInterval(() => {
+      loadTableOrders();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [businessId, branchId]);
+
+  // Manual refresh
+  const handleRefresh = async () => {
+    await loadTableOrders();
+    toast({
+      title: "Mesas actualizadas",
+      description: "La información de las mesas ha sido actualizada.",
+    });
+  };
+
+  // Calculate summary data
+  const activeTables = tableOrders.filter((table) => table.status === "active");
+  const totalSales = activeTables.reduce(
+    (sum, table) => sum + table.totalAmount,
+    0
+  );
+  const totalCustomers = activeTables.reduce(
+    (sum, table) => sum + table.numberOfCustomers,
+    0
+  );
+  const totalOrders = activeTables.reduce(
+    (sum, table) => sum + (table.orders?.length || 0),
+    0
+  );
+
   const handleCreateSuccess = (tableOrder: TableOrder) => {
     setShowCreateForm(false);
+    loadTableOrders(); // Refresh the list
     toast({
       title: "Mesa creada exitosamente",
       description: `La mesa ${tableOrder.tableNumber} ha sido creada.`,
@@ -78,9 +137,23 @@ export default function TablesPage() {
             Administra las mesas y órdenes de mesa para tu negocio
           </p>
         </div>
-        <Button onClick={() => setShowCreateForm(true)}>
-          Crear Nueva Mesa
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+          >
+            {isRefreshing ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
+            Actualizar
+          </Button>
+          <Button onClick={() => setShowCreateForm(true)}>
+            Crear Nueva Mesa
+          </Button>
+        </div>
       </div>
 
       {showCreateForm && (
@@ -105,7 +178,7 @@ export default function TablesPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">{activeTables.length}</div>
             <p className="text-xs text-gray-500">Mesas en uso</p>
           </CardContent>
         </Card>
@@ -117,7 +190,7 @@ export default function TablesPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$0</div>
+            <div className="text-2xl font-bold">${totalSales.toFixed(2)}</div>
             <p className="text-xs text-gray-500">En mesas activas</p>
           </CardContent>
         </Card>
@@ -129,7 +202,7 @@ export default function TablesPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">{totalCustomers}</div>
             <p className="text-xs text-gray-500">En mesas activas</p>
           </CardContent>
         </Card>
@@ -141,7 +214,7 @@ export default function TablesPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">{totalOrders}</div>
             <p className="text-xs text-gray-500">Órdenes activas</p>
           </CardContent>
         </Card>
@@ -159,10 +232,7 @@ export default function TablesPage() {
         <TableOrderDetail
           tableOrder={selectedTable}
           onClose={() => setSelectedTable(null)}
-          onRefresh={() => {
-            // Refresh the table orders list
-            // This will be handled by the TableOrdersList component
-          }}
+          onRefresh={loadTableOrders}
         />
       )}
     </div>

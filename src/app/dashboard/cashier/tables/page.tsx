@@ -7,13 +7,22 @@ import { useToast } from "@/components/ui/use-toast";
 import { CreateTableOrderForm } from "@/components/cashier/CreateTableOrderForm";
 import { TableOrdersList } from "@/components/cashier/TableOrdersList";
 import { TableOrderDetail } from "@/components/cashier/TableOrderDetail";
+import TableDistributionChart from "@/components/cashier/TableDistributionChart";
+import PhysicalTableLayout from "@/components/cashier/PhysicalTableLayout";
 import { TableOrder, TableOrdersService } from "@/services/table-orders";
 import {
   PhysicalTablesService,
   PhysicalTable,
 } from "@/services/physical-tables";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { RefreshCw, Loader2, Plus } from "lucide-react";
+import {
+  RefreshCw,
+  Loader2,
+  Plus,
+  BarChart3,
+  List,
+  Grid3X3,
+} from "lucide-react";
 
 export default function TablesPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -28,6 +37,8 @@ export default function TablesPage() {
   const [tableOrders, setTableOrders] = useState<TableOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showCharts, setShowCharts] = useState(false);
+  const [showLayout, setShowLayout] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -52,7 +63,6 @@ export default function TablesPage() {
       const orders = await TableOrdersService.getTableOrders();
       setTableOrders(orders);
     } catch (error) {
-      console.error("Error loading table orders:", error);
       toast({
         title: "Error al cargar mesas",
         description: "No se pudieron cargar las mesas. Inténtalo de nuevo.",
@@ -67,9 +77,11 @@ export default function TablesPage() {
   // Auto-refresh every 30 seconds
   useEffect(() => {
     loadTableOrders();
+    loadAvailablePhysicalTables();
 
     const interval = setInterval(() => {
       loadTableOrders();
+      loadAvailablePhysicalTables();
     }, 30000); // 30 seconds
 
     return () => clearInterval(interval);
@@ -106,7 +118,6 @@ export default function TablesPage() {
       const tables = await PhysicalTablesService.getAvailablePhysicalTables();
       setAvailablePhysicalTables(tables);
     } catch (error: any) {
-      console.error("Error loading available physical tables:", error);
       toast({
         title: "Error",
         description: "Failed to load available tables",
@@ -136,15 +147,6 @@ export default function TablesPage() {
   const handleTableSelect = (tableOrder: TableOrder) => {
     setSelectedTable(tableOrder);
   };
-
-  // Debug logging
-  console.log("Tables page - User data:", {
-    user: user,
-    businessId: businessId,
-    branchId: branchId,
-    hasBusiness: !!user?.business?.[0]?.id,
-    hasBranch: !!user?.branch?.business?.id,
-  });
 
   if (!businessId || !branchId) {
     return (
@@ -176,6 +178,50 @@ export default function TablesPage() {
         <div className="flex gap-2">
           <Button
             variant="outline"
+            onClick={() => {
+              setShowCharts(!showCharts);
+              setShowLayout(false);
+            }}
+            className={
+              showCharts ? "bg-blue-50 text-blue-700 border-blue-300" : ""
+            }
+          >
+            {showCharts ? (
+              <>
+                <List className="h-4 w-4 mr-2" />
+                Ver Lista
+              </>
+            ) : (
+              <>
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Ver Gráficos
+              </>
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowLayout(!showLayout);
+              setShowCharts(false);
+            }}
+            className={
+              showLayout ? "bg-green-50 text-green-700 border-green-300" : ""
+            }
+          >
+            {showLayout ? (
+              <>
+                <List className="h-4 w-4 mr-2" />
+                Ver Lista
+              </>
+            ) : (
+              <>
+                <Grid3X3 className="h-4 w-4 mr-2" />
+                Ver Plano
+              </>
+            )}
+          </Button>
+          <Button
+            variant="outline"
             onClick={handleRefresh}
             disabled={isRefreshing}
           >
@@ -185,15 +231,6 @@ export default function TablesPage() {
               <RefreshCw className="h-4 w-4 mr-2" />
             )}
             Actualizar
-          </Button>
-          <Button
-            onClick={() => {
-              loadAvailablePhysicalTables();
-              setShowPhysicalTablesModal(true);
-            }}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Crear Nueva Mesa
           </Button>
         </div>
       </div>
@@ -331,13 +368,32 @@ export default function TablesPage() {
         </Card>
       </div>
 
-      <div className="mt-8">
-        <TableOrdersList
-          businessId={businessId}
-          branchId={branchId}
-          onTableSelect={handleTableSelect}
-        />
-      </div>
+      {/* Charts, Layout, or List Section */}
+      {showCharts ? (
+        <div className="mt-8">
+          <TableDistributionChart
+            tableOrders={tableOrders}
+            availablePhysicalTables={availablePhysicalTables}
+          />
+        </div>
+      ) : showLayout ? (
+        <div className="mt-8">
+          <PhysicalTableLayout
+            tableOrders={tableOrders}
+            availablePhysicalTables={availablePhysicalTables}
+            onTableSelect={handleTableSelect}
+            onPhysicalTableSelect={handlePhysicalTableSelect}
+          />
+        </div>
+      ) : (
+        <div className="mt-8">
+          <TableOrdersList
+            businessId={businessId}
+            branchId={branchId}
+            onTableSelect={handleTableSelect}
+          />
+        </div>
+      )}
 
       {selectedTable && (
         <TableOrderDetail

@@ -45,10 +45,8 @@ export function TableOrdersList({
     try {
       setIsLoading(true);
       const orders = await TableOrdersService.getTableOrders();
-      console.log("Table orders loaded:", orders);
       setTableOrders(orders);
     } catch (error) {
-      console.error("Error loading table orders:", error);
       toast({
         title: "Error al cargar mesas",
         description: "No se pudieron cargar las mesas. Inténtalo de nuevo.",
@@ -68,7 +66,6 @@ export function TableOrdersList({
       });
       loadTableOrders();
     } catch (error) {
-      console.error("Error closing table order:", error);
       toast({
         title: "Error al cerrar mesa",
         description: "No se pudo cerrar la mesa. Inténtalo de nuevo.",

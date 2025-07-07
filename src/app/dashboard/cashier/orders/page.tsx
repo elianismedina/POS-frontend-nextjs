@@ -19,6 +19,7 @@ import {
   DollarSign,
   RefreshCw,
   Receipt,
+  Plus,
 } from "lucide-react";
 
 const getStatusColor = (status: string) => {
@@ -354,8 +355,26 @@ export default function CashierOrdersPage() {
   return (
     <div className="container mx-auto py-6 md:py-10 px-4">
       <div className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-bold">My Orders</h1>
-        <p className="text-muted-foreground">View and manage all your orders</p>
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold">My Orders</h1>
+            <p className="text-muted-foreground">
+              View and manage all your orders
+            </p>
+          </div>
+          <div className="flex flex-col items-center sm:items-end gap-2">
+            <Button
+              onClick={() => router.push("/dashboard/cashier/sales")}
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 w-full sm:w-auto"
+            >
+              <Plus className="h-4 w-4" />
+              New Order
+            </Button>
+            <p className="text-xs text-gray-500 text-center sm:text-right">
+              Create a new sale
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Filters */}

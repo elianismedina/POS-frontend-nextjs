@@ -72,11 +72,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           },
         }
       );
-      console.log("User data fetched successfully:", response.data);
 
       // Ensure role data is present
       if (!response.data.role || !response.data.role.name) {
-        console.error("User data missing role information");
         throw new Error("User data missing role information");
       }
 
@@ -87,14 +85,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           !Array.isArray(response.data.business) ||
           response.data.business.length === 0)
       ) {
-        console.error("Admin user missing business information");
         throw new Error("Admin user missing business information");
       }
 
       setUser(response.data);
       return response.data;
     } catch (error) {
-      console.error("Error fetching user data:", error);
       throw error;
     }
   };
@@ -106,15 +102,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const storedRefreshToken = localStorage.getItem("refreshToken");
 
         if (storedToken && storedRefreshToken) {
-          console.log("Found stored tokens, attempting to fetch user data");
           setToken(storedToken);
           setRefreshToken(storedRefreshToken);
 
           try {
             await fetchUserData(storedToken);
           } catch (error) {
-            console.error("Error fetching user data:", error);
-            // If token is invalid or role data is missing, clear everything
             localStorage.removeItem("token");
             localStorage.removeItem("refreshToken");
             setToken(null);
@@ -123,7 +116,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } catch (error) {
-        console.error("Error initializing auth:", error);
       } finally {
         setIsLoading(false);
       }
@@ -134,7 +126,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (accessToken: string, refreshToken: string) => {
     try {
-      console.log("Logging in with tokens");
       localStorage.setItem("token", accessToken);
       localStorage.setItem("refreshToken", refreshToken);
       setToken(accessToken);
@@ -142,8 +133,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       await fetchUserData(accessToken);
     } catch (error) {
-      console.error("Error during login:", error);
-      // Clear tokens if login fails
       localStorage.removeItem("token");
       localStorage.removeItem("refreshToken");
       setToken(null);
@@ -155,8 +144,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      console.log("Logging out");
-      // Call the backend signout endpoint
       if (token) {
         await api.post(
           "/auth/signout",
@@ -169,15 +156,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
       }
     } catch (error) {
-      console.error("Error during signout:", error);
     } finally {
-      // Clear local storage and state
       localStorage.removeItem("token");
       localStorage.removeItem("refreshToken");
       setToken(null);
       setRefreshToken(null);
       setUser(null);
-      // Use replace instead of push to prevent back navigation
       router.replace("/");
     }
   };

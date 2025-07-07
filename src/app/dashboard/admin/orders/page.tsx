@@ -85,7 +85,7 @@ export default function AdminOrdersPage() {
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("PENDING");
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [branchFilter, setBranchFilter] = useState("ALL");
   const [cashierFilter, setCashierFilter] = useState("ALL");
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
@@ -97,6 +97,22 @@ export default function AdminOrdersPage() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [ordersPerPage, setOrdersPerPage] = useState(15);
+
+  // Calculate statistics
+  const totalOrders = orders.length;
+  const totalValue = orders.reduce(
+    (sum, order) => sum + (order.total || order._props?.total || 0),
+    0
+  );
+  const pendingOrders = orders.filter(
+    (order) => (order.status || order._props?.status) === "PENDING"
+  ).length;
+  const completedOrders = orders.filter(
+    (order) => (order.status || order._props?.status) === "COMPLETED"
+  ).length;
+  const cancelledOrders = orders.filter(
+    (order) => (order.status || order._props?.status) === "CANCELLED"
+  ).length;
 
   const fetchOrders = async () => {
     if (user?.business?.[0]?.id) {
@@ -110,6 +126,8 @@ export default function AdminOrdersPage() {
           // No cashierId filter for admin - shows all orders in the business
         });
         console.log("Orders response:", response);
+        console.log("Orders count:", response.length);
+        console.log("First order sample:", response[0]);
 
         setOrders(response);
         setFilteredOrders(response);
@@ -125,6 +143,7 @@ export default function AdminOrdersPage() {
   const fetchBranches = async () => {
     try {
       const branchesData = await branchesService.getAllBranches();
+      console.log("Branches data:", branchesData);
       setBranches(branchesData);
     } catch (error) {
       console.error("Error fetching branches:", error);
@@ -134,6 +153,7 @@ export default function AdminOrdersPage() {
   const fetchCashiers = async () => {
     try {
       const cashiersData = await usersService.getCashiers();
+      console.log("Cashiers data:", cashiersData);
       setCashiers(cashiersData);
     } catch (error) {
       console.error("Error fetching cashiers:", error);
@@ -150,6 +170,13 @@ export default function AdminOrdersPage() {
 
   useEffect(() => {
     let filtered = orders;
+
+    console.log("=== FILTERING ORDERS ===");
+    console.log("Total orders:", orders.length);
+    console.log("Search term:", searchTerm);
+    console.log("Status filter:", statusFilter);
+    console.log("Branch filter:", branchFilter);
+    console.log("Cashier filter:", cashierFilter);
 
     // Filter by search term
     if (searchTerm) {
@@ -168,6 +195,7 @@ export default function AdminOrdersPage() {
               .toLowerCase()
               .includes(searchTerm.toLowerCase()))
       );
+      console.log("After search filter:", filtered.length);
     }
 
     // Filter by status
@@ -177,6 +205,7 @@ export default function AdminOrdersPage() {
           (order.status || order._props?.status) &&
           (order.status || order._props?.status) === statusFilter
       );
+      console.log("After status filter:", filtered.length);
     }
 
     // Filter by branch
@@ -186,6 +215,7 @@ export default function AdminOrdersPage() {
           (order.cashier?.branch?.id ||
             (order as any)._props?.cashier?.branch?.id) === branchFilter
       );
+      console.log("After branch filter:", filtered.length);
     }
 
     // Filter by cashier
@@ -195,8 +225,10 @@ export default function AdminOrdersPage() {
           (order.cashier?.id || (order as any)._props?.cashier?.id) ===
           cashierFilter
       );
+      console.log("After cashier filter:", filtered.length);
     }
 
+    console.log("Final filtered orders:", filtered.length);
     setFilteredOrders(filtered);
     setCurrentPage(1); // Reset to first page when filters change
   }, [orders, searchTerm, statusFilter, branchFilter, cashierFilter]);
@@ -230,6 +262,67 @@ export default function AdminOrdersPage() {
           View and manage all orders across your business
         </p>
       </div>
+
+      {/* Statistics Cards */}
+      {!loading && (
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                Total Orders
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-700">
+                {totalOrders}
+              </div>
+              <p className="text-xs text-gray-500">All orders in system</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                Total Value
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">
+                ${totalValue.toFixed(2)}
+              </div>
+              <p className="text-xs text-gray-500">Combined order value</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                Pending Orders
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-600">
+                {pendingOrders}
+              </div>
+              <p className="text-xs text-gray-500">Awaiting processing</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                Completed Orders
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">
+                {completedOrders}
+              </div>
+              <p className="text-xs text-gray-500">Successfully completed</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="mb-6 space-y-4">
@@ -276,6 +369,7 @@ export default function AdminOrdersPage() {
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex items-center gap-2">
             <Building className="h-4 w-4 text-gray-500" />
+            <label className="text-sm font-medium text-gray-700">Branch:</label>
             <select
               value={branchFilter}
               onChange={(e) => setBranchFilter(e.target.value)}
@@ -291,6 +385,9 @@ export default function AdminOrdersPage() {
           </div>
           <div className="flex items-center gap-2">
             <UserIcon className="h-4 w-4 text-gray-500" />
+            <label className="text-sm font-medium text-gray-700">
+              Cashier:
+            </label>
             <select
               value={cashierFilter}
               onChange={(e) => setCashierFilter(e.target.value)}
@@ -338,15 +435,29 @@ export default function AdminOrdersPage() {
       {!loading && (
         <div className="mb-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="text-sm text-gray-600">
-            Showing {startIndex + 1} to{" "}
-            {Math.min(endIndex, filteredOrders.length)} of{" "}
-            {filteredOrders.length} orders
-            {searchTerm ||
-            statusFilter !== "ALL" ||
-            branchFilter !== "ALL" ||
-            cashierFilter !== "ALL"
-              ? " (filtered)"
-              : ""}
+            {filteredOrders.length === 0 ? (
+              <span className="text-orange-600 font-medium">
+                No orders found
+                {searchTerm ||
+                statusFilter !== "ALL" ||
+                branchFilter !== "ALL" ||
+                cashierFilter !== "ALL"
+                  ? " with current filters"
+                  : " in the system"}
+              </span>
+            ) : (
+              <>
+                Showing {startIndex + 1} to{" "}
+                {Math.min(endIndex, filteredOrders.length)} of{" "}
+                {filteredOrders.length} orders
+                {searchTerm ||
+                statusFilter !== "ALL" ||
+                branchFilter !== "ALL" ||
+                cashierFilter !== "ALL"
+                  ? " (filtered)"
+                  : ""}
+              </>
+            )}
           </div>
           {filteredOrders.length > 0 && (
             <div className="text-sm text-gray-600">
@@ -416,12 +527,43 @@ export default function AdminOrdersPage() {
         </div>
       ) : filteredOrders.length === 0 ? (
         <Card>
-          <CardContent className="text-center py-8">
-            <p className="text-muted-foreground">
-              {searchTerm || statusFilter !== "ALL"
-                ? "No orders match your filters"
-                : "No orders found"}
-            </p>
+          <CardContent className="text-center py-12">
+            <div className="mb-4">
+              <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {searchTerm ||
+                statusFilter !== "ALL" ||
+                branchFilter !== "ALL" ||
+                cashierFilter !== "ALL"
+                  ? "No orders match your filters"
+                  : "No orders found"}
+              </h3>
+              <p className="text-gray-500 mb-4">
+                {searchTerm ||
+                statusFilter !== "ALL" ||
+                branchFilter !== "ALL" ||
+                cashierFilter !== "ALL"
+                  ? "Try adjusting your search criteria or filters to see more results."
+                  : "Orders will appear here once they are created by cashiers."}
+              </p>
+              {(searchTerm ||
+                statusFilter !== "ALL" ||
+                branchFilter !== "ALL" ||
+                cashierFilter !== "ALL") && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setStatusFilter("ALL");
+                    setBranchFilter("ALL");
+                    setCashierFilter("ALL");
+                  }}
+                  className="text-sm"
+                >
+                  Clear all filters
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
       ) : (

@@ -82,6 +82,7 @@ export default function CashierOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("PENDING");
+  const [completionTypeFilter, setCompletionTypeFilter] = useState("ALL");
   const [dateFilter, setDateFilter] = useState("ALL");
   const [customDateRange, setCustomDateRange] = useState({
     startDate: "",
@@ -304,13 +305,30 @@ export default function CashierOrdersPage() {
       );
     }
 
+    // Filter by completion type
+    if (completionTypeFilter !== "ALL") {
+      filtered = filtered.filter(
+        (order) =>
+          (order.completionType || order._props?.completionType) &&
+          (order.completionType || order._props?.completionType) ===
+            completionTypeFilter
+      );
+    }
+
     // Filter by date
     const dateRange = getDateRange(dateFilter);
     filtered = filtered.filter((order) => isOrderInDateRange(order, dateRange));
 
     setFilteredOrders(filtered);
     setCurrentPage(1); // Reset to first page when filters change
-  }, [orders, searchTerm, statusFilter, dateFilter, customDateRange]);
+  }, [
+    orders,
+    searchTerm,
+    statusFilter,
+    completionTypeFilter,
+    dateFilter,
+    customDateRange,
+  ]);
 
   // Calculate pagination
   const { totalPages, startIndex, endIndex, currentOrders } =
@@ -362,6 +380,16 @@ export default function CashierOrdersPage() {
           <option value="PAID">Paid</option>
           <option value="COMPLETED">Completed</option>
           <option value="CANCELLED">Cancelled</option>
+        </select>
+        <select
+          value={completionTypeFilter}
+          onChange={(e) => setCompletionTypeFilter(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="ALL">All Types</option>
+          <option value="PICKUP">Pickup</option>
+          <option value="DELIVERY">Delivery</option>
+          <option value="DINE_IN">Dine In</option>
         </select>
         <select
           value={dateFilter}
@@ -439,7 +467,10 @@ export default function CashierOrdersPage() {
       )}
 
       {/* Filter Summary */}
-      {(searchTerm || statusFilter !== "ALL" || dateFilter !== "ALL") && (
+      {(searchTerm ||
+        statusFilter !== "ALL" ||
+        completionTypeFilter !== "ALL" ||
+        dateFilter !== "ALL") && (
         <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-sm font-medium text-blue-900">
@@ -455,6 +486,16 @@ export default function CashierOrdersPage() {
             {statusFilter !== "ALL" && (
               <Badge variant="outline" className="text-xs">
                 Status: {statusFilter}
+              </Badge>
+            )}
+            {completionTypeFilter !== "ALL" && (
+              <Badge variant="outline" className="text-xs">
+                Type:{" "}
+                {completionTypeFilter === "PICKUP"
+                  ? "Pickup"
+                  : completionTypeFilter === "DELIVERY"
+                  ? "Delivery"
+                  : "Dine In"}
               </Badge>
             )}
             {dateFilter !== "ALL" && (
@@ -482,6 +523,7 @@ export default function CashierOrdersPage() {
               onClick={() => {
                 setSearchTerm("");
                 setStatusFilter("ALL");
+                setCompletionTypeFilter("ALL");
                 setDateFilter("ALL");
                 setCustomDateRange({ startDate: "", endDate: "" });
               }}
@@ -495,7 +537,7 @@ export default function CashierOrdersPage() {
 
       {/* Orders Summary */}
       <div className="mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Total Orders */}
           <Card>
             <CardContent className="p-4">
@@ -595,6 +637,41 @@ export default function CashierOrdersPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Completion Type Breakdown */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">
+                    Type Breakdown
+                  </p>
+                  <div className="text-xs text-gray-500 mt-1 space-y-1">
+                    {[
+                      { value: "PICKUP", label: "Pickup" },
+                      { value: "DELIVERY", label: "Delivery" },
+                      { value: "DINE_IN", label: "Dine In" },
+                    ].map((type) => {
+                      const count = filteredOrders.filter(
+                        (order) =>
+                          (order.completionType ||
+                            order._props?.completionType) === type.value
+                      ).length;
+                      return count > 0 ? (
+                        <div key={type.value} className="flex justify-between">
+                          <span>{type.label}:</span>
+                          <span className="font-medium">{count}</span>
+                        </div>
+                      ) : null;
+                    })}
+                  </div>
+                </div>
+                <div className="p-2 bg-orange-100 rounded-lg">
+                  <Receipt className="h-6 w-6 text-orange-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
@@ -658,7 +735,7 @@ export default function CashierOrdersPage() {
                       </div>
                     </div>
 
-                    {/* Center - Customer and Items */}
+                    {/* Center - Customer, Items, and Type */}
                     <div className="flex items-center gap-6 flex-1 justify-center">
                       <div className="text-center">
                         <p className="text-xs text-gray-500 mb-1">Customer</p>
@@ -675,6 +752,27 @@ export default function CashierOrdersPage() {
                           {order.items || order._props?.items
                             ? (order.items || order._props?.items || []).length
                             : 0}
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-gray-500 mb-1">Type</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {(() => {
+                            const completionType =
+                              order.completionType ||
+                              order._props?.completionType;
+                            if (!completionType) return "N/A";
+                            switch (completionType) {
+                              case "PICKUP":
+                                return "Pickup";
+                              case "DELIVERY":
+                                return "Delivery";
+                              case "DINE_IN":
+                                return "Dine In";
+                              default:
+                                return completionType;
+                            }
+                          })()}
                         </p>
                       </div>
                     </div>

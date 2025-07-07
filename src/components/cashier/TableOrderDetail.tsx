@@ -251,6 +251,9 @@ export function TableOrderDetail({
                           </div>
                           <div>
                             <h4 className="font-semibold">{customerName}</h4>
+                            <p className="text-xs text-gray-500">
+                              ID: {orderData.id?.slice(-8) || "N/A"}
+                            </p>
                             {customer && (
                               <p className="text-sm text-gray-600">
                                 {customer.name} ({customer.email})

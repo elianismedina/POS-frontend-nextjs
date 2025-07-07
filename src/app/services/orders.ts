@@ -35,7 +35,7 @@ export interface Order {
       name: string;
     };
   };
-  tableOrderId?: string;
+  tableOrderId?: string | null;
   tableOrder?: {
     id: string;
     tableNumber: string;
@@ -48,6 +48,9 @@ export interface Order {
   total: number;
   status: string;
   notes?: string;
+  completionType?: "PICKUP" | "DELIVERY" | "DINE_IN";
+  deliveryAddress?: string;
+  estimatedTime?: string;
   createdAt: Date;
   updatedAt: Date;
   _props?: {
@@ -55,7 +58,7 @@ export interface Order {
     businessId: string;
     cashierId: string;
     customerId?: string;
-    tableOrderId?: string;
+    tableOrderId?: string | null;
     cashier?: {
       id: string;
       name: string;
@@ -72,6 +75,9 @@ export interface Order {
     finalAmount: number;
     status: string;
     notes?: string;
+    completionType?: "PICKUP" | "DELIVERY" | "DINE_IN";
+    deliveryAddress?: string;
+    estimatedTime?: string;
     createdAt: Date;
     updatedAt: Date;
   };
@@ -82,7 +88,7 @@ export interface CreateOrderRequest {
   cashierId: string;
   customerId?: string;
   notes?: string;
-  tableOrderId?: string;
+  tableOrderId?: string | null;
   customerName?: string;
 }
 

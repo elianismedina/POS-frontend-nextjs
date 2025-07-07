@@ -199,6 +199,53 @@ export default function SalesPage() {
   // Add state for search
   const [tableSearch, setTableSearch] = useState("");
 
+  // Helper functions for table persistence
+  const saveSelectedTable = (tableOrder: TableOrder | null) => {
+    if (tableOrder) {
+      sessionStorage.setItem(
+        "selectedTableOrder",
+        JSON.stringify({
+          id: tableOrder.id,
+          tableNumber: tableOrder.tableNumber,
+          tableName: tableOrder.tableName,
+          physicalTableId: tableOrder.physicalTableId,
+          status: tableOrder.status,
+          createdAt: tableOrder.createdAt,
+          totalAmount: tableOrder.totalAmount,
+          numberOfCustomers: tableOrder.numberOfCustomers,
+          notes: tableOrder.notes,
+          businessId: tableOrder.businessId,
+          branchId: tableOrder.branchId,
+        })
+      );
+    } else {
+      sessionStorage.removeItem("selectedTableOrder");
+    }
+  };
+
+  const loadSelectedTable = async (): Promise<TableOrder | null> => {
+    try {
+      const savedTable = sessionStorage.getItem("selectedTableOrder");
+      if (savedTable) {
+        const tableData = JSON.parse(savedTable);
+        // Verify the table still exists by fetching it from the backend
+        const currentTableOrder = await TableOrdersService.getTableOrder(
+          tableData.id
+        );
+        if (currentTableOrder && currentTableOrder.status === "active") {
+          return currentTableOrder;
+        } else {
+          // Table no longer exists or is not active, remove from storage
+          sessionStorage.removeItem("selectedTableOrder");
+        }
+      }
+    } catch (error) {
+      console.error("Error loading saved table order:", error);
+      sessionStorage.removeItem("selectedTableOrder");
+    }
+    return null;
+  };
+
   // Filter tables based on search
   const filteredPhysicalTables = availablePhysicalTables.filter(
     (t) =>
@@ -249,6 +296,21 @@ export default function SalesPage() {
       loadTableOrder(tableOrderId);
     }
   }, [searchParams, currentTableOrder]);
+
+  // Load saved table order on component mount
+  useEffect(() => {
+    const loadSavedTable = async () => {
+      if (!currentTableOrder && !isLoading) {
+        const savedTable = await loadSelectedTable();
+        if (savedTable) {
+          setCurrentTableOrder(savedTable);
+          console.log("Loaded saved table order:", savedTable);
+        }
+      }
+    };
+
+    loadSavedTable();
+  }, [isLoading, currentTableOrder]);
 
   useEffect(() => {
     if (justCleared) {
@@ -635,6 +697,7 @@ export default function SalesPage() {
 
       if (tableOrder) {
         setCurrentTableOrder(tableOrder);
+        saveSelectedTable(tableOrder); // Save to session storage
         toast({
           title: "Table order loaded",
           description: `Table ${tableOrder.tableNumber} has been loaded`,
@@ -1290,8 +1353,8 @@ export default function SalesPage() {
       setLoadedOrderId(null);
       setJustCleared(true);
 
-      // Clear table order when clearing sale
-      setCurrentTableOrder(null);
+      // Don't clear table order when clearing sale - keep it for persistence
+      // setCurrentTableOrder(null);
 
       // Set flag to refresh orders list when returning
       sessionStorage.setItem("shouldRefreshOrders", "true");
@@ -1483,6 +1546,9 @@ export default function SalesPage() {
 
       // Clear sale after successful payment
       await clearSale();
+      // Clear the selected table when order is completed
+      setCurrentTableOrder(null);
+      saveSelectedTable(null);
       setShowCompletionModal(false);
 
       // Reset completion details
@@ -1612,6 +1678,9 @@ export default function SalesPage() {
 
       // Clear the sale and redirect to dashboard
       await clearSale();
+      // Clear the selected table when order is cancelled
+      setCurrentTableOrder(null);
+      saveSelectedTable(null);
       router.push("/dashboard/cashier");
 
       // Reset modal state
@@ -1674,7 +1743,33 @@ export default function SalesPage() {
     console.log("Physical table selected:", physicalTable);
 
     try {
-      // Create a table order for the selected physical table
+      // First, check if there's already an active table order for this physical table
+      console.log(
+        "Checking for existing active table order for physical table:",
+        physicalTable.id
+      );
+      const existingTableOrder =
+        await TableOrdersService.getActiveTableOrderByPhysicalTableId(
+          physicalTable.id
+        );
+
+      if (existingTableOrder) {
+        console.log("Found existing active table order:", existingTableOrder);
+        setCurrentTableOrder(existingTableOrder);
+        saveSelectedTable(existingTableOrder); // Save to session storage
+        setShowPhysicalTablesModal(false);
+
+        toast({
+          title: "Mesa seleccionada",
+          description: `Mesa ${physicalTable.tableNumber} ya está activa y ha sido seleccionada`,
+        });
+
+        // Refresh table data after selection
+        await refreshTableData();
+        return;
+      }
+
+      // If no existing table order, create a new one
       let businessId = "";
       let branchId = "";
 
@@ -1690,14 +1785,37 @@ export default function SalesPage() {
         throw new Error("Business or branch information not available");
       }
 
-      // For now, just set the physical table as selected without creating a table order
-      // This will show the table number temporarily
-      setSelectedPhysicalTable(physicalTable);
+      // Create a table order for the selected physical table
+      console.log(
+        "Creating new table order for physical table:",
+        physicalTable.id
+      );
+
+      const tableOrderData: CreateTableOrderDto = {
+        physicalTableId: physicalTable.id,
+        tableNumber: physicalTable.tableNumber,
+        notes: "",
+        numberOfCustomers: 1,
+        businessId,
+        branchId,
+      };
+
+      console.log("Table order data:", tableOrderData);
+      console.log("Physical table ID being sent:", physicalTable.id);
+      console.log("Physical table object:", physicalTable);
+
+      const newTableOrder = await TableOrdersService.createTableOrder(
+        tableOrderData
+      );
+      console.log("Table order created:", newTableOrder);
+
+      setCurrentTableOrder(newTableOrder);
+      saveSelectedTable(newTableOrder); // Save to session storage
       setShowPhysicalTablesModal(false);
 
       toast({
         title: "Mesa seleccionada",
-        description: `Mesa ${physicalTable.tableNumber} ha sido seleccionada temporalmente. Crea un pedido para confirmar.`,
+        description: `Mesa ${physicalTable.tableNumber} ha sido creada y seleccionada`,
       });
 
       // Refresh table data after selection
@@ -1784,6 +1902,7 @@ export default function SalesPage() {
   // Update the clearTableOrder function to refresh data
   const clearTableOrder = async () => {
     setCurrentTableOrder(null);
+    saveSelectedTable(null); // Clear from session storage
 
     // Refresh table data after clearing
     await refreshTableData();
@@ -1855,6 +1974,7 @@ export default function SalesPage() {
 
       // First, set the current table order
       setCurrentTableOrder(tableOrder);
+      saveSelectedTable(tableOrder); // Save to session storage
       console.log("setCurrentTableOrder called with:", tableOrder);
       setShowExistingTablesModal(false);
 
@@ -1992,7 +2112,7 @@ export default function SalesPage() {
     });
     setLoadedOrderId(null);
     setJustCleared(true);
-    // Do NOT clear currentTableOrder
+    // Do NOT clear currentTableOrder - keep it for persistence
     toast({
       title: "Ready for new order",
       description: "You can now start a new sale for the same table.",
@@ -2057,6 +2177,84 @@ export default function SalesPage() {
               <Plus className="h-4 w-4 mr-1" />
               New Order
             </Button>
+            {selectedPhysicalTable && (
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    console.log("=== TESTING TABLE ORDER CREATION ===");
+                    console.log(
+                      "Selected physical table:",
+                      selectedPhysicalTable
+                    );
+
+                    let businessId = "";
+                    let branchId = "";
+
+                    if (user?.business?.[0]?.id) {
+                      businessId = user.business[0].id;
+                      branchId = user?.branch?.id || "";
+                    } else if (user?.branch?.business?.id) {
+                      businessId = user.branch.business.id;
+                      branchId = user.branch.id;
+                    }
+
+                    const tableOrderData: CreateTableOrderDto = {
+                      physicalTableId: selectedPhysicalTable.id,
+                      notes: "Test table order",
+                      numberOfCustomers: 1,
+                      businessId,
+                      branchId,
+                    };
+
+                    console.log(
+                      "Creating test table order with data:",
+                      tableOrderData
+                    );
+
+                    // Add timeout to prevent hanging
+                    const timeoutPromise = new Promise<never>((_, reject) => {
+                      setTimeout(
+                        () => reject(new Error("Timeout after 10 seconds")),
+                        10000
+                      );
+                    });
+
+                    const newTableOrder = await Promise.race([
+                      TableOrdersService.createTableOrder(tableOrderData),
+                      timeoutPromise,
+                    ]);
+
+                    console.log(
+                      "Test table order created successfully:",
+                      newTableOrder
+                    );
+
+                    setCurrentTableOrder(newTableOrder);
+
+                    toast({
+                      title: "Test table order created",
+                      description: `Table order created for mesa ${selectedPhysicalTable.tableNumber}`,
+                    });
+                  } catch (error: any) {
+                    console.error("=== TEST TABLE ORDER CREATION ERROR ===");
+                    console.error("Error object:", error);
+                    console.error("Error message:", error.message);
+                    console.error("Error response:", error.response);
+                    console.error("Error response data:", error.response?.data);
+
+                    toast({
+                      title: "Test table order creation failed",
+                      description: `Error: ${error.message || "Unknown error"}`,
+                      variant: "destructive",
+                    });
+                  }
+                }}
+                className="bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border-yellow-300"
+              >
+                Test Create Table Order
+              </Button>
+            )}
           </div>
           <div className="flex items-center space-x-4">
             {/* Table Order Section */}
@@ -2152,10 +2350,26 @@ export default function SalesPage() {
                               tableOrderData
                             );
 
-                            const newTableOrder =
-                              await TableOrdersService.createTableOrder(
+                            // Add timeout to prevent hanging
+                            const timeoutPromise = new Promise<never>(
+                              (_, reject) => {
+                                setTimeout(
+                                  () =>
+                                    reject(
+                                      new Error("Timeout after 10 seconds")
+                                    ),
+                                  10000
+                                );
+                              }
+                            );
+
+                            const newTableOrder = await Promise.race([
+                              TableOrdersService.createTableOrder(
                                 tableOrderData
-                              );
+                              ),
+                              timeoutPromise,
+                            ]);
+
                             console.log(
                               "Test table order created successfully:",
                               newTableOrder

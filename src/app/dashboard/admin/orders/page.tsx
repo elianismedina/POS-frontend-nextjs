@@ -85,7 +85,7 @@ export default function AdminOrdersPage() {
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("PENDING");
   const [branchFilter, setBranchFilter] = useState("ALL");
   const [cashierFilter, setCashierFilter] = useState("ALL");
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);

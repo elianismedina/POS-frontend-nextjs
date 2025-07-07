@@ -34,6 +34,50 @@ export function ExistingTablesDisplay({
   onViewDetails,
 }: ExistingTablesDisplayProps) {
   const { toast } = useToast();
+  const [selectedMesaOrders, setSelectedMesaOrders] = useState<
+    TableOrder[] | null
+  >(null);
+
+  // Agrupar por mesa física y calcular totales agregados
+  const groupedByMesa = tables.reduce(
+    (acc: Record<string, TableOrder[]>, order) => {
+      const key = order.physicalTableId;
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(order);
+      return acc;
+    },
+    {}
+  );
+
+  // Crear objetos agregados para cada mesa física
+  const mesasAgregadas = Object.entries(groupedByMesa).map(
+    ([physicalTableId, orders]) => {
+      const mesa = orders[0]; // Usar la primera orden como referencia para datos de la mesa
+      const totalAmount = orders.reduce(
+        (sum, order) => sum + (order.totalAmount || 0),
+        0
+      );
+      const totalCustomers = orders.reduce(
+        (sum, order) => sum + (order.numberOfCustomers || 0),
+        0
+      );
+      const activeOrders = orders.filter(
+        (order) => order.status === "active"
+      ).length;
+
+      return {
+        physicalTableId,
+        tableNumber: mesa.tableNumber,
+        tableName: mesa.tableName,
+        status: mesa.status,
+        createdAt: mesa.createdAt,
+        totalAmount,
+        totalCustomers,
+        activeOrders,
+        orders, // Mantener todas las órdenes para el modal
+      };
+    }
+  );
 
   const getTableStatusColor = (status: string) => {
     switch (status) {
@@ -115,10 +159,10 @@ export function ExistingTablesDisplay({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h3 className="text-lg font-semibold text-gray-900">
-            Mesas Activas ({tables.length})
+            Mesas Activas ({mesasAgregadas.length})
           </h3>
           <Badge variant="secondary" className="text-xs">
-            {tables.filter((t) => t.status === "active").length} activas
+            {mesasAgregadas.filter((m) => m.status === "active").length} activas
           </Badge>
         </div>
         <Button variant="outline" size="sm" onClick={onRefresh}>
@@ -128,127 +172,127 @@ export function ExistingTablesDisplay({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto">
-        {tables.map((table) => (
+        {mesasAgregadas.map((mesa) => (
           <Card
-            key={table.id}
+            key={mesa.physicalTableId}
             className="transition-all duration-200 cursor-pointer hover:shadow-lg hover:scale-[1.02] border-2 hover:border-blue-200"
-            onClick={() => {
-              console.log("=== CARD CLICKED ===");
-              console.log("Table being selected:", table);
-              console.log("onTableSelect function:", onTableSelect);
-              onTableSelect(table);
-            }}
+            onClick={() => setSelectedMesaOrders(mesa.orders)}
           >
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-xl font-bold text-blue-700">
-                    {table.tableNumber}
+                    {mesa.tableNumber}
                   </div>
                   <div className="flex-1 min-w-0">
                     <CardTitle className="text-lg text-gray-900">
-                      {table.tableName || `Mesa ${table.tableNumber}`}
+                      {mesa.tableName || `Mesa ${mesa.tableNumber}`}
                     </CardTitle>
                     <div className="flex items-center gap-2 mt-1">
                       <Clock className="h-3 w-3 text-gray-400" />
                       <p className="text-xs text-gray-500">
-                        {formatDate(table.createdAt)}
+                        {mesa.orders.length} orden
+                        {mesa.orders.length > 1 ? "es" : ""} activa
+                        {mesa.orders.length > 1 ? "s" : ""}
                       </p>
                     </div>
                   </div>
                 </div>
-                <Badge className={getTableStatusColor(table.status)}>
-                  {getTableStatusText(table.status)}
+                <Badge className={getTableStatusColor(mesa.status)}>
+                  {getTableStatusText(mesa.status)}
                 </Badge>
               </div>
             </CardHeader>
-
             <CardContent className="pt-0">
               <div className="space-y-3">
-                {/* Customer Information */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-gray-500" />
-                    <span className="text-sm text-gray-600">Clientes:</span>
+                    <span className="text-sm text-gray-600">
+                      Total Clientes:
+                    </span>
                   </div>
                   <span className="font-semibold text-gray-900">
-                    {table.numberOfCustomers}
+                    {mesa.totalCustomers}
                   </span>
                 </div>
-
-                {/* Total Amount */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <DollarSign className="h-4 w-4 text-gray-500" />
-                    <span className="text-sm text-gray-600">Total:</span>
-                  </div>
-                  <span className="font-bold text-lg text-green-600">
-                    {formatPrice(table.totalAmount)}
-                  </span>
-                </div>
-
-                {/* Orders Count */}
-                {table.orders && table.orders.length > 0 && (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Receipt className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm text-gray-600">Pedidos:</span>
-                    </div>
-                    <span className="font-semibold text-gray-900">
-                      {table.orders.length}
+                    <span className="text-sm text-gray-600">
+                      Total General:
                     </span>
                   </div>
-                )}
-
-                {/* Notes */}
-                {table.notes && (
-                  <div className="mt-3 p-2 bg-gray-50 rounded-md">
-                    <div className="flex items-start gap-2">
-                      <FileText className="h-4 w-4 text-gray-500 mt-0.5 flex-shrink-0" />
-                      <div className="flex-1">
-                        <p className="text-xs text-gray-600 font-medium mb-1">
-                          Notas:
-                        </p>
-                        <p className="text-sm text-gray-700 line-clamp-2">
-                          {table.notes}
-                        </p>
-                      </div>
-                    </div>
+                  <span className="font-bold text-lg text-green-600">
+                    {formatPrice(mesa.totalAmount)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Receipt className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm text-gray-600">
+                      Órdenes activas:
+                    </span>
                   </div>
-                )}
-
-                {/* Action Buttons */}
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    size="sm"
-                    className="flex-1"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      console.log("=== BUTTON CLICKED ===");
-                      console.log("Table being selected:", table);
-                      console.log("onTableSelect function:", onTableSelect);
-                      onTableSelect(table);
-                    }}
-                  >
-                    <Eye className="h-4 w-4 mr-2" />
-                    Ver Mesa
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onViewDetails(table);
-                    }}
-                  >
-                    <Info className="h-4 w-4" />
-                  </Button>
+                  <span className="font-semibold text-gray-900">
+                    {mesa.activeOrders}
+                  </span>
                 </div>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
+
+      {/* Modal para seleccionar una orden activa de la mesa */}
+      {selectedMesaOrders && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-[400px] max-h-[80vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-4">
+              Selecciona una orden activa para la mesa{" "}
+              {selectedMesaOrders[0].tableNumber}
+            </h3>
+            <ul className="space-y-3">
+              {selectedMesaOrders.map((order) => (
+                <li
+                  key={order.id}
+                  className="border rounded p-3 flex flex-col gap-1 hover:bg-blue-50 cursor-pointer"
+                  onClick={() => {
+                    onTableSelect(order);
+                    setSelectedMesaOrders(null);
+                  }}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-blue-900">
+                      Orden #{order.id.slice(-6)}
+                    </span>
+                    <Badge className={getTableStatusColor(order.status)}>
+                      {getTableStatusText(order.status)}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <Users className="h-3 w-3" /> {order.numberOfCustomers}{" "}
+                    clientes
+                    <DollarSign className="h-3 w-3 ml-2" />{" "}
+                    {formatPrice(order.totalAmount)}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Creada: {formatDate(order.createdAt)}
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <div className="flex justify-end mt-4">
+              <Button
+                variant="outline"
+                onClick={() => setSelectedMesaOrders(null)}
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

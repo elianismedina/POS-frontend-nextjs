@@ -81,7 +81,7 @@ export default function CashierOrdersPage() {
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("PENDING");
   const [dateFilter, setDateFilter] = useState("ALL");
   const [customDateRange, setCustomDateRange] = useState({
     startDate: "",

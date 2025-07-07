@@ -16,10 +16,12 @@ export interface TableOrder {
   updatedAt: string;
   closedAt?: string;
   orders?: any[];
+  physicalTableId: string;
 }
 
 export interface CreateTableOrderDto {
   physicalTableId: string;
+  tableNumber?: string;
   notes?: string;
   numberOfCustomers?: number;
   businessId: string;
@@ -42,6 +44,22 @@ export class TableOrdersService {
   static async getActiveTableOrders(): Promise<TableOrder[]> {
     const response = await api.get("/table-orders/active");
     return response.data;
+  }
+
+  static async getActiveTableOrderByPhysicalTableId(
+    physicalTableId: string
+  ): Promise<TableOrder | null> {
+    try {
+      const response = await api.get(
+        `/table-orders/physical-table/${physicalTableId}/active`
+      );
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   static async getTableOrder(id: string): Promise<TableOrder> {

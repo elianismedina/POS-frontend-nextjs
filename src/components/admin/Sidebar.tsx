@@ -28,6 +28,7 @@ import {
   Calculator,
   BarChart,
   Table,
+  UserCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -185,6 +186,12 @@ export function AdminSidebar() {
               label="Clientes"
               href="/dashboard/admin/customers"
               isActive={pathname.includes("/customers")}
+            />
+            <SidebarItem
+              icon={<UserCheck className="h-4 w-4" />}
+              label="Cajeros"
+              href="/dashboard/admin/cashiers"
+              isActive={pathname.includes("/cashiers")}
             />
             <SidebarItem
               icon={<BarChart className="h-4 w-4" />}

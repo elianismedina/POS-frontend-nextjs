@@ -312,6 +312,25 @@ export default function SalesPage() {
     loadSavedTable();
   }, [isLoading, currentTableOrder]);
 
+  // Load table order from current order if it has tableOrderId but currentTableOrder is not set
+  useEffect(() => {
+    const loadTableOrderFromOrder = async () => {
+      if (sale.currentOrder && !currentTableOrder && !isLoading) {
+        const orderData =
+          (sale.currentOrder as any)._props || sale.currentOrder;
+        if (orderData.tableOrderId) {
+          console.log(
+            "Loading table order from current order:",
+            orderData.tableOrderId
+          );
+          await loadTableOrder(orderData.tableOrderId);
+        }
+      }
+    };
+
+    loadTableOrderFromOrder();
+  }, [sale.currentOrder, currentTableOrder, isLoading]);
+
   useEffect(() => {
     if (justCleared) {
       const timeout = setTimeout(() => setJustCleared(false), 1000);
@@ -444,6 +463,17 @@ export default function SalesPage() {
     console.log("currentTableOrder?.id:", currentTableOrder?.id);
     console.log("currentTableOrder?.orders:", currentTableOrder?.orders);
   }, [currentTableOrder]);
+
+  // Debug useEffect to monitor sale.currentOrder changes
+  useEffect(() => {
+    console.log("=== SALE CURRENT ORDER CHANGED ===");
+    console.log("sale.currentOrder:", sale.currentOrder);
+    if (sale.currentOrder) {
+      const orderData = (sale.currentOrder as any)._props || sale.currentOrder;
+      console.log("orderData.tableOrderId:", orderData.tableOrderId);
+      console.log("orderData.id:", orderData.id);
+    }
+  }, [sale.currentOrder]);
 
   // Debug useEffect to monitor existing tables modal
   useEffect(() => {
@@ -670,8 +700,11 @@ export default function SalesPage() {
 
         // Set table order if the order has one
         if (orderData.tableOrderId) {
+          console.log("Order has tableOrderId:", orderData.tableOrderId);
           // Load the actual table order data
           await loadTableOrder(orderData.tableOrderId);
+        } else {
+          console.log("Order does not have tableOrderId");
         }
 
         toast({
@@ -696,12 +729,15 @@ export default function SalesPage() {
       console.log("Loaded table order:", tableOrder);
 
       if (tableOrder) {
+        console.log("Setting currentTableOrder to:", tableOrder);
         setCurrentTableOrder(tableOrder);
         saveSelectedTable(tableOrder); // Save to session storage
         toast({
           title: "Table order loaded",
           description: `Table ${tableOrder.tableNumber} has been loaded`,
         });
+      } else {
+        console.log("No table order found for ID:", tableOrderId);
       }
     } catch (error: any) {
       console.error("Error loading table order:", error);
@@ -1737,7 +1773,73 @@ export default function SalesPage() {
     }
   };
 
-  // Update the selectPhysicalTable function to refresh data
+  // Add function to assign table to existing order
+  const assignTableToExistingOrder = async (tableOrder: TableOrder) => {
+    try {
+      if (!sale.currentOrder) {
+        toast({
+          title: "Error",
+          description: "No order to assign table to",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const orderId =
+        (sale.currentOrder as any)?._props?.id ||
+        (sale.currentOrder as any)?.id;
+
+      if (!orderId) {
+        toast({
+          title: "Error",
+          description: "Order ID is missing",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log("Assigning table to existing order:", {
+        orderId,
+        tableOrderId: tableOrder.id,
+        tableNumber: tableOrder.tableNumber,
+      });
+
+      // Update the order with the table order ID
+      const updatedOrder = await ordersService.updateOrder(orderId, {
+        tableOrderId: tableOrder.id,
+        customerName: sale.customerName || undefined,
+      });
+
+      console.log("Order updated with table:", updatedOrder);
+
+      // Update local state
+      setSale((prev) => ({
+        ...prev,
+        currentOrder: updatedOrder,
+      }));
+
+      // Set current table order
+      setCurrentTableOrder(tableOrder);
+      saveSelectedTable(tableOrder);
+
+      toast({
+        title: "Mesa asignada",
+        description: `Mesa ${tableOrder.tableNumber} ha sido asignada a la orden`,
+      });
+
+      // Set flag to refresh orders list when returning
+      sessionStorage.setItem("shouldRefreshOrders", "true");
+    } catch (error: any) {
+      console.error("Error assigning table to existing order:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo asignar la mesa a la orden",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Update selectPhysicalTable to handle existing orders without table
   const selectPhysicalTable = async (physicalTable: PhysicalTable) => {
     console.log("=== SELECTING PHYSICAL TABLE ===");
     console.log("Physical table selected:", physicalTable);
@@ -1755,6 +1857,21 @@ export default function SalesPage() {
 
       if (existingTableOrder) {
         console.log("Found existing active table order:", existingTableOrder);
+
+        // If we have a current order without a table, assign the existing table order to it
+        if (sale.currentOrder) {
+          const orderData =
+            (sale.currentOrder as any)._props || sale.currentOrder;
+          if (!orderData.tableOrderId) {
+            console.log(
+              "Current order has no table, assigning existing table order"
+            );
+            await assignTableToExistingOrder(existingTableOrder);
+            setShowPhysicalTablesModal(false);
+            return;
+          }
+        }
+
         setCurrentTableOrder(existingTableOrder);
         saveSelectedTable(existingTableOrder); // Save to session storage
         setShowPhysicalTablesModal(false);
@@ -1808,6 +1925,18 @@ export default function SalesPage() {
         tableOrderData
       );
       console.log("Table order created:", newTableOrder);
+
+      // If we have a current order without a table, assign the new table order to it
+      if (sale.currentOrder) {
+        const orderData =
+          (sale.currentOrder as any)._props || sale.currentOrder;
+        if (!orderData.tableOrderId) {
+          console.log("Current order has no table, assigning new table order");
+          await assignTableToExistingOrder(newTableOrder);
+          setShowPhysicalTablesModal(false);
+          return;
+        }
+      }
 
       setCurrentTableOrder(newTableOrder);
       saveSelectedTable(newTableOrder); // Save to session storage
@@ -1964,6 +2093,7 @@ export default function SalesPage() {
     }
   };
 
+  // Update selectExistingTable to handle existing orders without table
   const selectExistingTable = async (tableOrder: TableOrder) => {
     try {
       console.log("=== SELECTING EXISTING TABLE ===");
@@ -1971,6 +2101,20 @@ export default function SalesPage() {
       console.log("Table number:", tableOrder.tableNumber);
       console.log("Table ID:", tableOrder.id);
       console.log("Table orders:", tableOrder.orders);
+
+      // If we have a current order without a table, assign the selected table order to it
+      if (sale.currentOrder) {
+        const orderData =
+          (sale.currentOrder as any)._props || sale.currentOrder;
+        if (!orderData.tableOrderId) {
+          console.log(
+            "Current order has no table, assigning selected table order"
+          );
+          await assignTableToExistingOrder(tableOrder);
+          setShowExistingTablesModal(false);
+          return;
+        }
+      }
 
       // First, set the current table order
       setCurrentTableOrder(tableOrder);
@@ -2260,25 +2404,25 @@ export default function SalesPage() {
             {/* Table Order Section */}
             <div className="flex items-center gap-2">
               {(() => {
+                const orderData = sale.currentOrder
+                  ? (sale.currentOrder as any)._props || sale.currentOrder
+                  : null;
+                const orderTableOrderId = orderData?.tableOrderId;
+
                 const hasTableOrder = !!(
                   currentTableOrder ||
                   selectedPhysicalTable ||
-                  (sale.currentOrder &&
-                    ((sale.currentOrder as any)?._props?.tableOrderId ||
-                      (sale.currentOrder as any)?.tableOrderId))
+                  orderTableOrderId
                 );
 
                 console.log("Table selection debug:", {
                   currentTableOrder: currentTableOrder?.tableNumber,
                   selectedPhysicalTable: selectedPhysicalTable?.tableNumber,
+                  orderTableOrderId,
                   saleCurrentOrder: sale.currentOrder
                     ? {
-                        id:
-                          (sale.currentOrder as any)?._props?.id ||
-                          (sale.currentOrder as any)?.id,
-                        tableOrderId:
-                          (sale.currentOrder as any)?._props?.tableOrderId ||
-                          (sale.currentOrder as any)?.tableOrderId,
+                        id: orderData?.id,
+                        tableOrderId: orderTableOrderId,
                       }
                     : null,
                   hasTableOrder,
@@ -2293,7 +2437,7 @@ export default function SalesPage() {
                       Mesa{" "}
                       {currentTableOrder?.tableNumber ||
                         selectedPhysicalTable?.tableNumber ||
-                        "Asociada"}
+                        (orderTableOrderId ? "Cargando..." : "Asociada")}
                     </Badge>
                     <Button
                       variant="outline"

@@ -15,6 +15,7 @@ import {
 interface CreateTableOrderFormProps {
   businessId: string;
   branchId: string;
+  physicalTableId: string;
   onSuccess?: (tableOrder: any) => void;
   onCancel?: () => void;
 }
@@ -22,13 +23,14 @@ interface CreateTableOrderFormProps {
 export function CreateTableOrderForm({
   businessId,
   branchId,
+  physicalTableId,
   onSuccess,
   onCancel,
 }: CreateTableOrderFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<CreateTableOrderDto>({
+    physicalTableId,
     tableNumber: "",
-    tableName: "",
     notes: "",
     numberOfCustomers: 0,
     businessId,
@@ -85,16 +87,6 @@ export function CreateTableOrderForm({
               onChange={(e) => handleInputChange("tableNumber", e.target.value)}
               placeholder="Ej: Mesa 1"
               required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="tableName">Nombre de Mesa (Opcional)</Label>
-            <Input
-              id="tableName"
-              value={formData.tableName}
-              onChange={(e) => handleInputChange("tableName", e.target.value)}
-              placeholder="Ej: Mesa de la Ventana"
             />
           </div>
 

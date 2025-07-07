@@ -8,11 +8,22 @@ import { CreateTableOrderForm } from "@/components/cashier/CreateTableOrderForm"
 import { TableOrdersList } from "@/components/cashier/TableOrdersList";
 import { TableOrderDetail } from "@/components/cashier/TableOrderDetail";
 import { TableOrder, TableOrdersService } from "@/services/table-orders";
+import {
+  PhysicalTablesService,
+  PhysicalTable,
+} from "@/services/physical-tables";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { RefreshCw, Loader2 } from "lucide-react";
+import { RefreshCw, Loader2, Plus } from "lucide-react";
 
 export default function TablesPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showPhysicalTablesModal, setShowPhysicalTablesModal] = useState(false);
+  const [selectedPhysicalTable, setSelectedPhysicalTable] =
+    useState<PhysicalTable | null>(null);
+  const [availablePhysicalTables, setAvailablePhysicalTables] = useState<
+    PhysicalTable[]
+  >([]);
+  const [isLoadingPhysicalTables, setIsLoadingPhysicalTables] = useState(false);
   const [selectedTable, setSelectedTable] = useState<TableOrder | null>(null);
   const [tableOrders, setTableOrders] = useState<TableOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -88,8 +99,33 @@ export default function TablesPage() {
     0
   );
 
+  // Load available physical tables
+  const loadAvailablePhysicalTables = async () => {
+    try {
+      setIsLoadingPhysicalTables(true);
+      const tables = await PhysicalTablesService.getAvailablePhysicalTables();
+      setAvailablePhysicalTables(tables);
+    } catch (error: any) {
+      console.error("Error loading available physical tables:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load available tables",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingPhysicalTables(false);
+    }
+  };
+
+  const handlePhysicalTableSelect = (physicalTable: PhysicalTable) => {
+    setSelectedPhysicalTable(physicalTable);
+    setShowPhysicalTablesModal(false);
+    setShowCreateForm(true);
+  };
+
   const handleCreateSuccess = (tableOrder: TableOrder) => {
     setShowCreateForm(false);
+    setSelectedPhysicalTable(null);
     loadTableOrders(); // Refresh the list
     toast({
       title: "Mesa creada exitosamente",
@@ -150,21 +186,96 @@ export default function TablesPage() {
             )}
             Actualizar
           </Button>
-          <Button onClick={() => setShowCreateForm(true)}>
+          <Button
+            onClick={() => {
+              loadAvailablePhysicalTables();
+              setShowPhysicalTablesModal(true);
+            }}
+          >
+            <Plus className="h-4 w-4 mr-2" />
             Crear Nueva Mesa
           </Button>
         </div>
       </div>
 
-      {showCreateForm && (
+      {showCreateForm && selectedPhysicalTable && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <CreateTableOrderForm
               businessId={businessId}
               branchId={branchId}
+              physicalTableId={selectedPhysicalTable.id}
               onSuccess={handleCreateSuccess}
-              onCancel={() => setShowCreateForm(false)}
+              onCancel={() => {
+                setShowCreateForm(false);
+                setSelectedPhysicalTable(null);
+              }}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Physical Tables Modal */}
+      {showPhysicalTablesModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Seleccionar Mesa Física</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPhysicalTablesModal(false)}
+              >
+                Cancelar
+              </Button>
+            </div>
+
+            {isLoadingPhysicalTables ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin" />
+                <span className="ml-2">Cargando mesas...</span>
+              </div>
+            ) : availablePhysicalTables.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">
+                  No hay mesas físicas disponibles.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {availablePhysicalTables.map((table) => (
+                  <div
+                    key={table.id}
+                    className="border rounded-lg p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                    onClick={() => handlePhysicalTableSelect(table)}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-semibold">{table.tableNumber}</h4>
+                      <span className="text-sm text-green-600 font-medium">
+                        Disponible
+                      </span>
+                    </div>
+                    {table.tableName && (
+                      <p className="text-sm text-gray-600 mb-2">
+                        {table.tableName}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-1">
+                      {table.capacity > 0 && (
+                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                          Capacidad: {table.capacity}
+                        </span>
+                      )}
+                      {table.location && (
+                        <span className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">
+                          {table.location}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

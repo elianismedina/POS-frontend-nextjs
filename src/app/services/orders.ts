@@ -83,6 +83,7 @@ export interface CreateOrderRequest {
   customerId?: string;
   notes?: string;
   tableOrderId?: string;
+  customerName?: string;
 }
 
 export interface AddItemRequest {

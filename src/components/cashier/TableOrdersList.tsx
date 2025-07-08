@@ -110,12 +110,8 @@ export function TableOrdersList({
     const matchesSearch =
       table.tableNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       table.tableName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      table.orders?.some(
-        (order) =>
-          order.customerName
-            ?.toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          order.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+      table.orders?.some((order) =>
+        order.customerName?.toLowerCase().includes(searchTerm.toLowerCase())
       );
 
     const matchesStatus =
@@ -310,16 +306,16 @@ export function TableOrdersList({
                             >
                               <div className="flex flex-col">
                                 <span className="text-gray-700">
-                                  {order.customerName ||
-                                    order.customer?.name ||
-                                    `Cliente ${index + 1}`}
+                                  {order.customerName || `Cliente ${index + 1}`}
                                 </span>
                                 <span className="text-xs text-gray-500">
                                   ID: {order.id?.slice(-8) || "N/A"}
                                 </span>
                               </div>
                               <span className="text-gray-500 text-xs">
-                                {formatPrice(order.total || 0)}
+                                {formatPrice(
+                                  order.finalAmount || order.totalAmount || 0
+                                )}
                               </span>
                             </div>
                           ))}
@@ -329,7 +325,9 @@ export function TableOrdersList({
                   <div className="flex justify-between text-sm">
                     <span>Total:</span>
                     <span className="font-semibold">
-                      {formatPrice(tableOrder.totalAmount)}
+                      {formatPrice(
+                        tableOrder.finalAmount || tableOrder.totalAmount
+                      )}
                     </span>
                   </div>
                   {tableOrder.notes && (
@@ -415,7 +413,9 @@ export function TableOrdersList({
                     </TableCell>
                     <TableCell>
                       <div className="font-medium">
-                        {formatPrice(tableOrder.totalAmount)}
+                        {formatPrice(
+                          tableOrder.finalAmount || tableOrder.totalAmount
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -486,7 +486,9 @@ export function TableOrdersList({
                     </TableCell>
                     <TableCell>
                       <div className="font-medium">
-                        {formatPrice(tableOrder.totalAmount)}
+                        {formatPrice(
+                          tableOrder.finalAmount || tableOrder.totalAmount
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>

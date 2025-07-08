@@ -1,5 +1,17 @@
 import { api } from "@/lib/api";
 
+export interface TableOrderItem {
+  id: string;
+  totalAmount: number;
+  finalAmount: number;
+  tipAmount?: number;
+  tipPercentage?: number;
+  status: string;
+  customerName?: string;
+  numberOfCustomers?: number;
+  createdAt: string;
+}
+
 export interface TableOrder {
   id: string;
   tableNumber: string;
@@ -8,6 +20,7 @@ export interface TableOrder {
   notes?: string;
   numberOfCustomers: number;
   totalAmount: number;
+  finalAmount?: number;
   businessId: string;
   branchId: string;
   createdBy: string;
@@ -15,7 +28,7 @@ export interface TableOrder {
   createdAt: string;
   updatedAt: string;
   closedAt?: string;
-  orders?: any[];
+  orders?: TableOrderItem[];
   physicalTableId: string;
 }
 

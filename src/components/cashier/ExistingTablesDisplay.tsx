@@ -53,10 +53,28 @@ export function ExistingTablesDisplay({
   const mesasAgregadas = Object.entries(groupedByMesa).map(
     ([physicalTableId, orders]) => {
       const mesa = orders[0]; // Usar la primera orden como referencia para datos de la mesa
-      const totalAmount = orders.reduce(
-        (sum, order) => sum + (order.totalAmount || 0),
-        0
+
+      // Debug: Log the orders data to see what we're receiving
+      console.log(
+        "Table orders data:",
+        orders.map((order) => ({
+          id: order.id,
+          totalAmount: order.totalAmount,
+          finalAmount: order.finalAmount,
+          tableNumber: order.tableNumber,
+          status: order.status,
+        }))
       );
+
+      const totalAmount = orders.reduce((sum, order) => {
+        console.log(
+          `Adding order ${order.id}: totalAmount=${order.totalAmount}, finalAmount=${order.finalAmount}`
+        );
+        return sum + (order.finalAmount || order.totalAmount || 0);
+      }, 0);
+
+      console.log(`Calculated totalAmount for table: ${totalAmount}`);
+
       const totalCustomers = orders.reduce(
         (sum, order) => sum + (order.numberOfCustomers || 0),
         0
@@ -274,7 +292,7 @@ export function ExistingTablesDisplay({
                     <Users className="h-3 w-3" /> {order.numberOfCustomers}{" "}
                     clientes
                     <DollarSign className="h-3 w-3 ml-2" />{" "}
-                    {formatPrice(order.totalAmount)}
+                    {formatPrice(order.finalAmount)}
                   </div>
                   <div className="text-xs text-gray-500">
                     Creada: {formatDate(order.createdAt)}

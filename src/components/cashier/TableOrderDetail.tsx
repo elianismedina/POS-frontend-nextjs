@@ -273,7 +273,9 @@ export function TableOrderDetail({
                         <div className="flex justify-between text-sm">
                           <span>Total:</span>
                           <span className="font-semibold">
-                            {formatPrice(orderData.total || 0)}
+                            {formatPrice(
+                              orderData.finalAmount || orderData.total || 0
+                            )}
                           </span>
                         </div>
                         {orderData.notes && (

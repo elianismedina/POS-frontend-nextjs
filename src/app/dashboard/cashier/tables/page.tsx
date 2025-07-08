@@ -60,7 +60,8 @@ export default function TablesPage() {
   const loadTableOrders = async () => {
     try {
       setIsRefreshing(true);
-      const orders = await TableOrdersService.getTableOrders();
+      // Use only active table orders
+      const orders = await TableOrdersService.getActiveTableOrders();
       setTableOrders(orders);
     } catch (error) {
       toast({
@@ -99,7 +100,7 @@ export default function TablesPage() {
   // Calculate summary data
   const activeTables = tableOrders.filter((table) => table.status === "active");
   const totalSales = activeTables.reduce(
-    (sum, table) => sum + table.totalAmount,
+    (sum, table) => sum + (table.finalAmount || 0),
     0
   );
   const totalCustomers = activeTables.reduce(

@@ -100,6 +100,7 @@ export default function SalesPage() {
   const { isAuthenticated, user, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const orderIdParam = searchParams.get("orderId");
   const { toast } = useToast();
 
   // State
@@ -120,6 +121,7 @@ export default function SalesPage() {
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
   const [loadedOrderId, setLoadedOrderId] = useState<string | null>(null);
   const [justCleared, setJustCleared] = useState(false);
+  const [isStartingNewSale, setIsStartingNewSale] = useState(false);
 
   // Order completion state
   const [showCompletionModal, setShowCompletionModal] = useState(false);
@@ -218,6 +220,9 @@ export default function SalesPage() {
   // Add state to prevent auto-reloading of table after clearing
   const [preventTableReload, setPreventTableReload] = useState(false);
 
+  // Add state to prevent loading existing orders when starting a new sale
+  // const [isStartingNewSale, setIsStartingNewSale] = useState(false);
+
   // Helper functions for table persistence
   const saveSelectedTable = (tableOrder: TableOrder | null) => {
     if (tableOrder) {
@@ -305,22 +310,53 @@ export default function SalesPage() {
     }
   }, [isAuthenticated, user, router, authLoading]);
 
-  // Load existing order if orderId is provided in URL or session storage
+  // Load existing order if orderId is provided in URL ONLY
   useEffect(() => {
-    const urlOrderId = searchParams.get("orderId");
-    const savedOrderId = loadCurrentOrderId();
-    const orderId = urlOrderId || savedOrderId;
+    const urlOrderId = orderIdParam;
+    const orderId = urlOrderId ? urlOrderId : null;
 
     if (
       orderId &&
       !isLoading &&
       products.length > 0 &&
       loadedOrderId !== orderId &&
-      !justCleared
+      !justCleared &&
+      !isStartingNewSale
     ) {
       loadExistingOrder(orderId);
     }
-  }, [searchParams, isLoading, products, loadedOrderId, justCleared]);
+  }, [
+    orderIdParam,
+    isLoading,
+    products,
+    loadedOrderId,
+    justCleared,
+    isStartingNewSale,
+  ]);
+
+  // Always reset to new sale if no orderId in URL
+  useEffect(() => {
+    if (!orderIdParam) {
+      saveCurrentOrderId(null);
+      setSale({
+        items: [],
+        customer: null,
+        customerName: undefined,
+        subtotal: 0,
+        tax: 0,
+        total: 0,
+        discount: 0,
+        discountType: "percentage",
+        selectedPaymentMethod: null,
+        amountTendered: 0,
+        currentOrder: null,
+        tipAmount: 0,
+        tipPercentage: 0,
+      });
+      setLoadedOrderId(null);
+      setJustCleared(true);
+    }
+  }, [orderIdParam]);
 
   // Force re-render when table order changes
   useEffect(() => {
@@ -760,8 +796,10 @@ export default function SalesPage() {
             ) || null,
           amountTendered: 0,
           currentOrder: order,
-          tipAmount: orderData.tipAmount || 0,
-          tipPercentage: orderData.tipPercentage || 0,
+          // Reset tip if cart is empty
+          tipAmount: cartItems.length > 0 ? orderData.tipAmount || 0 : 0,
+          tipPercentage:
+            cartItems.length > 0 ? orderData.tipPercentage || 0 : 0,
         };
 
         console.log("Before calculateTotals:", {
@@ -1254,6 +1292,8 @@ export default function SalesPage() {
               total: 0,
               discount: 0,
               amountTendered: 0,
+              tipAmount: 0,
+              tipPercentage: 0,
             }));
             setLoadedOrderId(orderId);
             setJustCleared(true);
@@ -1279,6 +1319,8 @@ export default function SalesPage() {
               total: 0,
               discount: 0,
               amountTendered: 0,
+              tipAmount: 0,
+              tipPercentage: 0,
               currentOrder: clearedOrder,
             }));
             setLoadedOrderId(orderId);
@@ -1302,6 +1344,8 @@ export default function SalesPage() {
               total: 0,
               discount: 0,
               amountTendered: 0,
+              tipAmount: 0,
+              tipPercentage: 0,
             }));
             setLoadedOrderId(orderId);
             setJustCleared(true);
@@ -2284,6 +2328,9 @@ export default function SalesPage() {
 
   // In the SalesPage component, add this handler:
   const handleStartNewOrder = () => {
+    // Set flag to prevent loading existing orders
+    setIsStartingNewSale(true);
+
     setSale({
       items: [],
       customer: null,
@@ -2307,11 +2354,21 @@ export default function SalesPage() {
     // Clear the order ID from session storage
     saveCurrentOrderId(null);
 
+    // Clear any URL parameters that might cause order loading
+    const url = new URL(window.location.href);
+    url.searchParams.delete("orderId");
+    window.history.replaceState({}, "", url.toString());
+
     // Do NOT clear currentTableOrder - keep it for persistence
     toast({
       title: "Ready for new order",
       description: "You can now start a new sale for the same table.",
     });
+
+    // Reset the flag after a short delay to allow the state to settle
+    setTimeout(() => {
+      setIsStartingNewSale(false);
+    }, 1000);
   };
 
   if (!isAuthenticated) {

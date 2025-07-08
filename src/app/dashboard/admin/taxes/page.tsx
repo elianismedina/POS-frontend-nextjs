@@ -70,9 +70,14 @@ const TaxesPage = () => {
   };
 
   const handleCreateTestTax = async () => {
+    if (!businessId) {
+      setError("No business ID available");
+      return;
+    }
+
     setIsCreating(true);
     try {
-      const testTax = await taxesService.createTestTax();
+      const testTax = await taxesService.createTestTax(businessId);
       setSuccessMessage(`Test tax "${testTax.name}" was created successfully`);
       fetchTaxes();
 

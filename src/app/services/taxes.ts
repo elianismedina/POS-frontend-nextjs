@@ -56,12 +56,12 @@ export const taxesService = {
   },
 
   // Create a test tax
-  async createTestTax(): Promise<Tax> {
+  async createTestTax(businessId: string): Promise<Tax> {
     const testTax = {
       name: "Test Tax",
       description: "A test tax for development purposes",
       rate: 0.1, // 10%
-      businessId: "", // This will be set by the backend
+      businessId: businessId,
     };
     const response = await api.post("/taxes", testTax);
     return response.data;

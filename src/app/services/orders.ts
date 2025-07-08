@@ -45,6 +45,8 @@ export interface Order {
   items: OrderItem[];
   subtotal: number;
   taxTotal: number;
+  tipAmount: number;
+  tipPercentage: number;
   total: number;
   status: string;
   notes?: string;
@@ -72,6 +74,8 @@ export interface Order {
     total: number;
     totalAmount: number;
     taxAmount: number;
+    tipAmount: number;
+    tipPercentage: number;
     finalAmount: number;
     status: string;
     notes?: string;
@@ -189,6 +193,13 @@ class OrdersService {
 
   async cancelOrder(orderId: string): Promise<Order> {
     const response = await api.post(`/orders/${orderId}/cancel`);
+    return response.data;
+  }
+
+  async updateTip(orderId: string, tipPercentage: number): Promise<Order> {
+    const response = await api.patch(`/orders/${orderId}/tip`, {
+      tipPercentage,
+    });
     return response.data;
   }
 

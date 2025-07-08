@@ -45,6 +45,7 @@ import {
 import { Pagination } from "@/components/ui/pagination";
 import { BarcodeScanner } from "@/components/ui/barcode-scanner";
 import { ExistingTablesDisplay } from "@/components/cashier/ExistingTablesDisplay";
+
 import {
   Search,
   ShoppingCart,
@@ -91,6 +92,8 @@ interface SaleData {
   selectedPaymentMethod: BusinessPaymentMethod | null;
   amountTendered: number;
   currentOrder: Order | null;
+  tipAmount: number;
+  tipPercentage: number;
 }
 
 export default function SalesPage() {
@@ -202,6 +205,8 @@ export default function SalesPage() {
     selectedPaymentMethod: null,
     amountTendered: 0,
     currentOrder: null,
+    tipAmount: 0,
+    tipPercentage: 0,
   });
 
   // Add state for search
@@ -300,9 +305,12 @@ export default function SalesPage() {
     }
   }, [isAuthenticated, user, router, authLoading]);
 
-  // Load existing order if orderId is provided in URL
+  // Load existing order if orderId is provided in URL or session storage
   useEffect(() => {
-    const orderId = searchParams.get("orderId");
+    const urlOrderId = searchParams.get("orderId");
+    const savedOrderId = loadCurrentOrderId();
+    const orderId = urlOrderId || savedOrderId;
+
     if (
       orderId &&
       !isLoading &&
@@ -685,6 +693,20 @@ export default function SalesPage() {
     return (order as any)._props?.id || (order as any).id || null;
   };
 
+  // Save current order ID to session storage
+  const saveCurrentOrderId = (orderId: string | null) => {
+    if (orderId) {
+      sessionStorage.setItem("currentOrderId", orderId);
+    } else {
+      sessionStorage.removeItem("currentOrderId");
+    }
+  };
+
+  // Load current order ID from session storage
+  const loadCurrentOrderId = (): string | null => {
+    return sessionStorage.getItem("currentOrderId");
+  };
+
   const loadExistingOrder = async (orderId: string) => {
     try {
       const order = await ordersService.getOrder(orderId);
@@ -692,6 +714,9 @@ export default function SalesPage() {
       if (order) {
         // Set the loaded order ID to prevent infinite loops
         setLoadedOrderId(orderId);
+
+        // Save the order ID to session storage
+        saveCurrentOrderId(orderId);
 
         // Convert order items to cart items
         const orderData = (order as any)._props || order;
@@ -712,6 +737,14 @@ export default function SalesPage() {
           .filter((item: any): item is CartItem => item !== null);
 
         // Update sale state with the loaded order
+        console.log("Loading order data:", {
+          orderId: orderData.id,
+          tipAmount: orderData.tipAmount,
+          tipPercentage: orderData.tipPercentage,
+          totalAmount: orderData.totalAmount,
+          finalAmount: orderData.finalAmount,
+        });
+
         const updatedSale = {
           items: cartItems,
           customer: orderData.customer || null,
@@ -727,9 +760,22 @@ export default function SalesPage() {
             ) || null,
           amountTendered: 0,
           currentOrder: order,
+          tipAmount: orderData.tipAmount || 0,
+          tipPercentage: orderData.tipPercentage || 0,
         };
 
+        console.log("Before calculateTotals:", {
+          tipAmount: updatedSale.tipAmount,
+          tipPercentage: updatedSale.tipPercentage,
+        });
+
         const calculatedSale = calculateTotals(updatedSale);
+
+        console.log("After calculateTotals:", {
+          tipAmount: calculatedSale.tipAmount,
+          tipPercentage: calculatedSale.tipPercentage,
+        });
+
         setSale(calculatedSale);
 
         // Set table order if the order has one
@@ -788,6 +834,12 @@ export default function SalesPage() {
       };
 
       const newOrder = await ordersService.createOrder(orderData);
+
+      // Save the new order ID to session storage
+      const orderId = getOrderId(newOrder);
+      if (orderId) {
+        saveCurrentOrderId(orderId);
+      }
 
       setSale((prev) => ({ ...prev, currentOrder: newOrder }));
       return newOrder;
@@ -1042,6 +1094,8 @@ export default function SalesPage() {
       discount: saleData.discount || 0, // Preserve discount
       discountType: saleData.discountType || "percentage", // Preserve discount type
       amountTendered: saleData.amountTendered || 0, // Preserve amount tendered
+      tipAmount: saleData.tipAmount || 0, // Preserve tip amount
+      tipPercentage: saleData.tipPercentage || 0, // Preserve tip percentage
     };
 
     // If we have a current order with backend totals, use those for calculations
@@ -1050,10 +1104,21 @@ export default function SalesPage() {
       const order = saleData.currentOrder as any;
       const orderData = order._props || order;
 
+      console.log("calculateTotals with current order:", {
+        orderId: orderData.id,
+        inputTipAmount: saleData.tipAmount,
+        inputTipPercentage: saleData.tipPercentage,
+        orderTipAmount: orderData.tipAmount,
+        orderTipPercentage: orderData.tipPercentage,
+      });
+
       return {
         ...result,
         subtotal: orderData.totalAmount || orderData.subtotal || 0,
         tax: orderData.taxAmount || orderData.taxTotal || 0,
+        // Use tip values from order data, but preserve any existing tip values in sale data
+        tipAmount: orderData.tipAmount || saleData.tipAmount || 0,
+        tipPercentage: orderData.tipPercentage || saleData.tipPercentage || 0,
         total: orderData.finalAmount || orderData.total || 0,
       };
     }
@@ -1069,12 +1134,14 @@ export default function SalesPage() {
       saleData.discountType === "percentage"
         ? subtotal * (saleData.discount / 100)
         : saleData.discount;
-    const total = subtotal + tax - discount;
+    const tipAmount = saleData.tipAmount || 0;
+    const total = subtotal + tax - discount + tipAmount;
 
     return {
       ...result,
       subtotal,
       tax,
+      tipAmount,
       total,
     };
   };
@@ -1268,9 +1335,14 @@ export default function SalesPage() {
           ) || null,
         amountTendered: 0,
         currentOrder: null,
+        tipAmount: 0,
+        tipPercentage: 0,
       });
       setLoadedOrderId(null);
       setJustCleared(true);
+
+      // Clear the order ID from session storage
+      saveCurrentOrderId(null);
 
       // Don't clear table order when clearing sale - keep it for persistence
       // setCurrentTableOrder(null);
@@ -1929,6 +2001,9 @@ export default function SalesPage() {
       sessionStorage.removeItem("selectedTableOrder");
       sessionStorage.removeItem("selectedTableOrder");
 
+      // Clear the current order ID from session storage since table is being cleared
+      saveCurrentOrderId(null);
+
       // Verify sessionStorage is cleared
       const remainingTable = sessionStorage.getItem("selectedTableOrder");
       console.log("SessionStorage after clearing:", remainingTable);
@@ -2154,6 +2229,8 @@ export default function SalesPage() {
           ) || null,
         amountTendered: 0,
         currentOrder: null,
+        tipAmount: 0,
+        tipPercentage: 0,
       });
       setLoadedOrderId(null);
       setJustCleared(true);
@@ -2221,9 +2298,15 @@ export default function SalesPage() {
         null,
       amountTendered: 0,
       currentOrder: null,
+      tipAmount: 0,
+      tipPercentage: 0,
     });
     setLoadedOrderId(null);
     setJustCleared(true);
+
+    // Clear the order ID from session storage
+    saveCurrentOrderId(null);
+
     // Do NOT clear currentTableOrder - keep it for persistence
     toast({
       title: "Ready for new order",
@@ -2780,7 +2863,121 @@ export default function SalesPage() {
                     -{formatPrice(sale.discount || 0)}
                   </span>
                 </div>
+                {sale.tipAmount > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">
+                      Tip ({(sale.tipPercentage * 100).toFixed(0)}%):
+                    </span>
+                    <span className="font-medium text-green-600">
+                      {formatPrice(sale.tipAmount)}
+                    </span>
+                  </div>
+                )}
               </div>
+
+              {/* Tip Checkbox - Only show for table orders */}
+              {(() => {
+                const shouldShowTip = sale.currentOrder || currentTableOrder;
+                console.log("Tip checkbox render condition:", {
+                  hasCurrentOrder: !!sale.currentOrder,
+                  hasCurrentTableOrder: !!currentTableOrder,
+                  shouldShowTip,
+                });
+                return shouldShowTip;
+              })() &&
+                (console.log(
+                  "RENDERING TIP CHECKBOX - IT SHOULD BE VISIBLE NOW"
+                ),
+                (
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="tipCheckbox"
+                        checked={sale.tipPercentage === 0.1}
+                        onClick={() =>
+                          console.log("CHECKBOX CLICKED - BASIC CLICK TEST")
+                        }
+                        onChange={(e) => {
+                          console.log("Tip checkbox RENDERED and CLICKED:", {
+                            checked: e.target.checked,
+                            currentTipPercentage: sale.tipPercentage,
+                            currentTipAmount: sale.tipAmount,
+                            shouldBeChecked: sale.tipPercentage === 0.1,
+                          });
+                          console.log("Tip checkbox state:", {
+                            checked: e.target.checked,
+                            currentTipPercentage: sale.tipPercentage,
+                            currentTipAmount: sale.tipAmount,
+                            shouldBeChecked: sale.tipPercentage === 0.1,
+                          });
+                          const newTipPercentage = e.target.checked ? 0.1 : 0;
+                          const newTipAmount =
+                            (sale.subtotal || 0) * newTipPercentage;
+
+                          setSale((prev) => ({
+                            ...prev,
+                            tipPercentage: newTipPercentage,
+                            tipAmount: newTipAmount,
+                            total:
+                              (prev.subtotal || 0) +
+                              (prev.tax || 0) -
+                              (prev.discount || 0) +
+                              newTipAmount,
+                          }));
+
+                          // Update backend if we have a real order
+                          const orderId = getOrderId(sale.currentOrder);
+                          console.log("Checking if order has real ID:", {
+                            orderId,
+                            hasRealId: orderId && orderId !== "temp",
+                            saleCurrentOrder: sale.currentOrder,
+                            orderIdFromProps: (sale.currentOrder as any)?._props
+                              ?.id,
+                            orderIdDirect: (sale.currentOrder as any)?.id,
+                          });
+
+                          if (
+                            sale.currentOrder &&
+                            orderId &&
+                            orderId !== "temp"
+                          ) {
+                            console.log("Updating tip in backend:", {
+                              orderId: sale.currentOrder.id,
+                              newTipPercentage,
+                              newTipAmount,
+                            });
+
+                            ordersService
+                              .updateTip(orderId, newTipPercentage)
+                              .then((updatedOrder) => {
+                                console.log("Tip updated successfully:", {
+                                  orderId: updatedOrder.id,
+                                  tipAmount: updatedOrder.tipAmount,
+                                  tipPercentage: updatedOrder.tipPercentage,
+                                });
+                              })
+                              .catch((error) => {
+                                console.error("Error updating tip:", error);
+                              });
+                          }
+                        }}
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <label
+                        htmlFor="tipCheckbox"
+                        className="text-sm text-gray-700"
+                      >
+                        Add 10% tip
+                      </label>
+                    </div>
+                    {sale.tipPercentage === 0.1 && (
+                      <span className="text-sm text-green-600 font-medium">
+                        {formatPrice(sale.tipAmount)}
+                      </span>
+                    )}
+                  </div>
+                ))}
 
               <div className="border-t border-gray-300 pt-3 mt-3">
                 <div className="flex justify-between items-center">
@@ -2788,7 +2985,12 @@ export default function SalesPage() {
                     Total:
                   </span>
                   <span className="text-xl font-bold text-green-600">
-                    {formatPrice(sale.total || 0)}
+                    {formatPrice(
+                      (sale.subtotal || 0) +
+                        (sale.tax || 0) -
+                        (sale.discount || 0) +
+                        (sale.tipAmount || 0)
+                    )}
                   </span>
                 </div>
               </div>

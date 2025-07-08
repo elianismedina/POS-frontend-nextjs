@@ -19,7 +19,6 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [hasError, setHasError] = useState(false);
   const [loginAttemptInProgress, setLoginAttemptInProgress] = useState(false);
   const { login, isAuthenticated, isLoading: authLoading, user } = useAuth();
   const router = useRouter();
@@ -27,7 +26,7 @@ export default function Home() {
   // Handle redirects only for users already authenticated from previous session
   useEffect(() => {
     // Don't redirect if there's an error, if we're loading, or if a login attempt is in progress
-    if (hasError || error || isLoading || loginAttemptInProgress) {
+    if (error || isLoading || loginAttemptInProgress) {
       return;
     }
 
@@ -43,7 +42,6 @@ export default function Home() {
     authLoading,
     user,
     isLoading,
-    hasError,
     error,
     isSuccess,
     loginAttemptInProgress,
@@ -52,7 +50,7 @@ export default function Home() {
 
   // Add a separate effect to prevent any navigation when there's an error
   useEffect(() => {
-    if (hasError || error) {
+    if (error) {
       // Force the page to stay on the current URL
       if (typeof window !== "undefined") {
         const currentPath = window.location.pathname;
@@ -61,27 +59,24 @@ export default function Home() {
         }
       }
     }
-  }, [hasError, error]);
+  }, [error]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setError(null);
     setIsSuccess(false);
-    setHasError(false);
     setLoginAttemptInProgress(true);
 
     // Basic validation
     if (!email.trim()) {
       setError("Por favor ingresa tu correo electrónico.");
-      setHasError(true);
       setLoginAttemptInProgress(false);
       return;
     }
 
     if (!password.trim()) {
       setError("Por favor ingresa tu contraseña.");
-      setHasError(true);
       setLoginAttemptInProgress(false);
       return;
     }
@@ -125,7 +120,6 @@ export default function Home() {
       }
 
       setError(errorMessage);
-      setHasError(true);
     } finally {
       setIsLoading(false);
       setLoginAttemptInProgress(false);
@@ -135,11 +129,13 @@ export default function Home() {
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
     setLoginAttemptInProgress(false);
+    setError(null);
   };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPassword(e.target.value);
     setLoginAttemptInProgress(false);
+    setError(null);
   };
 
   if (authLoading) {
@@ -234,18 +230,7 @@ export default function Home() {
                   Remember me
                 </Label>
               </div>
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isLoading || hasError}
-                onClick={(e) => {
-                  if (hasError) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    return false;
-                  }
-                }}
-              >
+              <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

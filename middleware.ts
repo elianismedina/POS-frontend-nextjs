@@ -1,17 +1,13 @@
 import { NextResponse, NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
-  const token = request.cookies.get("accessToken");
-  console.log(
-    "Middleware - Checking token for",
-    request.nextUrl.pathname,
-    "Token:",
-    token
-  );
-  if (!token && request.nextUrl.pathname.startsWith("/dashboard")) {
-    console.log("Middleware - No token, redirecting to /");
-    return NextResponse.redirect(new URL("/", request.url));
+  // Only apply middleware to dashboard routes
+  if (request.nextUrl.pathname.startsWith("/dashboard")) {
+    // Let the client-side handle authentication checks
+    // The AuthContext will handle redirects if needed
+    return NextResponse.next();
   }
+
   return NextResponse.next();
 }
 

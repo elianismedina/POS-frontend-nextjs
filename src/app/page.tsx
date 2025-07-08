@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,10 +19,18 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [loginAttemptInProgress, setLoginAttemptInProgress] = useState(false);
   const { login, isAuthenticated, isLoading: authLoading, user } = useAuth();
   const router = useRouter();
 
+  // Handle redirects only for users already authenticated from previous session
   useEffect(() => {
+    // Don't redirect if there's an error, if we're loading, or if a login attempt is in progress
+    if (hasError || error || isLoading || loginAttemptInProgress) {
+      return;
+    }
+
     if (isAuthenticated && !authLoading && user) {
       if (user.role.name === "admin") {
         router.replace("/dashboard/admin");
@@ -31,20 +38,51 @@ export default function Home() {
         router.replace("/dashboard/cashier");
       }
     }
-  }, [isAuthenticated, authLoading, router, user]);
+  }, [
+    isAuthenticated,
+    authLoading,
+    user,
+    isLoading,
+    hasError,
+    error,
+    isSuccess,
+    loginAttemptInProgress,
+    router,
+  ]);
+
+  // Add a separate effect to prevent any navigation when there's an error
+  useEffect(() => {
+    if (hasError || error) {
+      // Force the page to stay on the current URL
+      if (typeof window !== "undefined") {
+        const currentPath = window.location.pathname;
+        if (currentPath !== "/") {
+          // Prevent navigation away from login page
+        }
+      }
+    }
+  }, [hasError, error]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setError(null);
+    setIsSuccess(false);
+    setHasError(false);
+    setLoginAttemptInProgress(true);
 
     // Basic validation
     if (!email.trim()) {
       setError("Por favor ingresa tu correo electrónico.");
+      setHasError(true);
+      setLoginAttemptInProgress(false);
       return;
     }
 
     if (!password.trim()) {
       setError("Por favor ingresa tu contraseña.");
+      setHasError(true);
+      setLoginAttemptInProgress(false);
       return;
     }
 
@@ -55,27 +93,53 @@ export default function Home() {
         email: email.trim(),
         password,
       });
-      console.log("Sign-in successful:", response.data);
-      await login(response.data.accessToken, response.data.refreshToken);
-      setIsSuccess(true);
-    } catch (err: any) {
-      console.error("Sign-in error:", err);
 
+      // Only call login if the API call was successful
+      await login(response.data.accessToken, response.data.refreshToken);
+
+      setIsSuccess(true);
+
+      // Add a small delay before redirect to show success message
+      setTimeout(() => {
+        setLoginAttemptInProgress(false);
+        if (response.data.role === "admin") {
+          router.replace("/dashboard/admin");
+        } else if (response.data.role === "cashier") {
+          router.replace("/dashboard/cashier");
+        }
+      }, 1500);
+    } catch (err: any) {
       // Handle specific error messages from the backend
+      let errorMessage = "Error inesperado. Inténtalo de nuevo.";
+
       if (err.response?.data?.message) {
-        setError(err.response.data.message);
+        errorMessage = err.response.data.message;
       } else if (err.response?.status === 401) {
-        setError("Credenciales inválidas. Verifica tu correo y contraseña.");
+        errorMessage =
+          "Credenciales inválidas. Verifica tu correo y contraseña.";
       } else if (err.response?.status === 500) {
-        setError("Error interno del servidor. Inténtalo de nuevo más tarde.");
+        errorMessage =
+          "Error interno del servidor. Inténtalo de nuevo más tarde.";
       } else if (err.code === "NETWORK_ERROR" || err.code === "ERR_NETWORK") {
-        setError("Error de conexión. Verifica tu conexión a internet.");
-      } else {
-        setError("Error inesperado. Inténtalo de nuevo.");
+        errorMessage = "Error de conexión. Verifica tu conexión a internet.";
       }
+
+      setError(errorMessage);
+      setHasError(true);
     } finally {
       setIsLoading(false);
+      setLoginAttemptInProgress(false);
     }
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+    setLoginAttemptInProgress(false);
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+    setLoginAttemptInProgress(false);
   };
 
   if (authLoading) {
@@ -140,7 +204,7 @@ export default function Home() {
                   type="email"
                   placeholder="Enter your email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={handleEmailChange}
                   required
                   autoComplete="email"
                 />
@@ -152,7 +216,7 @@ export default function Home() {
                   type="password"
                   placeholder="Enter your password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={handlePasswordChange}
                   required
                   autoComplete="current-password"
                 />
@@ -170,7 +234,18 @@ export default function Home() {
                   Remember me
                 </Label>
               </div>
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading || hasError}
+                onClick={(e) => {
+                  if (hasError) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                  }
+                }}
+              >
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

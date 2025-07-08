@@ -37,12 +37,15 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
+    // Don't automatically navigate on 401 errors
+    // Let the individual components handle authentication errors
     if (error.response?.status === 401) {
-      // Only run on client side
+      // Only clear tokens, don't navigate
       if (typeof window !== "undefined") {
         localStorage.removeItem("token");
         localStorage.removeItem("refreshToken");
-        window.location.href = "/";
+        // Remove the automatic navigation
+        // window.location.href = "/";
       }
     }
     return Promise.reject(error);

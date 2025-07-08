@@ -52,16 +52,27 @@ export default function PhysicalTableLayout({
     }
   });
 
+  // Get occupied physical table IDs
+  const occupiedTableIds = new Set(
+    tableOrders
+      .filter((order) => order.physicalTableId)
+      .map((order) => order.physicalTableId!)
+  );
+
   // Combine all physical tables (available + occupied)
   const allPhysicalTables: TableWithStatus[] = [
-    ...availablePhysicalTables.map((table) => ({
-      id: table.id,
-      tableNumber: table.tableNumber,
-      tableName: table.tableName || "Mesa",
-      capacity: table.capacity || 0,
-      location: table.location || "",
-      status: "available" as const,
-    })),
+    // Only include available physical tables that are not occupied
+    ...availablePhysicalTables
+      .filter((table) => !occupiedTableIds.has(table.id))
+      .map((table) => ({
+        id: table.id,
+        tableNumber: table.tableNumber,
+        tableName: table.tableName || "Mesa",
+        capacity: table.capacity || 0,
+        location: table.location || "",
+        status: "available" as const,
+      })),
+    // Include all occupied tables
     ...tableOrders
       .filter((order) => order.physicalTableId)
       .map((order) => ({

@@ -60,4 +60,9 @@ export const shiftsService = {
     );
     return response.data;
   },
+
+  async getActiveShifts(): Promise<Shift[]> {
+    const response = await api.get("/register-shifts/active");
+    return response.data;
+  },
 };

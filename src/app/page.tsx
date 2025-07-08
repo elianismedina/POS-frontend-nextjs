@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
 import { api } from "@/lib/api";
 
 export default function Home() {
@@ -19,6 +19,7 @@ export default function Home() {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
   const { login, isAuthenticated, isLoading: authLoading, user } = useAuth();
   const router = useRouter();
 
@@ -35,22 +36,43 @@ export default function Home() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    // Basic validation
+    if (!email.trim()) {
+      setError("Por favor ingresa tu correo electrónico.");
+      return;
+    }
+
+    if (!password.trim()) {
+      setError("Por favor ingresa tu contraseña.");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       const response = await api.post("/auth/signin", {
-        email,
+        email: email.trim(),
         password,
       });
       console.log("Sign-in successful:", response.data);
       await login(response.data.accessToken, response.data.refreshToken);
-    } catch (err) {
+      setIsSuccess(true);
+    } catch (err: any) {
       console.error("Sign-in error:", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Invalid email or password. Please try again."
-      );
+
+      // Handle specific error messages from the backend
+      if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else if (err.response?.status === 401) {
+        setError("Credenciales inválidas. Verifica tu correo y contraseña.");
+      } else if (err.response?.status === 500) {
+        setError("Error interno del servidor. Inténtalo de nuevo más tarde.");
+      } else if (err.code === "NETWORK_ERROR" || err.code === "ERR_NETWORK") {
+        setError("Error de conexión. Verifica tu conexión a internet.");
+      } else {
+        setError("Error inesperado. Inténtalo de nuevo.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -99,7 +121,16 @@ export default function Home() {
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
                 <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4 mr-2" />
                   <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+              {isSuccess && (
+                <Alert className="border-green-500 bg-green-50 text-green-700">
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  <AlertDescription>
+                    ¡Inicio de sesión exitoso! Redirigiendo...
+                  </AlertDescription>
                 </Alert>
               )}
               <div className="space-y-2">

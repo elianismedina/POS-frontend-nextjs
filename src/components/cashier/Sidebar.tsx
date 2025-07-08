@@ -22,6 +22,7 @@ import {
   ListOrdered,
   Clock,
   Table,
+  Calculator,
 } from "lucide-react";
 
 interface SidebarItemProps {
@@ -102,6 +103,12 @@ export function CashierSidebar() {
               label="Mis Turnos"
               href="/dashboard/cashier/shifts"
               isActive={pathname === "/dashboard/cashier/shifts"}
+            />
+            <SidebarItem
+              icon={<Calculator className="h-4 w-4" />}
+              label="Cuadre de Caja"
+              href="/dashboard/cashier/cash-report"
+              isActive={pathname === "/dashboard/cashier/cash-report"}
             />
             <SidebarItem
               icon={<User className="h-4 w-4" />}

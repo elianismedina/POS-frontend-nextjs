@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { shiftsService, Shift } from "@/app/services/shifts";
 import { useEffect, useState } from "react";
+import { formatPrice } from "@/lib/utils";
 import {
   Clock,
   DollarSign,
@@ -81,7 +82,11 @@ export default function MyShiftsPage() {
     const diffMs = end.getTime() - start.getTime();
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    return `${diffHours}h ${diffMinutes}m`;
+
+    if (diffHours > 0) {
+      return `${diffHours}h ${diffMinutes}m`;
+    }
+    return `${diffMinutes}m`;
   };
 
   const getStatusBadge = (status: string) => {
@@ -144,7 +149,7 @@ export default function MyShiftsPage() {
                 <Clock className="h-4 w-4 text-green-600" />
                 <div>
                   <p className="text-sm font-medium">Duration</p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-lg font-bold text-green-700">
                     {formatDuration(activeShift.startTime)}
                   </p>
                 </div>
@@ -153,8 +158,8 @@ export default function MyShiftsPage() {
                 <DollarSign className="h-4 w-4 text-green-600" />
                 <div>
                   <p className="text-sm font-medium">Initial Amount</p>
-                  <p className="text-sm text-gray-600">
-                    ${activeShift.initialAmount.toFixed(2)}
+                  <p className="text-lg font-bold text-green-700">
+                    {formatPrice(activeShift.initialAmount)}
                   </p>
                 </div>
               </div>
@@ -220,7 +225,7 @@ export default function MyShiftsPage() {
                     <p className="text-xs font-medium text-gray-500">
                       Duration
                     </p>
-                    <p className="text-sm">
+                    <p className="text-base font-semibold text-blue-600">
                       {shift.endTime
                         ? formatDuration(shift.startTime, shift.endTime)
                         : formatDuration(shift.startTime)}
@@ -232,8 +237,8 @@ export default function MyShiftsPage() {
                     <p className="text-xs font-medium text-gray-500">
                       Initial Amount
                     </p>
-                    <p className="text-sm font-medium">
-                      ${shift.initialAmount.toFixed(2)}
+                    <p className="text-base font-bold text-gray-900">
+                      {formatPrice(shift.initialAmount)}
                     </p>
                   </div>
 
@@ -242,8 +247,8 @@ export default function MyShiftsPage() {
                     <p className="text-xs font-medium text-gray-500">
                       {shift.endTime ? "Final Amount" : "Current Sales"}
                     </p>
-                    <p className="text-sm font-medium text-green-600">
-                      ${(shift.finalAmount || shift.totalSales || 0).toFixed(2)}
+                    <p className="text-base font-bold text-green-600">
+                      {formatPrice(shift.finalAmount || shift.totalSales || 0)}
                     </p>
                   </div>
                 </div>
@@ -265,7 +270,9 @@ export default function MyShiftsPage() {
 
                     <div className="flex items-center gap-1">
                       <ShoppingCart className="h-3 w-3" />
-                      <span>{shift.totalOrders || 0} orders</span>
+                      <span className="font-semibold text-blue-600">
+                        {shift.totalOrders || 0} orders
+                      </span>
                     </div>
                   </div>
 

@@ -7,6 +7,11 @@ export interface DashboardStats {
   todayOrders: number;
 }
 
+export interface HistoricalSalesData {
+  name: string;
+  sales: number;
+}
+
 class DashboardService {
   async getDashboardStats(
     businessId: string,
@@ -19,6 +24,25 @@ class DashboardService {
 
     const response = await api.get(
       `/orders/stats/dashboard?${params.toString()}`
+    );
+    return response.data;
+  }
+
+  async getHistoricalSales(
+    businessId: string,
+    period: "week" | "month" | "year",
+    cashierId?: string
+  ): Promise<HistoricalSalesData[]> {
+    const params = new URLSearchParams({
+      businessId,
+      period,
+    });
+    if (cashierId) {
+      params.append("cashierId", cashierId);
+    }
+
+    const response = await api.get(
+      `/orders/stats/historical-sales?${params.toString()}`
     );
     return response.data;
   }

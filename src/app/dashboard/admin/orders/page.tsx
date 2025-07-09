@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { ordersService, Order } from "@/app/services/orders";
 import { branchesService, Branch } from "@/app/services/branches";
 import { usersService, User } from "@/app/services/users";
+import { formatPrice } from "@/lib/utils";
 import {
   Search,
   Eye,
@@ -152,6 +153,8 @@ export default function AdminOrdersPage() {
 
   const fetchCashiers = async () => {
     try {
+      console.log("Fetching cashiers...");
+      // Use the new cashiers endpoint
       const cashiersData = await usersService.getCashiers();
       console.log("Cashiers data:", cashiersData);
       setCashiers(cashiersData);
@@ -288,7 +291,7 @@ export default function AdminOrdersPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                ${totalValue.toFixed(2)}
+                {formatPrice(totalValue)}
               </div>
               <p className="text-xs text-gray-500">Combined order value</p>
             </CardContent>
@@ -461,14 +464,14 @@ export default function AdminOrdersPage() {
           </div>
           {filteredOrders.length > 0 && (
             <div className="text-sm text-gray-600">
-              Total value: $
-              {filteredOrders
-                .reduce(
+              Total value:{" "}
+              {formatPrice(
+                filteredOrders.reduce(
                   (sum, order) =>
                     sum + (order.total || order._props?.total || 0),
                   0
                 )
-                .toFixed(2)}
+              )}
             </div>
           )}
         </div>
@@ -646,12 +649,7 @@ export default function AdminOrdersPage() {
                     <div className="flex items-center gap-4 flex-1 justify-end">
                       <div className="text-right">
                         <p className="text-lg font-bold text-green-600">
-                          $
-                          {order.total || order._props?.total
-                            ? (order.total || order._props?.total || 0).toFixed(
-                                2
-                              )
-                            : "0.00"}
+                          {formatPrice(order.total || order._props?.total)}
                         </p>
                         <p className="text-xs text-gray-500">
                           {order.createdAt || order._props?.createdAt ? (

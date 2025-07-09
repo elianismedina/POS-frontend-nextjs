@@ -29,6 +29,7 @@ import {
   BarChart,
   Table,
   UserCheck,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -174,6 +175,12 @@ export function AdminSidebar() {
               label="Impuestos"
               href="/dashboard/admin/taxes"
               isActive={pathname.includes("/taxes")}
+            />
+            <SidebarItem
+              icon={<CreditCard className="h-4 w-4" />}
+              label="Métodos de Pago"
+              href="/dashboard/admin/payment-methods"
+              isActive={pathname.includes("/payment-methods")}
             />
             <SidebarItem
               icon={<ShoppingCart className="h-4 w-4" />}

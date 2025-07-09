@@ -117,54 +117,24 @@ export const usersService = {
   async getCashiers(): Promise<User[]> {
     console.log("=== STARTING getCashiers ===");
 
-    // Get all cashiers using the new cashiers endpoint
-    let allCashiers: User[] = [];
-    let currentPage = 1;
-    let hasMore = true;
+    try {
+      console.log("Fetching cashiers from /cashiers endpoint...");
+      const response = await api.get("/cashiers");
+      console.log("Cashiers API Response:", response.data);
 
-    while (hasMore) {
-      try {
-        console.log(`Fetching cashiers page ${currentPage}...`);
-        const cashiers = await this.getAllCashiers(currentPage, 100);
-        console.log(
-          `Received ${cashiers.length} cashiers from page ${currentPage}`
-        );
-
-        if (cashiers.length === 0) {
-          console.log(
-            `No cashiers in page ${currentPage}, stopping pagination`
-          );
-          hasMore = false;
-        } else {
-          allCashiers = [...allCashiers, ...cashiers];
-          console.log(`Total cashiers collected so far: ${allCashiers.length}`);
-
-          // If we got less than the limit, we've reached the end
-          if (cashiers.length < 100) {
-            console.log(
-              `Received less than 100 cashiers (${cashiers.length}), stopping pagination`
-            );
-            hasMore = false;
-          } else {
-            currentPage++;
-          }
-        }
-      } catch (error) {
-        console.error(`Error fetching cashiers page ${currentPage}:`, error);
-        hasMore = false;
+      // Check if response is an array
+      if (Array.isArray(response.data)) {
+        console.log(`Found ${response.data.length} cashiers`);
+        return response.data;
       }
-    }
 
-    console.log(`Total cashiers fetched: ${allCashiers.length}`);
-    console.log(`All cashiers:`, allCashiers);
-
-    // If we couldn't fetch any cashiers, return empty array instead of throwing
-    if (allCashiers.length === 0) {
-      console.warn("No cashiers could be fetched from the API");
+      // If response is not an array, return empty array
+      console.warn("Unexpected response format:", response.data);
+      return [];
+    } catch (error) {
+      console.error("Error fetching cashiers:", error);
       return [];
     }
-
-    return allCashiers;
   },
 
   async getCashiersByBranch(branchId?: string): Promise<CashierWithBranch[]> {

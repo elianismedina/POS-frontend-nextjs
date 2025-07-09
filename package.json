@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "deps:check": "npm outdated",
+    "deps:update": "npm update",
+    "deps:audit": "npm audit",
+    "deps:fix": "npm audit fix",
+    "deps:security": "npm audit --audit-level=moderate"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",

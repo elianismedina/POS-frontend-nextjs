@@ -79,6 +79,52 @@ const calculatePagination = (
   };
 };
 
+// Date range calculations
+const getDateRange = (filterType: string) => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  const startOfWeek = new Date(today);
+  startOfWeek.setDate(today.getDate() - today.getDay());
+
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfYear = new Date(now.getFullYear(), 0, 1);
+
+  switch (filterType) {
+    case "TODAY":
+      return {
+        start: today,
+        end: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1),
+      };
+    case "YESTERDAY":
+      return {
+        start: yesterday,
+        end: new Date(yesterday.getTime() + 24 * 60 * 60 * 1000 - 1),
+      };
+    case "THIS_WEEK":
+      return {
+        start: startOfWeek,
+        end: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1),
+      };
+    case "THIS_MONTH":
+      return {
+        start: startOfMonth,
+        end: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1),
+      };
+    case "THIS_YEAR":
+      return {
+        start: startOfYear,
+        end: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1),
+      };
+    case "CUSTOM":
+      return null; // Will be handled separately
+    default:
+      return null;
+  }
+};
+
 export default function AdminOrdersPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
@@ -89,6 +135,9 @@ export default function AdminOrdersPage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [branchFilter, setBranchFilter] = useState("ALL");
   const [cashierFilter, setCashierFilter] = useState("ALL");
+  const [dateFilter, setDateFilter] = useState("ALL");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   // Data for filters
@@ -100,18 +149,18 @@ export default function AdminOrdersPage() {
   const [ordersPerPage, setOrdersPerPage] = useState(15);
 
   // Calculate statistics
-  const totalOrders = orders.length;
-  const totalValue = orders.reduce(
-    (sum, order) => sum + (order.total || order._props?.total || 0),
+  const totalOrders = filteredOrders.length;
+  const totalValue = filteredOrders.reduce(
+    (sum, order) => sum + (order._props?.finalAmount || order.total || 0),
     0
   );
-  const pendingOrders = orders.filter(
+  const pendingOrders = filteredOrders.filter(
     (order) => (order.status || order._props?.status) === "PENDING"
   ).length;
-  const completedOrders = orders.filter(
+  const completedOrders = filteredOrders.filter(
     (order) => (order.status || order._props?.status) === "COMPLETED"
   ).length;
-  const cancelledOrders = orders.filter(
+  const cancelledOrders = filteredOrders.filter(
     (order) => (order.status || order._props?.status) === "CANCELLED"
   ).length;
 
@@ -154,8 +203,14 @@ export default function AdminOrdersPage() {
   const fetchCashiers = async () => {
     try {
       console.log("Fetching cashiers...");
-      // Use the new cashiers endpoint
-      const cashiersData = await usersService.getCashiers();
+      // Get business ID from user context
+      const businessId = user?.business?.[0]?.id;
+
+      console.log("User data from AuthContext:", user);
+      console.log("Business ID for cashiers filter:", businessId);
+
+      // Use the new cashiers endpoint with business filter
+      const cashiersData = await usersService.getCashiers(businessId);
       console.log("Cashiers data:", cashiersData);
       setCashiers(cashiersData);
     } catch (error) {
@@ -180,6 +235,7 @@ export default function AdminOrdersPage() {
     console.log("Status filter:", statusFilter);
     console.log("Branch filter:", branchFilter);
     console.log("Cashier filter:", cashierFilter);
+    console.log("Date filter:", dateFilter);
 
     // Filter by search term
     if (searchTerm) {
@@ -231,10 +287,45 @@ export default function AdminOrdersPage() {
       console.log("After cashier filter:", filtered.length);
     }
 
+    // Filter by date
+    if (dateFilter !== "ALL") {
+      const dateRange = getDateRange(dateFilter);
+
+      if (dateRange) {
+        filtered = filtered.filter((order) => {
+          const orderDate = new Date(
+            order.createdAt || order._props?.createdAt || new Date()
+          );
+          return orderDate >= dateRange.start && orderDate <= dateRange.end;
+        });
+      } else if (dateFilter === "CUSTOM" && customStartDate && customEndDate) {
+        const startDate = new Date(customStartDate);
+        const endDate = new Date(customEndDate);
+        endDate.setHours(23, 59, 59, 999); // End of day
+
+        filtered = filtered.filter((order) => {
+          const orderDate = new Date(
+            order.createdAt || order._props?.createdAt || new Date()
+          );
+          return orderDate >= startDate && orderDate <= endDate;
+        });
+      }
+      console.log("After date filter:", filtered.length);
+    }
+
     console.log("Final filtered orders:", filtered.length);
     setFilteredOrders(filtered);
     setCurrentPage(1); // Reset to first page when filters change
-  }, [orders, searchTerm, statusFilter, branchFilter, cashierFilter]);
+  }, [
+    orders,
+    searchTerm,
+    statusFilter,
+    branchFilter,
+    cashierFilter,
+    dateFilter,
+    customStartDate,
+    customEndDate,
+  ]);
 
   // Calculate pagination
   const { totalPages, startIndex, endIndex, currentOrders } =
@@ -272,28 +363,56 @@ export default function AdminOrdersPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
-                Total Orders
+                {searchTerm ||
+                statusFilter !== "ALL" ||
+                branchFilter !== "ALL" ||
+                cashierFilter !== "ALL" ||
+                dateFilter !== "ALL"
+                  ? "Filtered Orders"
+                  : "Total Orders"}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-gray-700">
                 {totalOrders}
               </div>
-              <p className="text-xs text-gray-500">All orders in system</p>
+              <p className="text-xs text-gray-500">
+                {searchTerm ||
+                statusFilter !== "ALL" ||
+                branchFilter !== "ALL" ||
+                cashierFilter !== "ALL" ||
+                dateFilter !== "ALL"
+                  ? "Orders matching filters"
+                  : "All orders in system"}
+              </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
-                Total Value
+                {searchTerm ||
+                statusFilter !== "ALL" ||
+                branchFilter !== "ALL" ||
+                cashierFilter !== "ALL" ||
+                dateFilter !== "ALL"
+                  ? "Filtered Value"
+                  : "Total Value"}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
                 {formatPrice(totalValue)}
               </div>
-              <p className="text-xs text-gray-500">Combined order value</p>
+              <p className="text-xs text-gray-500">
+                {searchTerm ||
+                statusFilter !== "ALL" ||
+                branchFilter !== "ALL" ||
+                cashierFilter !== "ALL" ||
+                dateFilter !== "ALL"
+                  ? "Value of filtered orders"
+                  : "Combined order value"}
+              </p>
             </CardContent>
           </Card>
 
@@ -307,7 +426,15 @@ export default function AdminOrdersPage() {
               <div className="text-2xl font-bold text-yellow-600">
                 {pendingOrders}
               </div>
-              <p className="text-xs text-gray-500">Awaiting processing</p>
+              <p className="text-xs text-gray-500">
+                {searchTerm ||
+                statusFilter !== "ALL" ||
+                branchFilter !== "ALL" ||
+                cashierFilter !== "ALL" ||
+                dateFilter !== "ALL"
+                  ? "Pending in filtered results"
+                  : "Awaiting processing"}
+              </p>
             </CardContent>
           </Card>
 
@@ -321,7 +448,15 @@ export default function AdminOrdersPage() {
               <div className="text-2xl font-bold text-green-600">
                 {completedOrders}
               </div>
-              <p className="text-xs text-gray-500">Successfully completed</p>
+              <p className="text-xs text-gray-500">
+                {searchTerm ||
+                statusFilter !== "ALL" ||
+                branchFilter !== "ALL" ||
+                cashierFilter !== "ALL" ||
+                dateFilter !== "ALL"
+                  ? "Completed in filtered results"
+                  : "Successfully completed"}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -404,7 +539,48 @@ export default function AdminOrdersPage() {
               ))}
             </select>
           </div>
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-gray-500" />
+            <label className="text-sm font-medium text-gray-700">Date:</label>
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            >
+              <option value="ALL">All Dates</option>
+              <option value="TODAY">Today</option>
+              <option value="YESTERDAY">Yesterday</option>
+              <option value="THIS_WEEK">This Week</option>
+              <option value="THIS_MONTH">This Month</option>
+              <option value="THIS_YEAR">This Year</option>
+              <option value="CUSTOM">Custom Range</option>
+            </select>
+          </div>
         </div>
+
+        {/* Custom Date Range */}
+        {dateFilter === "CUSTOM" && (
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">From:</label>
+              <input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">To:</label>
+              <input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Pagination Controls */}
@@ -444,7 +620,8 @@ export default function AdminOrdersPage() {
                 {searchTerm ||
                 statusFilter !== "ALL" ||
                 branchFilter !== "ALL" ||
-                cashierFilter !== "ALL"
+                cashierFilter !== "ALL" ||
+                dateFilter !== "ALL"
                   ? " with current filters"
                   : " in the system"}
               </span>
@@ -456,7 +633,8 @@ export default function AdminOrdersPage() {
                 {searchTerm ||
                 statusFilter !== "ALL" ||
                 branchFilter !== "ALL" ||
-                cashierFilter !== "ALL"
+                cashierFilter !== "ALL" ||
+                dateFilter !== "ALL"
                   ? " (filtered)"
                   : ""}
               </>
@@ -481,7 +659,8 @@ export default function AdminOrdersPage() {
       {(searchTerm ||
         statusFilter !== "ALL" ||
         branchFilter !== "ALL" ||
-        cashierFilter !== "ALL") && (
+        cashierFilter !== "ALL" ||
+        dateFilter !== "ALL") && (
         <div className="mb-4 flex flex-wrap gap-2">
           {searchTerm && (
             <Badge variant="secondary" className="text-xs">
@@ -507,6 +686,14 @@ export default function AdminOrdersPage() {
                 cashierFilter}
             </Badge>
           )}
+          {dateFilter !== "ALL" && (
+            <Badge variant="secondary" className="text-xs">
+              Date:{" "}
+              {dateFilter === "CUSTOM"
+                ? `Custom (${customStartDate} to ${customEndDate})`
+                : dateFilter.replace("_", " ")}
+            </Badge>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -515,6 +702,9 @@ export default function AdminOrdersPage() {
               setStatusFilter("ALL");
               setBranchFilter("ALL");
               setCashierFilter("ALL");
+              setDateFilter("ALL");
+              setCustomStartDate("");
+              setCustomEndDate("");
             }}
             className="text-xs text-red-600 hover:text-red-700"
           >
@@ -537,7 +727,8 @@ export default function AdminOrdersPage() {
                 {searchTerm ||
                 statusFilter !== "ALL" ||
                 branchFilter !== "ALL" ||
-                cashierFilter !== "ALL"
+                cashierFilter !== "ALL" ||
+                dateFilter !== "ALL"
                   ? "No orders match your filters"
                   : "No orders found"}
               </h3>
@@ -545,14 +736,16 @@ export default function AdminOrdersPage() {
                 {searchTerm ||
                 statusFilter !== "ALL" ||
                 branchFilter !== "ALL" ||
-                cashierFilter !== "ALL"
+                cashierFilter !== "ALL" ||
+                dateFilter !== "ALL"
                   ? "Try adjusting your search criteria or filters to see more results."
                   : "Orders will appear here once they are created by cashiers."}
               </p>
               {(searchTerm ||
                 statusFilter !== "ALL" ||
                 branchFilter !== "ALL" ||
-                cashierFilter !== "ALL") && (
+                cashierFilter !== "ALL" ||
+                dateFilter !== "ALL") && (
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -560,6 +753,9 @@ export default function AdminOrdersPage() {
                     setStatusFilter("ALL");
                     setBranchFilter("ALL");
                     setCashierFilter("ALL");
+                    setDateFilter("ALL");
+                    setCustomStartDate("");
+                    setCustomEndDate("");
                   }}
                   className="text-sm"
                 >

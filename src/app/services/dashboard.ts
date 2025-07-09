@@ -41,9 +41,29 @@ class DashboardService {
       params.append("cashierId", cashierId);
     }
 
+    console.log("Calling historical sales API with params:", params.toString());
     const response = await api.get(
       `/orders/stats/historical-sales?${params.toString()}`
     );
+    console.log("Historical sales API response:", response.data);
+    return response.data;
+  }
+
+  async testOrders(businessId: string) {
+    console.log("Testing orders API for business:", businessId);
+    const response = await api.get(
+      `/orders/stats/test-orders?businessId=${businessId}`
+    );
+    console.log("Test orders API response:", response.data);
+    return response.data;
+  }
+
+  async testDateCalculations(businessId: string) {
+    console.log("Testing date calculations for business:", businessId);
+    const response = await api.get(
+      `/orders/stats/test-date-calculations?businessId=${businessId}`
+    );
+    console.log("Date calculations test response:", response.data);
     return response.data;
   }
 }

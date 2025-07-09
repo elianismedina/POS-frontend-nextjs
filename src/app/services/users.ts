@@ -114,12 +114,13 @@ export const usersService = {
     }
   },
 
-  async getCashiers(): Promise<User[]> {
+  async getCashiers(businessId?: string): Promise<User[]> {
     console.log("=== STARTING getCashiers ===");
 
     try {
       console.log("Fetching cashiers from /cashiers endpoint...");
-      const response = await api.get("/cashiers");
+      const params = businessId ? { businessId } : {};
+      const response = await api.get("/cashiers", { params });
       console.log("Cashiers API Response:", response.data);
 
       // Check if response is an array

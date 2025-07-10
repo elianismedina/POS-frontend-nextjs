@@ -56,18 +56,11 @@ export interface UpdateCategoryResponse {
 export const categoriesService = {
   async listCategories(): Promise<Category[]> {
     const response = await api.get("/categories");
-    console.log("Raw categories response:", response.data);
-    console.log("Number of categories returned:", response.data.length);
-    console.log(
-      "Categories with isActive false:",
-      response.data.filter((cat: any) => !cat.isActive).length
-    );
     return response.data;
   },
 
   async debugCategories(): Promise<any> {
     const response = await api.get("/categories/debug");
-    console.log("Debug response:", response.data);
     return response.data;
   },
 
@@ -105,7 +98,6 @@ export const categoriesService = {
       isActive: data.isActive ?? true,
     };
 
-    console.log("Sending payload:", payload);
     const response = await api.post("/categories", payload, {
       headers: {
         "Content-Type": "application/json",

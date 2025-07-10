@@ -128,6 +128,13 @@ export default function SalesPage() {
   // Order completion state
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [completedOrderDetails, setCompletedOrderDetails] = useState<{
+    orderId: string;
+    total: number;
+    paymentMethod: string;
+    customerName?: string;
+  } | null>(null);
   const [completionDetails, setCompletionDetails] = useState({
     completionType: "PICKUP" as "PICKUP" | "DELIVERY" | "DINE_IN",
     deliveryAddress: "",
@@ -1595,11 +1602,12 @@ export default function SalesPage() {
       // Get the final updated order with COMPLETED status
       const finalOrder = await ordersService.getOrder(orderId);
 
-      toast({
-        title: "Payment processed",
-        description: `Sale completed for ${formatPrice(
-          sale.total || 0
-        )} using ${sale.selectedPaymentMethod!.paymentMethod.name}`,
+      // Set completed order details for success modal
+      setCompletedOrderDetails({
+        orderId: orderId,
+        total: sale.total || 0,
+        paymentMethod: sale.selectedPaymentMethod!.paymentMethod.name,
+        customerName: sale.customer?.name,
       });
 
       // Update the current order with the completed status before clearing
@@ -1617,6 +1625,9 @@ export default function SalesPage() {
       setCurrentTableOrder(null);
       saveSelectedTable(null);
       setShowCompletionModal(false);
+
+      // Show success modal
+      setShowSuccessModal(true);
 
       // Reset the flag after a short delay
       setTimeout(() => {
@@ -4148,6 +4159,104 @@ export default function SalesPage() {
               onRefresh={loadExistingTables}
               onViewDetails={viewTableDetails}
             />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Success Modal */}
+      <Sheet open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <SheetContent className="w-[400px] sm:w-[540px]">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              <span>¡Pedido Completado!</span>
+            </SheetTitle>
+            <SheetDescription>
+              El pedido ha sido procesado exitosamente. ¿Qué te gustaría hacer
+              ahora?
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="space-y-6 py-6">
+            {/* Order Summary */}
+            {completedOrderDetails && (
+              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                <h4 className="font-medium text-green-900 mb-3">
+                  Resumen del Pedido
+                </h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-green-700">ID del Pedido:</span>
+                    <span className="font-mono text-green-900">
+                      #{completedOrderDetails.orderId.slice(-8)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-green-700">Total:</span>
+                    <span className="font-bold text-green-900">
+                      {formatPrice(completedOrderDetails.total)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-green-700">Método de Pago:</span>
+                    <span className="text-green-900">
+                      {completedOrderDetails.paymentMethod}
+                    </span>
+                  </div>
+                  {completedOrderDetails.customerName && (
+                    <div className="flex justify-between">
+                      <span className="text-green-700">Cliente:</span>
+                      <span className="text-green-900">
+                        {completedOrderDetails.customerName}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="space-y-3">
+              <Button
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  setCompletedOrderDetails(null);
+                  // Start a new order
+                  handleStartNewOrder();
+                }}
+                className="w-full bg-green-600 hover:bg-green-700"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Crear Nuevo Pedido
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  setCompletedOrderDetails(null);
+                  // Go to orders page
+                  router.push("/dashboard/cashier/orders");
+                }}
+                className="w-full"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Ver Todos los Pedidos
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  setCompletedOrderDetails(null);
+                  // Stay on sales page
+                }}
+                className="w-full"
+              >
+                <ShoppingCart className="h-4 w-4 mr-2" />
+                Continuar en Ventas
+              </Button>
+            </div>
           </div>
         </SheetContent>
       </Sheet>

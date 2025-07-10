@@ -97,16 +97,8 @@ export default function CashierProductsPage() {
       }
 
       if (!businessId) {
-        console.error("User business data:", {
-          userBusiness: user?.business,
-          userBranch: user?.branch,
-          userRole: user?.role?.name,
-        });
         throw new Error("No business ID found");
       }
-
-      console.log("User object:", user);
-      console.log("Selected business ID:", businessId);
 
       // Validate business ID format
       if (
@@ -114,24 +106,10 @@ export default function CashierProductsPage() {
           businessId
         )
       ) {
-        console.error("Invalid business ID format:", businessId);
         throw new Error("Invalid business ID format");
       }
 
-      console.log("Fetching products for business ID:", businessId);
-
       const products = await productsService.getByBusinessId(businessId);
-
-      // Debug price data
-      if (products.length > 0) {
-        console.log("First product price data:", {
-          price: products[0].price,
-          priceType: typeof products[0].price,
-          priceValue: products[0].price,
-          isNumber: typeof products[0].price === "number",
-          isString: typeof products[0].price === "string",
-        });
-      }
 
       // Filter out products with missing essential data
       const validProducts = products.filter((product) => {
@@ -142,18 +120,7 @@ export default function CashierProductsPage() {
 
       setAllProducts(validProducts);
     } catch (error: any) {
-      console.error("Error fetching products:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        businessId: user?.business?.[0]?.id || user?.branch?.business?.id,
-        headers: error.response?.headers,
-        config: {
-          url: error.config?.url,
-          method: error.config?.method,
-          headers: error.config?.headers,
-        },
-      });
+      console.error("Error fetching products:", error);
 
       toast({
         title: "Error",

@@ -105,6 +105,7 @@ export default function SalesPage() {
 
   // State
   const [products, setProducts] = useState<Product[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]); // Store all products for cart items
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [taxes, setTaxes] = useState<Tax[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<BusinessPaymentMethod[]>(
@@ -593,7 +594,11 @@ export default function SalesPage() {
   }, [showExistingTablesModal, existingTables.length, isLoadingExistingTables]);
 
   useEffect(() => {
-    if (!sale.currentOrder || products.length === 0) return;
+    if (!sale.currentOrder || allProducts.length === 0) return;
+
+    // Only update cart items when loading an existing order, not when products are filtered
+    // Check if this is the first time loading products (indicating initial load)
+    if (sale.items.length > 0 && !loadedOrderId) return;
 
     // Always use the correct path for order items
     const orderData = (sale.currentOrder as any)._props || sale.currentOrder;
@@ -601,7 +606,7 @@ export default function SalesPage() {
     const backendItems = (orderData.items || [])
       .map((item: any) => {
         const itemData = item._props || item;
-        const product = products.find((p) => p.id === itemData.productId);
+        const product = allProducts.find((p) => p.id === itemData.productId);
         if (!product) {
           return null;
         }
@@ -618,7 +623,7 @@ export default function SalesPage() {
       ...prev,
       items: backendItems,
     }));
-  }, [sale.currentOrder, products]);
+  }, [sale.currentOrder, allProducts, loadedOrderId]);
 
   const loadProducts = async (businessId: string, page: number = 1) => {
     try {
@@ -645,6 +650,22 @@ export default function SalesPage() {
       });
     } finally {
       setIsLoadingProducts(false);
+    }
+  };
+
+  const loadAllProducts = async (businessId: string) => {
+    try {
+      // Load all products without filtering for cart items
+      const response: PaginatedProductsResponse =
+        await productsService.getPaginated({
+          businessId,
+          page: 0,
+          limit: 1000, // Get a large number to have all products available
+        });
+
+      setAllProducts(response.products);
+    } catch (error: any) {
+      console.error("Failed to load all products:", error);
     }
   };
 
@@ -707,11 +728,12 @@ export default function SalesPage() {
         setSale((prev) => ({ ...prev, selectedPaymentMethod: defaultMethod }));
       }
 
-      // Load initial products
-      await loadProducts(businessId);
-
-      // Load categories
-      await loadCategories(businessId);
+      // Load initial products and all products for cart items
+      await Promise.all([
+        loadProducts(businessId),
+        loadAllProducts(businessId),
+        loadCategories(businessId),
+      ]);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -759,7 +781,9 @@ export default function SalesPage() {
         const cartItems = (orderData.items || [])
           .map((item: any) => {
             const itemData = item._props || item;
-            const product = products.find((p) => p.id === itemData.productId);
+            const product = allProducts.find(
+              (p) => p.id === itemData.productId
+            );
             if (!product) {
               return null;
             }
@@ -923,7 +947,7 @@ export default function SalesPage() {
       const backendItems = (updatedOrder.items || [])
         .map((item: any) => {
           const itemData = item._props || item;
-          const product = products.find((p) => p.id === itemData.productId);
+          const product = allProducts.find((p) => p.id === itemData.productId);
           if (!product) {
             return null;
           }
@@ -1007,7 +1031,9 @@ export default function SalesPage() {
           const backendItems = (finalOrder.items || [])
             .map((item: any) => {
               const itemData = item._props || item;
-              const product = products.find((p) => p.id === itemData.productId);
+              const product = allProducts.find(
+                (p) => p.id === itemData.productId
+              );
               if (!product) {
                 return null;
               }
@@ -1084,7 +1110,9 @@ export default function SalesPage() {
           const backendItems = (finalOrder.items || [])
             .map((item: any) => {
               const itemData = item._props || item;
-              const product = products.find((p) => p.id === itemData.productId);
+              const product = allProducts.find(
+                (p) => p.id === itemData.productId
+              );
               if (!product) {
                 return null;
               }
@@ -2431,20 +2459,6 @@ export default function SalesPage() {
             </Button>
           </div>
           <div className="flex items-center space-x-4">
-            {/* Order Type Indicator */}
-            <div className="flex items-center gap-2">
-              {!currentTableOrder && (
-                <Badge variant="outline" className="text-gray-600">
-                  <span className="flex items-center gap-1">
-                    <span>📦</span>
-                    {completionDetails.completionType === "PICKUP"
-                      ? "Para Llevar"
-                      : "Entrega"}
-                  </span>
-                </Badge>
-              )}
-            </div>
-
             {/* Table Order Section */}
             <div className="flex items-center gap-2">
               {(() => {

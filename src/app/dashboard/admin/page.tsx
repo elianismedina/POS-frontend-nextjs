@@ -333,113 +333,115 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stats Cards */}
-      {/* The stats object is no longer available, so these cards will be removed or need to be re-evaluated */}
-      {/* For now, we'll keep the structure but remove the content that relies on stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
-        {/* Ventas de Hoy */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ventas de Hoy</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              ${todaySales.toLocaleString()}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              +20.1% from yesterday
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Órdenes Pendientes */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Órdenes Pendientes
-            </CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{pendingOrders}</div>
-            <p className="text-xs text-muted-foreground">Requieren atención</p>
-          </CardContent>
-        </Card>
-
-        {/* Órdenes de Hoy */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Órdenes de Hoy
-            </CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{todayOrders.length}</div>
-            <p className="text-xs text-muted-foreground">Total del día</p>
-          </CardContent>
-        </Card>
-
-        {/* Ventas Totales */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Ventas Totales
-            </CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              ${totalSales.toLocaleString()}
-            </div>
-            <p className="text-xs text-muted-foreground">Historial completo</p>
-          </CardContent>
-        </Card>
-
-        {/* Summary Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Resumen del Período</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">
-                  {selectedPeriod === "week"
-                    ? "Total Semanal"
-                    : selectedPeriod === "month"
-                    ? "Total Mensual"
-                    : "Total Anual"}
-                </span>
-                <span className="text-lg font-bold">
-                  $
-                  {calculateSummaryFromOrders(
-                    selectedPeriod
-                  ).totalSales.toLocaleString()}
-                </span>
+      {!loading && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Ventas de Hoy
+              </CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                ${todaySales.toLocaleString()}
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Promedio</span>
-                <span className="text-lg font-bold">
-                  $
-                  {calculateSummaryFromOrders(
-                    selectedPeriod
-                  ).averageSales.toLocaleString()}
-                </span>
+              <p className="text-xs text-muted-foreground">
+                +20.1% from yesterday
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Órdenes Pendientes
+              </CardTitle>
+              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{pendingOrders}</div>
+              <p className="text-xs text-muted-foreground">
+                Requieren atención
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Órdenes de Hoy
+              </CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{todayOrders.length}</div>
+              <p className="text-xs text-muted-foreground">Total del día</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Ventas Totales
+              </CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                ${totalSales.toLocaleString()}
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Máximo</span>
-                <span className="text-lg font-bold text-green-600">
-                  $
-                  {calculateSummaryFromOrders(
-                    selectedPeriod
-                  ).maxSales.toLocaleString()}
-                </span>
+              <p className="text-xs text-muted-foreground">
+                Historial completo
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Summary Card - Full Width */}
+          <Card className="col-span-full">
+            <CardHeader>
+              <CardTitle>Resumen del Período</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-8">
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">
+                    {selectedPeriod === "week"
+                      ? "Total Semanal"
+                      : selectedPeriod === "month"
+                      ? "Total Mensual"
+                      : "Total Anual"}
+                  </p>
+                  <p className="text-2xl font-bold">
+                    $
+                    {calculateSummaryFromOrders(
+                      selectedPeriod
+                    ).totalSales.toLocaleString()}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">Promedio</p>
+                  <p className="text-2xl font-bold">
+                    $
+                    {calculateSummaryFromOrders(
+                      selectedPeriod
+                    ).averageSales.toLocaleString()}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">Máximo</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    $
+                    {calculateSummaryFromOrders(
+                      selectedPeriod
+                    ).maxSales.toLocaleString()}
+                  </p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Charts Section */}
       <div className="grid gap-4 md:grid-cols-3 mb-8">

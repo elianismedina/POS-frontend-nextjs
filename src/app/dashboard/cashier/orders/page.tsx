@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ordersService, Order } from "@/app/services/orders";
 import { formatPrice } from "@/lib/utils";
@@ -175,35 +175,15 @@ export default function CashierOrdersPage() {
     return orderDate >= dateRange.start && orderDate <= dateRange.end;
   };
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     if (user?.branch?.business?.id) {
       try {
         setLoading(true);
-        console.log(
-          "Fetching orders for business:",
-          user.branch.business.id,
-          "and cashier:",
-          user.id
-        );
 
         // For cashiers, we'll get orders filtered by their business and cashier ID
         const response = await ordersService.getOrders({
           businessId: user.branch.business.id,
           cashierId: user.id, // Filter by current cashier
-        });
-        console.log("Orders response:", response); // Debug log
-
-        // Debug: Check customer data for each order
-        response.forEach((order, index) => {
-          console.log(`Order ${index + 1}:`, {
-            id: order.id || order._props?.id,
-            customerId: order.customerId || order._props?.customerId,
-            customer: order.customer,
-            hasCustomer: !!order.customer,
-            customerName: order.customer?.name,
-            orderKeys: Object.keys(order),
-            orderProps: order._props,
-          });
         });
 
         setOrders(response);
@@ -215,14 +195,12 @@ export default function CashierOrdersPage() {
         setLoading(false);
       }
     }
-  };
+  }, [user?.id, user?.branch?.business?.id]);
 
+  // Single useEffect to handle all refresh scenarios
   useEffect(() => {
-    fetchOrders();
-  }, [user]);
+    let isInitialized = false;
 
-  // Additional refresh when component mounts or user navigates back
-  useEffect(() => {
     const handleBeforeUnload = () => {
       // Set a flag in sessionStorage to indicate we should refresh on return
       sessionStorage.setItem("shouldRefreshOrders", "true");
@@ -230,50 +208,44 @@ export default function CashierOrdersPage() {
 
     const checkForRefresh = () => {
       const shouldRefresh = sessionStorage.getItem("shouldRefreshOrders");
-      console.log("Checking for refresh flag:", shouldRefresh);
       if (shouldRefresh === "true") {
-        console.log("Detected return from sales page, refreshing orders...");
         fetchOrders();
         sessionStorage.removeItem("shouldRefreshOrders");
       }
     };
 
-    // Check if we should refresh when component mounts
-    checkForRefresh();
-
-    // Set up listener for when user leaves the page
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, [user]);
-
-  // Refresh orders when user returns to the page (e.g., from sales page)
-  useEffect(() => {
     const handleFocus = () => {
-      console.log("Page focused, refreshing orders...");
-      fetchOrders();
-    };
-
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        console.log("Page became visible, refreshing orders...");
+      if (isInitialized) {
         fetchOrders();
       }
     };
 
-    // Refresh on focus
-    window.addEventListener("focus", handleFocus);
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isInitialized) {
+        fetchOrders();
+      }
+    };
 
-    // Refresh when page becomes visible (more reliable than focus)
+    // Initial fetch when component mounts
+    if (!isInitialized) {
+      fetchOrders();
+      isInitialized = true;
+    }
+
+    // Check if we should refresh when component mounts
+    checkForRefresh();
+
+    // Set up listeners
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
       window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [user]);
+  }, [user?.id]); // Only depend on user.id, not the entire user object
 
   useEffect(() => {
     let filtered = orders;
@@ -328,7 +300,8 @@ export default function CashierOrdersPage() {
     statusFilter,
     completionTypeFilter,
     dateFilter,
-    customDateRange,
+    customDateRange.startDate,
+    customDateRange.endDate,
   ]);
 
   // Calculate pagination

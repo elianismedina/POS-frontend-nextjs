@@ -123,9 +123,11 @@ export default function SalesPage() {
   const [loadedOrderId, setLoadedOrderId] = useState<string | null>(null);
   const [justCleared, setJustCleared] = useState(false);
   const [isStartingNewSale, setIsStartingNewSale] = useState(false);
+  const [orderJustCompleted, setOrderJustCompleted] = useState(false);
 
   // Order completion state
   const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [completionDetails, setCompletionDetails] = useState({
     completionType: "PICKUP" as "PICKUP" | "DELIVERY" | "DINE_IN",
     deliveryAddress: "",
@@ -298,7 +300,14 @@ export default function SalesPage() {
     if (!sale.currentOrder) return false;
     const orderStatus =
       (sale.currentOrder as any)._props?.status || sale.currentOrder.status;
-    return orderStatus === "COMPLETED";
+    const isCompleted = orderStatus === "COMPLETED";
+    console.log("isOrderCompleted check:", {
+      orderId: (sale.currentOrder as any)._props?.id || sale.currentOrder.id,
+      orderStatus,
+      isCompleted,
+      currentOrder: sale.currentOrder,
+    });
+    return isCompleted;
   };
 
   useEffect(() => {
@@ -720,10 +729,16 @@ export default function SalesPage() {
       setPaymentMethods(paymentMethodsData);
       setActiveShift(shiftData);
 
-      // Set default payment method (CASH)
-      const defaultMethod = paymentMethodsData.find(
-        (method) => method.paymentMethod.code === "CASH"
-      );
+      // Set default payment method (first available method)
+      const defaultMethod = paymentMethodsData[0];
+      console.log("Payment methods debug:", {
+        paymentMethodsData: paymentMethodsData.map((m) => ({
+          id: m.id,
+          code: m.paymentMethod.code,
+          name: m.paymentMethod.name,
+        })),
+        defaultMethod: defaultMethod,
+      });
       if (defaultMethod) {
         setSale((prev) => ({ ...prev, selectedPaymentMethod: defaultMethod }));
       }
@@ -1440,6 +1455,11 @@ export default function SalesPage() {
   };
 
   const processPayment = async () => {
+    console.log("processPayment called");
+    console.log("sale.items.length:", sale.items.length);
+    console.log("sale.selectedPaymentMethod:", sale.selectedPaymentMethod);
+    console.log("sale.currentOrder:", sale.currentOrder);
+
     if (sale.items.length === 0) {
       toast({
         title: "Empty cart",
@@ -1467,26 +1487,10 @@ export default function SalesPage() {
       return;
     }
 
-    // For cash payments, check if amount tendered is sufficient
-    if (sale.selectedPaymentMethod.paymentMethod.code === "CASH") {
-      if (sale.amountTendered < sale.total) {
-        toast({
-          title: "Insufficient amount",
-          description: "Amount tendered must be greater than or equal to total",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-
-    // If table is selected, process payment directly (no completion modal needed)
-    if (currentTableOrder) {
-      await handleCompleteOrder();
-      return;
-    }
-
-    // Show completion modal only for non-table orders (pickup/delivery)
-    setShowCompletionModal(true);
+    // Show payment modal first
+    console.log("Setting showPaymentModal to true");
+    setShowPaymentModal(true);
+    console.log("showPaymentModal should now be true");
   };
 
   const handleCompleteOrder = async () => {
@@ -1588,6 +1592,9 @@ export default function SalesPage() {
         await ordersService.completeOrder(orderId, completeOrderData);
       }
 
+      // Get the final updated order with COMPLETED status
+      const finalOrder = await ordersService.getOrder(orderId);
+
       toast({
         title: "Payment processed",
         description: `Sale completed for ${formatPrice(
@@ -1595,12 +1602,26 @@ export default function SalesPage() {
         )} using ${sale.selectedPaymentMethod!.paymentMethod.name}`,
       });
 
+      // Update the current order with the completed status before clearing
+      setSale((prev) => ({
+        ...prev,
+        currentOrder: finalOrder,
+      }));
+
+      // Set flag to indicate order was just completed
+      setOrderJustCompleted(true);
+
       // Clear sale after successful payment
       await clearSale();
       // Clear the selected table when order is completed
       setCurrentTableOrder(null);
       saveSelectedTable(null);
       setShowCompletionModal(false);
+
+      // Reset the flag after a short delay
+      setTimeout(() => {
+        setOrderJustCompleted(false);
+      }, 2000);
 
       // Reset completion details
       setCompletionDetails({
@@ -2452,6 +2473,7 @@ export default function SalesPage() {
             <Button
               variant="outline"
               onClick={handleStartNewOrder}
+              disabled={isOrderCompleted() || orderJustCompleted}
               className="ml-2"
             >
               <Plus className="h-4 w-4 mr-1" />
@@ -2509,7 +2531,9 @@ export default function SalesPage() {
                       variant="outline"
                       size="sm"
                       onClick={clearTableOrder}
-                      disabled={isProcessing}
+                      disabled={
+                        isProcessing || isOrderCompleted() || orderJustCompleted
+                      }
                     >
                       Liberar Mesa
                     </Button>
@@ -2520,7 +2544,9 @@ export default function SalesPage() {
                         loadAvailablePhysicalTables();
                         setShowPhysicalTablesModal(true);
                       }}
-                      disabled={isProcessing || isOrderCompleted()}
+                      disabled={
+                        isProcessing || isOrderCompleted() || orderJustCompleted
+                      }
                     >
                       Cambiar Mesa
                     </Button>
@@ -2533,7 +2559,9 @@ export default function SalesPage() {
                         loadAvailablePhysicalTables();
                         setShowPhysicalTablesModal(true);
                       }}
-                      disabled={isProcessing || isOrderCompleted()}
+                      disabled={
+                        isProcessing || isOrderCompleted() || orderJustCompleted
+                      }
                       className="flex items-center gap-2"
                     >
                       <Plus className="h-4 w-4" />
@@ -2546,7 +2574,9 @@ export default function SalesPage() {
                         loadExistingTables();
                         setShowExistingTablesModal(true);
                       }}
-                      disabled={isProcessing || isOrderCompleted()}
+                      disabled={
+                        isProcessing || isOrderCompleted() || orderJustCompleted
+                      }
                       className="flex items-center gap-2"
                     >
                       <Search className="h-4 w-4" />
@@ -2560,7 +2590,8 @@ export default function SalesPage() {
             {/* Cancel Order Button - Only show for existing orders that are not completed */}
             {sale.currentOrder &&
               searchParams.get("orderId") &&
-              !isOrderCompleted() && (
+              !isOrderCompleted() &&
+              !orderJustCompleted && (
                 <Button
                   variant="destructive"
                   onClick={handleCancelOrder}
@@ -2581,7 +2612,8 @@ export default function SalesPage() {
               (currentTableOrder ||
                 (sale.currentOrder as any)?._props?.tableOrderId ||
                 (sale.currentOrder as any)?.tableOrderId) &&
-              !isOrderCompleted() && (
+              !isOrderCompleted() &&
+              !orderJustCompleted && (
                 <Button
                   variant="outline"
                   onClick={createNewOrderForTable}
@@ -2947,108 +2979,66 @@ export default function SalesPage() {
               </div>
 
               {/* Tip Checkbox - Only show for table orders */}
-              {(() => {
-                const shouldShowTip = sale.currentOrder || currentTableOrder;
-                console.log("Tip checkbox render condition:", {
-                  hasCurrentOrder: !!sale.currentOrder,
-                  hasCurrentTableOrder: !!currentTableOrder,
-                  shouldShowTip,
-                });
-                return shouldShowTip;
-              })() &&
-                (console.log(
-                  "RENDERING TIP CHECKBOX - IT SHOULD BE VISIBLE NOW"
-                ),
-                (
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-200">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="tipCheckbox"
-                        checked={sale.tipPercentage === 0.1}
-                        onClick={() =>
-                          console.log("CHECKBOX CLICKED - BASIC CLICK TEST")
-                        }
-                        onChange={(e) => {
-                          console.log("Tip checkbox RENDERED and CLICKED:", {
-                            checked: e.target.checked,
-                            currentTipPercentage: sale.tipPercentage,
-                            currentTipAmount: sale.tipAmount,
-                            shouldBeChecked: sale.tipPercentage === 0.1,
-                          });
-                          console.log("Tip checkbox state:", {
-                            checked: e.target.checked,
-                            currentTipPercentage: sale.tipPercentage,
-                            currentTipAmount: sale.tipAmount,
-                            shouldBeChecked: sale.tipPercentage === 0.1,
-                          });
-                          const newTipPercentage = e.target.checked ? 0.1 : 0;
-                          const newTipAmount =
-                            (sale.subtotal || 0) * newTipPercentage;
+              {(sale.currentOrder || currentTableOrder) && (
+                <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="tipCheckbox"
+                      checked={sale.tipPercentage === 0.1}
+                      onChange={(e) => {
+                        const newTipPercentage = e.target.checked ? 0.1 : 0;
+                        const newTipAmount =
+                          (sale.subtotal || 0) * newTipPercentage;
 
-                          setSale((prev) => ({
-                            ...prev,
-                            tipPercentage: newTipPercentage,
-                            tipAmount: newTipAmount,
-                            total:
-                              (prev.subtotal || 0) +
-                              (prev.tax || 0) -
-                              (prev.discount || 0) +
-                              newTipAmount,
-                          }));
+                        setSale((prev) => ({
+                          ...prev,
+                          tipPercentage: newTipPercentage,
+                          tipAmount: newTipAmount,
+                          total:
+                            (prev.subtotal || 0) +
+                            (prev.tax || 0) -
+                            (prev.discount || 0) +
+                            newTipAmount,
+                        }));
 
-                          // Update backend if we have a real order
-                          const orderId = getOrderId(sale.currentOrder);
-                          console.log("Checking if order has real ID:", {
-                            orderId,
-                            hasRealId: orderId && orderId !== "temp",
-                            saleCurrentOrder: sale.currentOrder,
-                            orderIdFromProps: (sale.currentOrder as any)?._props
-                              ?.id,
-                            orderIdDirect: (sale.currentOrder as any)?.id,
-                          });
-
-                          if (
-                            sale.currentOrder &&
-                            orderId &&
-                            orderId !== "temp"
-                          ) {
-                            console.log("Updating tip in backend:", {
-                              orderId: sale.currentOrder.id,
-                              newTipPercentage,
-                              newTipAmount,
-                            });
-
-                            ordersService
-                              .updateTip(orderId, newTipPercentage)
-                              .then((updatedOrder) => {
-                                console.log("Tip updated successfully:", {
-                                  orderId: updatedOrder.id,
-                                  tipAmount: updatedOrder.tipAmount,
-                                  tipPercentage: updatedOrder.tipPercentage,
-                                });
-                              })
-                              .catch((error) => {
-                                console.error("Error updating tip:", error);
+                        // Update backend if we have a real order
+                        const orderId = getOrderId(sale.currentOrder);
+                        if (
+                          sale.currentOrder &&
+                          orderId &&
+                          orderId !== "temp"
+                        ) {
+                          ordersService
+                            .updateTip(orderId, newTipPercentage)
+                            .then((updatedOrder) => {
+                              console.log("Tip updated successfully:", {
+                                orderId: updatedOrder.id,
+                                tipAmount: updatedOrder.tipAmount,
+                                tipPercentage: updatedOrder.tipPercentage,
                               });
-                          }
-                        }}
-                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                      />
-                      <label
-                        htmlFor="tipCheckbox"
-                        className="text-sm text-gray-700"
-                      >
-                        Add 10% tip
-                      </label>
-                    </div>
-                    {sale.tipPercentage === 0.1 && (
-                      <span className="text-sm text-green-600 font-medium">
-                        {formatPrice(sale.tipAmount)}
-                      </span>
-                    )}
+                            })
+                            .catch((error) => {
+                              console.error("Error updating tip:", error);
+                            });
+                        }
+                      }}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <label
+                      htmlFor="tipCheckbox"
+                      className="text-sm text-gray-700"
+                    >
+                      Add 10% tip
+                    </label>
                   </div>
-                ))}
+                  {sale.tipPercentage === 0.1 && (
+                    <span className="text-sm text-green-600 font-medium">
+                      {formatPrice(sale.tipAmount)}
+                    </span>
+                  )}
+                </div>
+              )}
 
               <div className="border-t border-gray-300 pt-3 mt-3">
                 <div className="flex justify-between items-center">
@@ -3252,8 +3242,40 @@ export default function SalesPage() {
               </div>
             </div>
 
-            {/* Amount Tendered (for cash payments) */}
-            {sale.selectedPaymentMethod?.paymentMethod.code === "CASH" && (
+            {/* Amount Tendered (for cash-like payments) */}
+            {(() => {
+              // Show amount tendered for any payment method that requires cash handling
+              // This allows admins to configure which methods need amount tendered
+              const selectedMethod = sale.selectedPaymentMethod;
+              const shouldShowAmountTendered =
+                selectedMethod &&
+                (selectedMethod.paymentMethod.code
+                  .toLowerCase()
+                  .includes("cash") ||
+                  selectedMethod.paymentMethod.code
+                    .toLowerCase()
+                    .includes("efectivo") ||
+                  selectedMethod.paymentMethod.code
+                    .toLowerCase()
+                    .includes("dinero") ||
+                  selectedMethod.paymentMethod.name
+                    .toLowerCase()
+                    .includes("cash") ||
+                  selectedMethod.paymentMethod.name
+                    .toLowerCase()
+                    .includes("efectivo") ||
+                  selectedMethod.paymentMethod.name
+                    .toLowerCase()
+                    .includes("dinero"));
+
+              console.log("Amount tendered debug:", {
+                selectedPaymentMethod: selectedMethod,
+                paymentMethodCode: selectedMethod?.paymentMethod?.code,
+                paymentMethodName: selectedMethod?.paymentMethod?.name,
+                shouldShowAmountTendered,
+              });
+              return shouldShowAmountTendered;
+            })() && (
               <div className="flex-1">
                 <h3 className="text-sm font-semibold text-gray-900 mb-2">
                   Amount Tendered
@@ -3457,6 +3479,196 @@ export default function SalesPage() {
                     <>
                       <CreditCard className="h-4 w-4 mr-2" />
                       Complete Order & Process Payment
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Modal */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Process Payment</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPaymentModal(false)}
+                disabled={isProcessing}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Payment Method Display */}
+              <div className="bg-gray-50 p-4 rounded-md">
+                <h4 className="font-medium text-gray-900 mb-2">
+                  Payment Method
+                </h4>
+                <div className="flex items-center gap-2">
+                  {getPaymentMethodIcon(
+                    sale.selectedPaymentMethod?.paymentMethod.code || ""
+                  )}
+                  <span className="text-sm font-medium">
+                    {sale.selectedPaymentMethod?.paymentMethod.name}
+                  </span>
+                </div>
+              </div>
+
+              {/* Order Summary */}
+              <div className="bg-gray-50 p-4 rounded-md">
+                <h4 className="font-medium text-gray-900 mb-2">
+                  Order Summary
+                </h4>
+                <div className="text-sm text-gray-600 space-y-1">
+                  <div>Items: {sale.items.length}</div>
+                  <div>Subtotal: {formatPrice(sale.subtotal || 0)}</div>
+                  <div>Tax: {formatPrice(sale.tax || 0)}</div>
+                  <div className="font-bold text-lg">
+                    Total: {formatPrice(sale.total || 0)}
+                  </div>
+                  <div>Customer: {sale.customer?.name || "No customer"}</div>
+                </div>
+              </div>
+
+              {/* Amount Tendered (for cash-like payments) */}
+              {(() => {
+                const selectedMethod = sale.selectedPaymentMethod;
+                const shouldShowAmountTendered =
+                  selectedMethod &&
+                  (selectedMethod.paymentMethod.code
+                    .toLowerCase()
+                    .includes("cash") ||
+                    selectedMethod.paymentMethod.code
+                      .toLowerCase()
+                      .includes("efectivo") ||
+                    selectedMethod.paymentMethod.code
+                      .toLowerCase()
+                      .includes("dinero") ||
+                    selectedMethod.paymentMethod.name
+                      .toLowerCase()
+                      .includes("cash") ||
+                    selectedMethod.paymentMethod.name
+                      .toLowerCase()
+                      .includes("efectivo") ||
+                    selectedMethod.paymentMethod.name
+                      .toLowerCase()
+                      .includes("dinero"));
+                return shouldShowAmountTendered;
+              })() && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Amount Tendered *
+                  </label>
+                  <Input
+                    type="number"
+                    placeholder="Enter amount"
+                    value={sale.amountTendered || ""}
+                    onChange={(e) =>
+                      setSale((prev) => ({
+                        ...prev,
+                        amountTendered: parseFloat(e.target.value) || 0,
+                      }))
+                    }
+                    step="0.01"
+                    min="0"
+                    className="text-sm"
+                  />
+                  {sale.amountTendered > 0 && (
+                    <div className="bg-green-50 border border-green-200 p-2 rounded-md mt-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-medium text-green-800">
+                          Change:
+                        </span>
+                        <span className="text-sm font-bold text-green-600">
+                          {formatPrice(
+                            Math.max(
+                              0,
+                              (sale.amountTendered || 0) - (sale.total || 0)
+                            )
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowPaymentModal(false)}
+                  disabled={isProcessing}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={async () => {
+                    // Validate amount tendered for cash-like payments
+                    const selectedMethod = sale.selectedPaymentMethod;
+                    const isCashLikePayment =
+                      selectedMethod &&
+                      (selectedMethod.paymentMethod.code
+                        .toLowerCase()
+                        .includes("cash") ||
+                        selectedMethod.paymentMethod.code
+                          .toLowerCase()
+                          .includes("efectivo") ||
+                        selectedMethod.paymentMethod.code
+                          .toLowerCase()
+                          .includes("dinero") ||
+                        selectedMethod.paymentMethod.name
+                          .toLowerCase()
+                          .includes("cash") ||
+                        selectedMethod.paymentMethod.name
+                          .toLowerCase()
+                          .includes("efectivo") ||
+                        selectedMethod.paymentMethod.name
+                          .toLowerCase()
+                          .includes("dinero"));
+
+                    if (isCashLikePayment) {
+                      if (sale.amountTendered < sale.total) {
+                        toast({
+                          title: "Insufficient amount",
+                          description:
+                            "Amount tendered must be greater than or equal to total",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                    }
+
+                    // Close payment modal and show completion modal
+                    setShowPaymentModal(false);
+
+                    // If table is selected, process payment directly
+                    if (currentTableOrder) {
+                      await handleCompleteOrder();
+                    } else {
+                      // Show completion modal for non-table orders
+                      setShowCompletionModal(true);
+                    }
+                  }}
+                  disabled={isProcessing}
+                  className="flex-1"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCardIcon className="h-4 w-4 mr-2" />
+                      Process Payment
                     </>
                   )}
                 </Button>

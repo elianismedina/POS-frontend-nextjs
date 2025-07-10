@@ -247,7 +247,7 @@ export default function CashReportPage() {
           <Calculator className="h-6 w-6" />
           <h1 className="text-2xl font-bold">Cuadre de Caja</h1>
         </div>
-        {selectedShift && cashReport && (
+        {selectedShift && cashReport && selectedShift.status === "ACTIVE" && (
           <Button
             onClick={handleBlindCount}
             variant="outline"

@@ -216,19 +216,19 @@ export default function OrderDetailsPage() {
             <AlertTriangle className="w-8 h-8 text-yellow-600" />
           </div>
           <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-            No Active Shift
+            Sin Turno Activo
           </h2>
           <p className="text-gray-500 mb-6">
-            You need to start a shift before you can view or modify pending
-            orders. Please go to your dashboard and start a shift.
+            Necesitas iniciar un turno antes de poder ver o modificar pedidos
+            pendientes. Por favor ve a tu panel de control e inicia un turno.
           </p>
           <div className="flex gap-3 justify-center">
             <Button onClick={() => router.push("/dashboard/cashier")}>
-              Go to Dashboard
+              Ir al Panel de Control
             </Button>
             <Button variant="outline" onClick={() => router.back()}>
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Go Back
+              Volver
             </Button>
           </div>
         </div>
@@ -316,11 +316,11 @@ export default function OrderDetailsPage() {
             <AlertTriangle className="h-5 w-5 text-yellow-600" />
             <div>
               <h3 className="text-sm font-medium text-yellow-800">
-                No Active Shift
+                Sin Turno Activo
               </h3>
               <p className="text-sm text-yellow-700 mt-1">
-                You need to start a shift to modify this pending order. The
-                order details are shown in read-only mode.
+                Necesitas iniciar un turno para modificar este pedido pendiente.
+                Los detalles del pedido se muestran en modo de solo lectura.
               </p>
             </div>
           </div>

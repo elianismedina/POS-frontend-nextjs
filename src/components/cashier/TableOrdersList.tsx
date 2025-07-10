@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { TableOrdersService, TableOrder } from "@/services/table-orders";
 import { formatPrice } from "@/lib/utils";
 import { Search, Filter, X, Eye } from "lucide-react";
+import { Pagination } from "@/components/ui/pagination";
 import {
   Table,
   TableBody,
@@ -36,6 +37,10 @@ export function TableOrdersList({
     "all" | "active" | "closed" | "cancelled"
   >("all");
   const { toast } = useToast();
+
+  // Pagination state for closed tables
+  const [closedTablesCurrentPage, setClosedTablesCurrentPage] = useState(1);
+  const [closedTablesPerPage] = useState(10);
 
   useEffect(() => {
     loadTableOrders();
@@ -147,6 +152,23 @@ export function TableOrdersList({
   const cancelledTables = sortTablesByActivity(
     filteredTables.filter((table) => table.status === "cancelled")
   );
+
+  // Pagination for closed tables
+  const closedTablesTotalPages = Math.ceil(
+    closedTables.length / closedTablesPerPage
+  );
+  const closedTablesStartIndex =
+    (closedTablesCurrentPage - 1) * closedTablesPerPage;
+  const closedTablesEndIndex = closedTablesStartIndex + closedTablesPerPage;
+  const currentClosedTables = closedTables.slice(
+    closedTablesStartIndex,
+    closedTablesEndIndex
+  );
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setClosedTablesCurrentPage(1);
+  }, [searchTerm, statusFilter]);
 
   if (isLoading) {
     return (
@@ -387,7 +409,7 @@ export function TableOrdersList({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {closedTables.map((tableOrder) => (
+                {currentClosedTables.map((tableOrder) => (
                   <TableRow key={tableOrder.id}>
                     <TableCell>
                       <div>
@@ -437,6 +459,22 @@ export function TableOrdersList({
                 ))}
               </TableBody>
             </Table>
+
+            {/* Pagination for Closed Tables */}
+            {closedTablesTotalPages > 1 && (
+              <div className="flex items-center justify-between p-4 border-t">
+                <div className="text-sm text-gray-500">
+                  Mostrando {closedTablesStartIndex + 1} a{" "}
+                  {Math.min(closedTablesEndIndex, closedTables.length)} de{" "}
+                  {closedTables.length} mesas cerradas
+                </div>
+                <Pagination
+                  currentPage={closedTablesCurrentPage}
+                  totalPages={closedTablesTotalPages}
+                  onPageChange={setClosedTablesCurrentPage}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}

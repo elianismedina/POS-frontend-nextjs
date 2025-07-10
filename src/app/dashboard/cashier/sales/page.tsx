@@ -2447,14 +2447,14 @@ export default function SalesPage() {
             <Clock className="w-8 h-8 text-yellow-600" />
           </div>
           <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-            No Active Shift
+            Sin Turno Activo
           </h2>
           <p className="text-gray-500 mb-6">
-            You need to start a shift before you can process sales. Please go to
-            your dashboard and start a shift.
+            Necesitas iniciar un turno antes de poder procesar ventas. Por favor
+            ve a tu panel de control e inicia un turno.
           </p>
           <Button onClick={() => router.push("/dashboard/cashier")}>
-            Go to Dashboard
+            Ir al Panel de Control
           </Button>
         </div>
       </div>

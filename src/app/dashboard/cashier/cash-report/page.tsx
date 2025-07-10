@@ -211,7 +211,20 @@ export default function CashReportPage() {
 
   const handleBlindCountSubmit = () => {
     const physicalCount = calculateTotalFromCount(blindCount);
-    const theoreticalAmount = cashReport?.endingCash || 0;
+
+    // Calcular saldo teórico: efectivo inicial + ventas en efectivo
+    const startingCash = cashReport?.startingCash || 0;
+    const cashSales =
+      cashReport?.salesByPaymentMethod
+        .filter(
+          (sale) =>
+            sale.method.toLowerCase().includes("cash") ||
+            sale.method.toLowerCase().includes("efectivo") ||
+            sale.method.toLowerCase().includes("dinero")
+        )
+        .reduce((sum, sale) => sum + sale.amount, 0) || 0;
+
+    const theoreticalAmount = startingCash + cashSales;
     const difference = physicalCount - theoreticalAmount;
     const isPerfect = difference === 0;
 
@@ -420,14 +433,6 @@ export default function CashReportPage() {
                           </span>
                           <span className="font-bold">
                             {formatCurrency(blindCountResult.physicalCount)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-muted-foreground">
-                            Saldo teórico:
-                          </span>
-                          <span className="font-bold">
-                            {formatCurrency(blindCountResult.theoreticalAmount)}
                           </span>
                         </div>
                         <Separator />
@@ -730,14 +735,6 @@ export default function CashReportPage() {
                     </span>
                     <span className="font-bold">
                       {formatCurrency(blindCountResult.physicalCount)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">
-                      Saldo teórico:
-                    </span>
-                    <span className="font-bold">
-                      {formatCurrency(blindCountResult.theoreticalAmount)}
                     </span>
                   </div>
                   <Separator />

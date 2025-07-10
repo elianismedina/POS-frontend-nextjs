@@ -153,6 +153,12 @@ export function AdminSidebar() {
               isActive={pathname.includes("/physical-tables")}
             />
             <SidebarItem
+              icon={<ShoppingCart className="h-4 w-4" />}
+              label="Gestión de Mesas"
+              href="/dashboard/admin/table-orders"
+              isActive={pathname.includes("/table-orders")}
+            />
+            <SidebarItem
               icon={<Package className="h-4 w-4" />}
               label="Productos"
               href="/dashboard/admin/products"

@@ -121,7 +121,7 @@ export function ShiftManager() {
     if (!activeShift) {
       toast({
         title: "Error",
-        description: "No active shift found",
+        description: "No se encontró un turno activo",
         variant: "destructive",
       });
       return;
@@ -170,7 +170,7 @@ export function ShiftManager() {
       <CardHeader className="pb-1">
         <CardTitle className="flex items-center gap-1 text-xs">
           <Clock className="h-2.5 w-2.5" />
-          Shift Management
+          Gestión de Turnos
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-1">
@@ -183,7 +183,7 @@ export function ShiftManager() {
                 className="flex items-center gap-1 text-xs"
               >
                 <Play className="h-2 w-2" />
-                Active
+                Activo
               </Badge>
               <span className="text-xs text-gray-600">
                 {activeShift.startTime
@@ -197,7 +197,7 @@ export function ShiftManager() {
               <div className="flex items-center gap-1 p-1 bg-gray-50 rounded text-xs">
                 <DollarSign className="h-2 w-2 text-green-600" />
                 <div className="min-w-0">
-                  <p className="text-xs text-gray-600">Initial</p>
+                  <p className="text-xs text-gray-600">Inicial</p>
                   <p className="text-xs font-semibold truncate">
                     {formatPrice(activeShift.initialAmount)}
                   </p>
@@ -207,7 +207,7 @@ export function ShiftManager() {
               <div className="flex items-center gap-1 p-1 bg-gray-50 rounded text-xs">
                 <TrendingUp className="h-2 w-2 text-blue-600" />
                 <div className="min-w-0">
-                  <p className="text-xs text-gray-600">Sales</p>
+                  <p className="text-xs text-gray-600">Ventas</p>
                   <p className="text-xs font-semibold truncate">
                     {formatPrice(activeShift.totalSales || 0)}
                   </p>
@@ -217,7 +217,7 @@ export function ShiftManager() {
               <div className="flex items-center gap-1 p-1 bg-gray-50 rounded text-xs">
                 <Clock className="h-2 w-2 text-purple-600" />
                 <div className="min-w-0">
-                  <p className="text-xs text-gray-600">Orders</p>
+                  <p className="text-xs text-gray-600">Pedidos</p>
                   <p className="text-xs font-semibold">
                     {activeShift.totalOrders || 0}
                   </p>
@@ -230,14 +230,14 @@ export function ShiftManager() {
               <div className="flex items-end gap-1">
                 <div className="flex-1">
                   <Label htmlFor="finalAmount" className="text-xs">
-                    Final Cash
+                    Efectivo Final
                   </Label>
                   <Input
                     id="finalAmount"
                     type="number"
                     step="0.01"
                     min="0"
-                    placeholder="Final amount"
+                    placeholder="Monto final"
                     value={finalAmount}
                     onChange={(e) => setFinalAmount(e.target.value)}
                     className="mt-1 h-6 text-xs"
@@ -255,7 +255,7 @@ export function ShiftManager() {
                   ) : (
                     <Square className="h-2 w-2 mr-1" />
                   )}
-                  End
+                  Finalizar
                 </Button>
               </div>
             </div>
@@ -268,24 +268,24 @@ export function ShiftManager() {
                 <Clock className="h-3 w-3 text-gray-400" />
               </div>
               <h3 className="text-xs font-medium text-gray-900 mb-1">
-                No Active Shift
+                Sin Turno Activo
               </h3>
               <p className="text-xs text-gray-600">
-                Start your shift to begin processing sales
+                Inicia tu turno para comenzar a procesar ventas
               </p>
             </div>
 
             <div className="space-y-1">
               <div>
                 <Label htmlFor="initialAmount" className="text-xs">
-                  Initial Cash
+                  Efectivo Inicial
                 </Label>
                 <Input
                   id="initialAmount"
                   type="number"
                   step="0.01"
                   min="0"
-                  placeholder="Enter initial amount"
+                  placeholder="Ingresa monto inicial"
                   value={initialAmount}
                   onChange={(e) => setInitialAmount(e.target.value)}
                   className="mt-1 h-6 text-xs"
@@ -302,7 +302,7 @@ export function ShiftManager() {
                 ) : (
                   <Play className="h-2 w-2 mr-1" />
                 )}
-                Start Shift
+                Iniciar Turno
               </Button>
             </div>
           </div>

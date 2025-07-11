@@ -603,7 +603,7 @@ export default function SalesPage() {
   }, [showExistingTablesModal, existingTables.length, isLoadingExistingTables]);
 
   useEffect(() => {
-    if (!sale.currentOrder || allProducts.length === 0) return;
+    if (!sale.currentOrder) return;
 
     // Only update cart items when loading an existing order, not when products are filtered
     // Check if this is the first time loading products (indicating initial load)
@@ -611,6 +611,12 @@ export default function SalesPage() {
 
     // Always use the correct path for order items
     const orderData = (sale.currentOrder as any)._props || sale.currentOrder;
+
+    // If allProducts is not loaded yet, skip loading cart items but don't return
+    // This allows the effect to run again when allProducts becomes available
+    if (allProducts.length === 0) {
+      return;
+    }
 
     const backendItems = (orderData.items || [])
       .map((item: any) => {
@@ -924,7 +930,6 @@ export default function SalesPage() {
           ? { barcode: product.barcode }
           : { productId: product.id }),
         quantity: 1,
-        taxes: taxes.map((tax) => ({ taxId: tax.id })),
       };
 
       // Add item to order and get the updated order directly
@@ -934,7 +939,8 @@ export default function SalesPage() {
       const backendItems = (updatedOrder.items || [])
         .map((item: any) => {
           const itemData = item._props || item;
-          const product = allProducts.find((p) => p.id === itemData.productId);
+          // Try to find product in allProducts
+          let product = allProducts.find((p) => p.id === itemData.productId);
           if (!product) {
             return null;
           }
@@ -1513,6 +1519,11 @@ export default function SalesPage() {
             },
           };
 
+          // Add debugging information
+          console.log("Payment data being sent:", paymentData);
+          console.log("Selected payment method:", sale.selectedPaymentMethod);
+          console.log("Order status:", orderStatus);
+
           await ordersService.processPayment(paymentData);
         }
       } catch (error: any) {
@@ -1553,6 +1564,15 @@ export default function SalesPage() {
       // Get the final updated order with COMPLETED status
       const finalOrder = await ordersService.getOrder(orderId);
 
+      // Debug: Log the final order to see if items are present
+      console.log(
+        "Final completed order:",
+        JSON.stringify(finalOrder, null, 2)
+      );
+      console.log("Final order items count:", finalOrder.items?.length || 0);
+      console.log("Final order total:", finalOrder.total);
+      console.log("Final order total:", finalOrder.total);
+
       // Set completed order details for success modal
       setCompletedOrderDetails({
         orderId: orderId,
@@ -1570,8 +1590,8 @@ export default function SalesPage() {
       // Set flag to indicate order was just completed
       setOrderJustCompleted(true);
 
-      // Clear sale after successful payment
-      await clearSale();
+      // Don't clear sale immediately for completed orders - let the success modal show the details
+      // The sale will be cleared when the user clicks "New Order" or navigates away
       // Clear the selected table when order is completed
       setCurrentTableOrder(null);
       saveSelectedTable(null);

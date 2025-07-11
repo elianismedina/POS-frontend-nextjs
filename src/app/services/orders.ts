@@ -204,7 +204,15 @@ class OrdersService {
   }
 
   async processPayment(data: CreatePaymentRequest): Promise<any> {
-    return await paymentsService.createPayment(data);
+    console.log("OrdersService.processPayment called with data:", data);
+    try {
+      const result = await paymentsService.createPayment(data);
+      console.log("Payment processed successfully:", result);
+      return result;
+    } catch (error) {
+      console.error("Payment processing failed:", error);
+      throw error;
+    }
   }
 }
 

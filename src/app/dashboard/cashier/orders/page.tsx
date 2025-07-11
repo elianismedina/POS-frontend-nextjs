@@ -89,6 +89,7 @@ export default function CashierOrdersPage() {
     startDate: "",
     endDate: "",
   });
+  const [sortBy, setSortBy] = useState("MOST_RECENT");
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   // Pagination state
@@ -105,6 +106,15 @@ export default function CashierOrdersPage() {
     { value: "THIS_MONTH", label: "This Month" },
     { value: "LAST_MONTH", label: "Last Month" },
     { value: "CUSTOM", label: "Custom Range" },
+  ];
+
+  // Sort options
+  const sortOptions = [
+    { value: "MOST_RECENT", label: "Most Recent" },
+    { value: "OLDEST", label: "Oldest First" },
+    { value: "HIGHEST_AMOUNT", label: "Highest Amount" },
+    { value: "LOWEST_AMOUNT", label: "Lowest Amount" },
+    { value: "STATUS", label: "By Status" },
   ];
 
   // Helper function to get date range based on filter
@@ -292,6 +302,31 @@ export default function CashierOrdersPage() {
     const dateRange = getDateRange(dateFilter);
     filtered = filtered.filter((order) => isOrderInDateRange(order, dateRange));
 
+    // Sort orders
+    filtered.sort((a, b) => {
+      const aDate = new Date(a.createdAt || a._props?.createdAt || new Date());
+      const bDate = new Date(b.createdAt || b._props?.createdAt || new Date());
+      const aTotal = a.total || a._props?.total || 0;
+      const bTotal = b.total || b._props?.total || 0;
+      const aStatus = a.status || a._props?.status || "";
+      const bStatus = b.status || b._props?.status || "";
+
+      switch (sortBy) {
+        case "MOST_RECENT":
+          return bDate.getTime() - aDate.getTime();
+        case "OLDEST":
+          return aDate.getTime() - bDate.getTime();
+        case "HIGHEST_AMOUNT":
+          return bTotal - aTotal;
+        case "LOWEST_AMOUNT":
+          return aTotal - bTotal;
+        case "STATUS":
+          return aStatus.localeCompare(bStatus);
+        default:
+          return bDate.getTime() - aDate.getTime(); // Default to most recent
+      }
+    });
+
     setFilteredOrders(filtered);
     setCurrentPage(1); // Reset to first page when filters change
   }, [
@@ -302,6 +337,7 @@ export default function CashierOrdersPage() {
     dateFilter,
     customDateRange.startDate,
     customDateRange.endDate,
+    sortBy,
   ]);
 
   // Calculate pagination
@@ -394,6 +430,17 @@ export default function CashierOrdersPage() {
             </option>
           ))}
         </select>
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          {sortOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
         <Button
           variant="outline"
           onClick={fetchOrders}
@@ -462,7 +509,8 @@ export default function CashierOrdersPage() {
       {(searchTerm ||
         statusFilter !== "ALL" ||
         completionTypeFilter !== "ALL" ||
-        dateFilter !== "ALL") && (
+        dateFilter !== "ALL" ||
+        sortBy !== "MOST_RECENT") && (
         <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-sm font-medium text-blue-900">
@@ -509,6 +557,11 @@ export default function CashierOrdersPage() {
                   )}
               </Badge>
             )}
+            {sortBy !== "MOST_RECENT" && (
+              <Badge variant="outline" className="text-xs">
+                Sort: {sortOptions.find((opt) => opt.value === sortBy)?.label}
+              </Badge>
+            )}
             <Button
               variant="ghost"
               size="sm"
@@ -518,6 +571,7 @@ export default function CashierOrdersPage() {
                 setCompletionTypeFilter("ALL");
                 setDateFilter("ALL");
                 setCustomDateRange({ startDate: "", endDate: "" });
+                setSortBy("MOST_RECENT");
               }}
               className="text-xs h-6 px-2"
             >

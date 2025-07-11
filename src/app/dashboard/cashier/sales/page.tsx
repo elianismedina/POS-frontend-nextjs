@@ -199,14 +199,14 @@ export default function SalesPage() {
 
   // Common cancellation reasons
   const cancellationReasons = [
-    "Customer changed mind",
-    "Item out of stock",
-    "Price too high",
-    "Customer left without purchasing",
-    "Technical issue",
-    "Duplicate order",
-    "Wrong order created",
-    "Other",
+    "Cliente cambió de opinión",
+    "Artículo agotado",
+    "Precio muy alto",
+    "Cliente se fue sin comprar",
+    "Problema técnico",
+    "Pedido duplicado",
+    "Pedido incorrecto creado",
+    "Otro",
   ];
 
   // Pagination state
@@ -540,8 +540,8 @@ export default function SalesPage() {
 
         if (product.businessId !== businessId) {
           toast({
-            title: "Product Not Found",
-            description: "This product doesn't belong to your business",
+            title: "Producto No Encontrado",
+            description: "Este producto no pertenece a tu negocio",
             variant: "destructive",
           });
           return;
@@ -551,27 +551,28 @@ export default function SalesPage() {
         await addToCart(product);
 
         toast({
-          title: "Product Added",
-          description: `${product.name} added to cart via barcode scan`,
+          title: "Producto Agregado",
+          description: `${product.name} agregado al carrito mediante escaneo de código de barras`,
         });
       } else {
         toast({
-          title: "Product Not Found",
-          description: `No product found with barcode: ${barcode}`,
+          title: "Producto No Encontrado",
+          description: `No se encontró producto con código de barras: ${barcode}`,
           variant: "destructive",
         });
       }
     } catch (error: any) {
       if (error.response?.status === 404) {
         toast({
-          title: "Product Not Found",
-          description: `No product found with barcode: ${barcode}`,
+          title: "Producto No Encontrado",
+          description: `No se encontró producto con código de barras: ${barcode}`,
           variant: "destructive",
         });
       } else {
         toast({
           title: "Error",
-          description: "Failed to process barcode. Please try again.",
+          description:
+            "Error al procesar código de barras. Por favor intenta de nuevo.",
           variant: "destructive",
         });
       }
@@ -671,7 +672,7 @@ export default function SalesPage() {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to load products",
+        description: "Error al cargar productos",
         variant: "destructive",
       });
     } finally {
@@ -761,7 +762,7 @@ export default function SalesPage() {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to load data",
+        description: "Error al cargar datos",
         variant: "destructive",
       });
     } finally {
@@ -853,7 +854,7 @@ export default function SalesPage() {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to load existing order",
+        description: "Error al cargar pedido existente",
         variant: "destructive",
       });
     }
@@ -870,7 +871,7 @@ export default function SalesPage() {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to load table order",
+        description: "Error al cargar orden de mesa",
         variant: "destructive",
       });
     }
@@ -912,7 +913,7 @@ export default function SalesPage() {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to create order",
+        description: "Error al crear pedido",
         variant: "destructive",
       });
       throw error;
@@ -990,7 +991,7 @@ export default function SalesPage() {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to update order with customer information",
+        description: "Error al actualizar pedido con información del cliente",
         variant: "destructive",
       });
     }
@@ -1023,15 +1024,15 @@ export default function SalesPage() {
           sessionStorage.setItem("shouldRefreshOrders", "true");
 
           toast({
-            title: "Customer removed",
-            description: "Customer has been removed from the order",
+            title: "Cliente eliminado",
+            description: "El cliente ha sido eliminado del pedido",
           });
         }
       }
     } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to remove customer from order",
+        description: "Error al eliminar cliente del pedido",
         variant: "destructive",
       });
     }
@@ -1068,8 +1069,8 @@ export default function SalesPage() {
             sessionStorage.setItem("shouldRefreshOrders", "true");
 
             toast({
-              title: "Sale cleared",
-              description: "Order completed successfully",
+              title: "Venta limpiada",
+              description: "Pedido completado exitosamente",
             });
             return;
           }
@@ -1098,8 +1099,8 @@ export default function SalesPage() {
             sessionStorage.setItem("shouldRefreshOrders", "true");
 
             toast({
-              title: "Sale cleared",
-              description: "All items have been removed from the order",
+              title: "Venta limpiada",
+              description: "Todos los artículos han sido eliminados del pedido",
             });
             return;
           } catch (error: any) {
@@ -1122,9 +1123,9 @@ export default function SalesPage() {
             sessionStorage.setItem("shouldRefreshOrders", "true");
 
             toast({
-              title: "Sale cleared (with warnings)",
+              title: "Venta limpiada (con advertencias)",
               description:
-                "Cart cleared locally. Backend may still have items.",
+                "Carrito limpiado localmente. El servidor puede aún tener artículos.",
               variant: "default",
             });
             return;
@@ -1163,13 +1164,13 @@ export default function SalesPage() {
       sessionStorage.setItem("shouldRefreshOrders", "true");
 
       toast({
-        title: "Sale cleared",
-        description: "All items have been removed from the order",
+        title: "Venta limpiada",
+        description: "Todos los artículos han sido eliminados del pedido",
       });
     } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to clear sale. Please try again.",
+        description: "Error al limpiar venta. Por favor intenta de nuevo.",
         variant: "destructive",
       });
     }
@@ -1182,8 +1183,9 @@ export default function SalesPage() {
   const processPayment = async () => {
     if (sale.items.length === 0) {
       toast({
-        title: "Empty cart",
-        description: "Please add items to cart before processing payment",
+        title: "Carrito vacío",
+        description:
+          "Por favor agrega artículos al carrito antes de procesar el pago",
         variant: "destructive",
       });
       return;
@@ -1191,8 +1193,8 @@ export default function SalesPage() {
 
     if (!sale.selectedPaymentMethod) {
       toast({
-        title: "No payment method selected",
-        description: "Please select a payment method",
+        title: "No hay método de pago seleccionado",
+        description: "Por favor selecciona un método de pago",
         variant: "destructive",
       });
       return;
@@ -1200,8 +1202,8 @@ export default function SalesPage() {
 
     if (!sale.currentOrder) {
       toast({
-        title: "No order found",
-        description: "Please try again",
+        title: "No se encontró pedido",
+        description: "Por favor intenta de nuevo",
         variant: "destructive",
       });
       return;
@@ -1244,8 +1246,8 @@ export default function SalesPage() {
   const handleCancelOrder = async () => {
     if (!sale.currentOrder) {
       toast({
-        title: "No order to cancel",
-        description: "There is no active order to cancel",
+        title: "No hay pedido para cancelar",
+        description: "No hay un pedido activo para cancelar",
         variant: "destructive",
       });
       return;
@@ -1257,7 +1259,7 @@ export default function SalesPage() {
     if (!orderId) {
       toast({
         title: "Error",
-        description: "Order ID is missing",
+        description: "Falta el ID del pedido",
         variant: "destructive",
       });
       return;
@@ -1266,8 +1268,8 @@ export default function SalesPage() {
     // Check if order is already completed
     if (isOrderCompleted()) {
       toast({
-        title: "Cannot cancel",
-        description: "Cannot cancel a completed order",
+        title: "No se puede cancelar",
+        description: "No se puede cancelar un pedido completado",
         variant: "destructive",
       });
       return;
@@ -1302,8 +1304,8 @@ export default function SalesPage() {
     // Validate that a reason is selected
     if (!cancelReason) {
       toast({
-        title: "Reason Required",
-        description: "Please select a reason for cancellation",
+        title: "Razón Requerida",
+        description: "Por favor selecciona una razón para la cancelación",
         variant: "destructive",
       });
       return;
@@ -1312,8 +1314,9 @@ export default function SalesPage() {
     // If "Other" is selected, require custom reason
     if (cancelReason === "Other" && !customCancelReason.trim()) {
       toast({
-        title: "Custom Reason Required",
-        description: "Please provide a custom reason for cancellation",
+        title: "Razón Personalizada Requerida",
+        description:
+          "Por favor proporciona una razón personalizada para la cancelación",
         variant: "destructive",
       });
       return;
@@ -1331,8 +1334,8 @@ export default function SalesPage() {
       await ordersService.cancelOrder(orderId);
 
       toast({
-        title: "Order cancelled",
-        description: "The order has been cancelled successfully",
+        title: "Pedido cancelado",
+        description: "El pedido ha sido cancelado exitosamente",
       });
 
       // Clear the sale and redirect to dashboard
@@ -1351,7 +1354,7 @@ export default function SalesPage() {
         title: "Error",
         description:
           error.response?.data?.message ||
-          "Failed to cancel order. Please try again.",
+          "Error al cancelar pedido. Por favor intenta de nuevo.",
         variant: "destructive",
       });
     } finally {
@@ -1368,7 +1371,7 @@ export default function SalesPage() {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to load available tables",
+        description: "Error al cargar mesas disponibles",
         variant: "destructive",
       });
     } finally {
@@ -1400,7 +1403,7 @@ export default function SalesPage() {
       if (!sale.currentOrder) {
         toast({
           title: "Error",
-          description: "No order to assign table to",
+          description: "No hay pedido para asignar mesa",
           variant: "destructive",
         });
         return;
@@ -1413,7 +1416,7 @@ export default function SalesPage() {
       if (!orderId) {
         toast({
           title: "Error",
-          description: "Order ID is missing",
+          description: "Falta el ID del pedido",
           variant: "destructive",
         });
         return;
@@ -1441,7 +1444,7 @@ export default function SalesPage() {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: "No se pudo asignar la mesa a la orden",
+        description: "No se pudo asignar la mesa al pedido",
         variant: "destructive",
       });
     }
@@ -1550,7 +1553,7 @@ export default function SalesPage() {
     if (!selectedPhysicalTable) {
       toast({
         title: "Error",
-        description: "Please select a physical table first",
+        description: "Por favor selecciona una mesa física primero",
         variant: "destructive",
       });
       return;
@@ -1601,7 +1604,8 @@ export default function SalesPage() {
       console.error("Error creating table order:", error);
       toast({
         title: "Error",
-        description: "Failed to create table order. Please try again.",
+        description:
+          "Error al crear orden de mesa. Por favor intenta de nuevo.",
         variant: "destructive",
       });
     } finally {
@@ -1665,7 +1669,7 @@ export default function SalesPage() {
           } catch (error) {
             toast({
               title: "Error",
-              description: "No se pudo actualizar la orden en el servidor",
+              description: "No se pudo actualizar el pedido en el servidor",
               variant: "destructive",
             });
           }
@@ -1904,8 +1908,8 @@ export default function SalesPage() {
 
     // Do NOT clear currentTableOrder - keep it for persistence
     toast({
-      title: "Ready for new order",
-      description: "You can now start a new sale for the same table.",
+      title: "Listo para nuevo pedido",
+      description: "Ahora puedes iniciar una nueva venta para la misma mesa.",
     });
 
     // Reset the flag after a short delay to allow the state to settle
@@ -1923,9 +1927,9 @@ export default function SalesPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-4">Loading POS...</h2>
+          <h2 className="text-2xl font-semibold mb-4">Cargando POS...</h2>
           <p className="text-gray-500">
-            Please wait while we load the sales interface
+            Por favor espera mientras cargamos la interfaz de ventas
           </p>
         </div>
       </div>
@@ -1962,7 +1966,7 @@ export default function SalesPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h1 className="text-2xl font-bold text-gray-900">
-              {searchParams.get("orderId") ? "Continue Order" : "New Sale"}
+              {searchParams.get("orderId") ? "Continuar Pedido" : "Nueva Venta"}
             </h1>
             <Button
               variant="outline"
@@ -1971,7 +1975,7 @@ export default function SalesPage() {
               className="ml-2"
             >
               <Plus className="h-4 w-4 mr-1" />
-              New Order
+              Nuevo Pedido
             </Button>
           </div>
           <div className="flex items-center space-x-4">
@@ -2079,7 +2083,7 @@ export default function SalesPage() {
                   ) : (
                     <X className="h-4 w-4" />
                   )}
-                  Cancel Order
+                  Cancelar Pedido
                 </Button>
               )}
 
@@ -2097,7 +2101,7 @@ export default function SalesPage() {
                   className="flex items-center gap-2 bg-green-50 text-green-700 hover:bg-green-100 border-green-300"
                 >
                   <Plus className="h-4 w-4" />
-                  New Order
+                  Nuevo Pedido
                 </Button>
               )}
 
@@ -2108,7 +2112,7 @@ export default function SalesPage() {
                 disabled={isLoading || isOrderCompleted()}
               >
                 <X className="h-4 w-4 mr-2" />
-                Clear Sale
+                Limpiar Venta
               </Button>
             )}
             <Button
@@ -2123,10 +2127,10 @@ export default function SalesPage() {
                 <CreditCard className="h-4 w-4 mr-2" />
               )}
               {isProcessing
-                ? "Processing..."
+                ? "Procesando..."
                 : isOrderCompleted()
-                ? "Order Completed"
-                : "Process Payment"}
+                ? "Pedido Completado"
+                : "Procesar Pago"}
             </Button>
           </div>
         </div>
@@ -2137,18 +2141,18 @@ export default function SalesPage() {
           {sale.currentOrder && (
             <div className="mt-2">
               <span className="inline-block bg-blue-100 text-blue-800 text-xs font-mono px-3 py-1 rounded-full border border-blue-200">
-                Order ID:{" "}
+                ID del Pedido:{" "}
                 {(sale.currentOrder as any)?._props?.id ||
                   (sale.currentOrder as any)?.id}
               </span>
               {searchParams.get("orderId") && (
                 <span className="inline-block bg-green-100 text-green-800 text-xs px-3 py-1 rounded-full border border-green-200 ml-2">
-                  Existing Order Loaded
+                  Pedido Existente Cargado
                 </span>
               )}
               {isOrderCompleted() && (
                 <span className="inline-block bg-red-100 text-red-800 text-xs px-3 py-1 rounded-full border border-red-200 ml-2">
-                  Order Completed - Read Only
+                  Pedido Completado - Solo Lectura
                 </span>
               )}
               {(sale.currentOrder as any)?._props?.tableOrderId ||
@@ -2163,7 +2167,7 @@ export default function SalesPage() {
             <div className="flex items-center gap-2 mt-1">
               <Clock className="h-3 w-3 text-green-600" />
               <span className="text-xs text-green-600">
-                Active Shift - Started:{" "}
+                Turno Activo - Iniciado:{" "}
                 {new Date(activeShift.startTime).toLocaleTimeString()}
               </span>
             </div>
@@ -2182,7 +2186,7 @@ export default function SalesPage() {
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <Input
-                    placeholder="Search products by name, description, or barcode..."
+                    placeholder="Buscar productos por nombre, descripción o código de barras..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -2199,14 +2203,14 @@ export default function SalesPage() {
                   ) : (
                     <Scan className="h-4 w-4" />
                   )}
-                  Scan
+                  Escanear
                 </Button>
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">All Categories</option>
+                  <option value="">Todas las Categorías</option>
                   {categories.map((category) => (
                     <option key={category.id} value={category.name}>
                       {category.name}
@@ -2222,7 +2226,9 @@ export default function SalesPage() {
                 <div className="flex-1 flex items-center justify-center">
                   <div className="text-center">
                     <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
-                    <p className="text-sm text-gray-500">Loading products...</p>
+                    <p className="text-sm text-gray-500">
+                      Cargando productos...
+                    </p>
                   </div>
                 </div>
               ) : (
@@ -2264,7 +2270,7 @@ export default function SalesPage() {
                               {formatPrice(product.price)}
                             </p>
                             <p className="text-xs text-gray-500">
-                              Stock: {product.stock || 0}
+                              Inventario: {product.stock || 0}
                             </p>
                             {product.categoryName && (
                               <Badge variant="outline" className="text-xs mt-1">
@@ -2281,7 +2287,7 @@ export default function SalesPage() {
                   <div className="border-t bg-white p-4">
                     <div className="flex items-center justify-between">
                       <div className="text-sm text-gray-500">
-                        Showing {products.length} of {totalProducts} products
+                        Mostrando {products.length} de {totalProducts} productos
                       </div>
                       <Pagination
                         currentPage={currentPage}
@@ -2302,20 +2308,22 @@ export default function SalesPage() {
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-lg font-bold text-gray-900 flex items-center">
                   <ShoppingCart className="h-4 w-4 mr-2 text-blue-600" />
-                  Cart Items
+                  Artículos del Carrito
                 </h3>
                 <Badge variant="secondary" className="text-xs px-2 py-0.5">
                   {sale.items.length}{" "}
-                  {sale.items.length === 1 ? "item" : "items"}
+                  {sale.items.length === 1 ? "artículo" : "artículos"}
                 </Badge>
               </div>
 
               {sale.items.length === 0 ? (
                 <div className="text-center text-gray-500 py-8">
                   <ShoppingCart className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                  <p className="text-base font-medium">No items in cart</p>
+                  <p className="text-base font-medium">
+                    No hay artículos en el carrito
+                  </p>
                   <p className="text-xs text-gray-400 mt-1">
-                    Add products to start a sale
+                    Agrega productos para iniciar una venta
                   </p>
                 </div>
               ) : (
@@ -2387,7 +2395,7 @@ export default function SalesPage() {
                                   }
                                 >
                                   <Trash2 className="h-2.5 w-2.5 mr-1" />
-                                  Remove
+                                  Eliminar
                                 </Button>
                               </>
                             ) : (
@@ -2396,7 +2404,7 @@ export default function SalesPage() {
                                   {item.quantity}
                                 </span>
                                 <span className="text-xs text-gray-500 ml-1">
-                                  (Read-only)
+                                  (Solo lectura)
                                 </span>
                               </div>
                             )}
@@ -2413,7 +2421,7 @@ export default function SalesPage() {
             <div className="flex-shrink-0 border-t bg-gray-50 p-4">
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-lg font-bold text-gray-900">
-                  Order Summary
+                  Resumen del Pedido
                 </h3>
               </div>
 
@@ -2426,7 +2434,7 @@ export default function SalesPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">
-                    Tax (
+                    Impuesto (
                     {(
                       taxes.reduce((sum, tax) => sum + tax.rate, 0) * 100
                     ).toFixed(1)}
@@ -2437,7 +2445,7 @@ export default function SalesPage() {
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Discount:</span>
+                  <span className="text-gray-600">Descuento:</span>
                   <span className="font-medium text-red-600">
                     -{formatPrice(sale.discount || 0)}
                   </span>
@@ -2445,7 +2453,7 @@ export default function SalesPage() {
                 {sale.tipAmount > 0 && (
                   <div className="flex justify-between">
                     <span className="text-gray-600">
-                      Tip ({(sale.tipPercentage * 100).toFixed(0)}%):
+                      Propina ({(sale.tipPercentage * 100).toFixed(0)}%):
                     </span>
                     <span className="font-medium text-green-600">
                       {formatPrice(sale.tipAmount)}
@@ -2498,7 +2506,7 @@ export default function SalesPage() {
                       htmlFor="tipCheckbox"
                       className="text-sm text-gray-700"
                     >
-                      Add 10% tip
+                      Agregar 10% de propina
                     </label>
                   </div>
                   {sale.tipPercentage === 0.1 && (
@@ -2534,9 +2542,7 @@ export default function SalesPage() {
             {/* Customer Selection */}
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-semibold text-gray-900">
-                  Customer
-                </h3>
+                <h3 className="text-sm font-semibold text-gray-900">Cliente</h3>
                 <div className="flex gap-2">
                   {sale.customer && !isOrderCompleted() && (
                     <Button
@@ -2547,7 +2553,7 @@ export default function SalesPage() {
                       className="text-xs px-2 py-1 text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-300"
                     >
                       <X className="h-3 w-3 mr-1" />
-                      Remove
+                      Eliminar
                     </Button>
                   )}
                   <Button
@@ -2562,7 +2568,7 @@ export default function SalesPage() {
                     }`}
                   >
                     <User className="h-3 w-3 mr-1" />
-                    {sale.customer ? "Change" : "Select"}
+                    {sale.customer ? "Cambiar" : "Seleccionar"}
                   </Button>
                 </div>
               </div>
@@ -2590,7 +2596,7 @@ export default function SalesPage() {
                     </div>
                     <div>
                       <p className="text-xs text-gray-600">
-                        No customer selected
+                        No hay cliente seleccionado
                       </p>
                     </div>
                   </div>
@@ -2602,11 +2608,11 @@ export default function SalesPage() {
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-semibold text-gray-900">
-                  Customer Name
+                  Nombre del Cliente
                 </h3>
               </div>
               <Input
-                placeholder="Enter customer name (optional)"
+                placeholder="Ingresar nombre del cliente (opcional)"
                 value={sale.customerName || ""}
                 onChange={async (e) => {
                   const newCustomerName = e.target.value;
@@ -2659,7 +2665,7 @@ export default function SalesPage() {
             {/* Payment Method Selection */}
             <div className="flex-1">
               <h3 className="text-sm font-semibold text-gray-900 mb-2">
-                Payment Method
+                Método de Pago
               </h3>
               <div className="space-y-1">
                 {paymentMethods.map((method) => (
@@ -2695,7 +2701,7 @@ export default function SalesPage() {
                           </span>
                           {method.isDefault && (
                             <Badge variant="outline" className="ml-1 text-xs">
-                              Default
+                              Predeterminado
                             </Badge>
                           )}
                         </div>
@@ -2741,12 +2747,12 @@ export default function SalesPage() {
             })() && (
               <div className="flex-1">
                 <h3 className="text-sm font-semibold text-gray-900 mb-2">
-                  Amount Tendered
+                  Cantidad Entregada
                 </h3>
                 <div className="space-y-2">
                   <Input
                     type="number"
-                    placeholder="Enter amount"
+                    placeholder="Ingresar cantidad"
                     value={sale.amountTendered || ""}
                     onChange={(e) =>
                       setSale((prev) => ({
@@ -2765,7 +2771,7 @@ export default function SalesPage() {
                     <div className="bg-green-50 border border-green-200 p-2 rounded-md">
                       <div className="flex justify-between items-center">
                         <span className="text-xs font-medium text-green-800">
-                          Change:
+                          Cambio:
                         </span>
                         <span className="text-sm font-bold text-green-600">
                           $
@@ -2833,8 +2839,8 @@ export default function SalesPage() {
         isOpen={showBarcodeScanner}
         onClose={() => setShowBarcodeScanner(false)}
         onBarcodeScanned={handleBarcodeScanned}
-        title="Scan Product Barcode"
-        placeholder="Scan or enter product barcode..."
+        title="Escanear Código de Barras del Producto"
+        placeholder="Escanear o ingresar código de barras del producto..."
       />
 
       {/* Cancel Order Modal */}
@@ -2843,34 +2849,36 @@ export default function SalesPage() {
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-red-600" />
-              Cancel Order
+              Cancelar Pedido
             </SheetTitle>
             <SheetDescription>
-              Please provide a reason for cancelling this order. This action
-              cannot be undone.
+              Por favor proporciona una razón para cancelar este pedido. Esta
+              acción no se puede deshacer.
             </SheetDescription>
           </SheetHeader>
 
           <div className="space-y-6 py-6">
             {/* Order Information */}
             <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-medium text-gray-900 mb-2">Order Details</h4>
+              <h4 className="font-medium text-gray-900 mb-2">
+                Detalles del Pedido
+              </h4>
               <div className="text-sm text-gray-600 space-y-1">
                 <div>
-                  Order ID:{" "}
+                  ID del Pedido:{" "}
                   {(sale.currentOrder as any)?._props?.id ||
                     (sale.currentOrder as any)?.id}
                 </div>
-                <div>Items: {sale.items.length}</div>
+                <div>Artículos: {sale.items.length}</div>
                 <div>Total: ${(sale.total || 0).toFixed(2)}</div>
-                <div>Customer: {sale.customer?.name || "No customer"}</div>
+                <div>Cliente: {sale.customer?.name || "Sin cliente"}</div>
               </div>
             </div>
 
             {/* Cancellation Reason */}
             <div className="space-y-3">
               <Label htmlFor="cancel-reason" className="text-base font-medium">
-                Reason for Cancellation *
+                Razón para Cancelación *
               </Label>
 
               <div className="space-y-2">
@@ -2902,13 +2910,13 @@ export default function SalesPage() {
                     htmlFor="custom-reason"
                     className="text-sm font-medium"
                   >
-                    Please specify the reason *
+                    Por favor especifica la razón *
                   </Label>
                   <Textarea
                     id="custom-reason"
                     value={customCancelReason}
                     onChange={(e) => setCustomCancelReason(e.target.value)}
-                    placeholder="Enter the specific reason for cancellation..."
+                    placeholder="Ingresa la razón específica para la cancelación..."
                     className="mt-2"
                     rows={3}
                   />
@@ -2928,7 +2936,7 @@ export default function SalesPage() {
               disabled={isCancelling}
               className="flex-1"
             >
-              Cancel
+              Cancelar
             </Button>
             <Button
               variant="destructive"
@@ -2943,12 +2951,12 @@ export default function SalesPage() {
               {isCancelling ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Cancelling...
+                  Cancelando...
                 </>
               ) : (
                 <>
                   <X className="h-4 w-4 mr-2" />
-                  Confirm Cancellation
+                  Confirmar Cancelación
                 </>
               )}
             </Button>
@@ -3024,7 +3032,7 @@ export default function SalesPage() {
               </Label>
               <Input
                 id="customer-name"
-                placeholder="Ej: John, Cliente 1, etc."
+                placeholder="Ej: Juan, Cliente 1, etc."
                 value={sale.customerName || ""}
                 onChange={async (e) => {
                   const newCustomerName = e.target.value;
@@ -3060,7 +3068,7 @@ export default function SalesPage() {
                         console.error("Error updating customer name:", error);
                         toast({
                           title: "Error",
-                          description: "Failed to update customer name",
+                          description: "Error al actualizar nombre del cliente",
                           variant: "destructive",
                         });
                       }
@@ -3155,7 +3163,7 @@ export default function SalesPage() {
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
                   <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
-                  <p className="text-sm text-gray-500">Loading tables...</p>
+                  <p className="text-sm text-gray-500">Cargando mesas...</p>
                 </div>
               </div>
             ) : filteredPhysicalTables.length === 0 ? (
@@ -3163,10 +3171,10 @@ export default function SalesPage() {
                 <div className="text-center">
                   <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    No Available Tables
+                    No Hay Mesas Disponibles
                   </h3>
                   <p className="text-sm text-gray-500 mb-4">
-                    No tables match your search.
+                    No hay mesas que coincidan con tu búsqueda.
                   </p>
                 </div>
               </div>
@@ -3198,14 +3206,14 @@ export default function SalesPage() {
                             variant="secondary"
                             className="text-[10px] px-2 py-0.5"
                           >
-                            Available
+                            Disponible
                           </Badge>
                           {table.capacity > 0 && (
                             <Badge
                               variant="outline"
                               className="text-[10px] px-2 py-0.5"
                             >
-                              {table.capacity}
+                              Capacidad: {table.capacity}
                             </Badge>
                           )}
                           {table.location && (

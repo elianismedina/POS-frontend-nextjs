@@ -45,6 +45,12 @@ import {
 import { Pagination } from "@/components/ui/pagination";
 import { BarcodeScanner } from "@/components/ui/barcode-scanner";
 import { ExistingTablesDisplay } from "@/components/cashier/ExistingTablesDisplay";
+import { OrderCompletionModal } from "./components/OrderCompletionModal";
+import { PaymentModal } from "./components/PaymentModal";
+import { CustomerModal } from "./components/CustomerModal";
+import { useTableManagementService } from "./services/tableManagementService";
+import { useOrderCompletionService } from "./services/orderCompletionService";
+import { useCartManagementService } from "./services/cartManagementService";
 
 import {
   Search,
@@ -103,6 +109,11 @@ export default function SalesPage() {
   const searchParams = useSearchParams();
   const orderIdParam = searchParams.get("orderId");
   const { toast } = useToast();
+
+  // Service hooks
+  const tableManagementService = useTableManagementService();
+  const orderCompletionService = useOrderCompletionService();
+  const cartManagementService = useCartManagementService();
 
   // State
   const [products, setProducts] = useState<Product[]>([]);
@@ -909,292 +920,36 @@ export default function SalesPage() {
   };
 
   const addToCart = async (product: Product) => {
-    try {
-      // Create order if it doesn't exist
-      let currentOrder = sale.currentOrder;
-      if (!currentOrder) {
-        currentOrder = await createNewOrder();
-      }
-
-      // Handle both getter method and _props structure for order ID
-      const orderId =
-        (currentOrder as any)?._props?.id || (currentOrder as any)?.id;
-
-      if (!orderId) {
-        throw new Error("Order ID is missing");
-      }
-
-      // Add item to order via backend
-      const addItemData = {
-        ...(product.barcode
-          ? { barcode: product.barcode }
-          : { productId: product.id }),
-        quantity: 1,
-      };
-
-      // Add item to order and get the updated order directly
-      const updatedOrder = await ordersService.addItem(orderId, addItemData);
-
-      // Sync local cart state with backend order state
-      const backendItems = (updatedOrder.items || [])
-        .map((item: any) => {
-          const itemData = item._props || item;
-          // Try to find product in allProducts
-          let product = allProducts.find((p) => p.id === itemData.productId);
-          if (!product) {
-            return null;
-          }
-          const cartItem = {
-            product,
-            quantity: itemData.quantity || 1,
-            subtotal:
-              itemData.subtotal || product.price * (itemData.quantity || 1),
-          };
-          return cartItem;
-        })
-        .filter((item: any): item is CartItem => item !== null);
-
-      // Use a more direct approach to update state
-      const newSaleData = {
-        ...sale,
-        items: backendItems,
-        currentOrder: updatedOrder,
-      };
-
-      const calculatedSale = calculateTotals(newSaleData);
-
-      // Update state directly
-      setSale(calculatedSale);
-
-      // Set flag to refresh orders list when returning
-      sessionStorage.setItem("shouldRefreshOrders", "true");
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to add item to cart",
-        variant: "destructive",
-      });
-    }
+    await cartManagementService.addToCart(
+      product,
+      sale,
+      setSale,
+      allProducts,
+      createNewOrder
+    );
   };
 
   const updateQuantity = async (productId: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      await removeFromCart(productId);
-      return;
-    }
-
-    try {
-      if (sale.currentOrder) {
-        // Handle both getter method and _props structure for order ID
-        const orderId =
-          (sale.currentOrder as any)?._props?.id ||
-          (sale.currentOrder as any)?.id;
-
-        if (!orderId) {
-          throw new Error("Order ID is missing");
-        }
-
-        // Handle both direct properties and _props structure for order items
-        const orderData =
-          (sale.currentOrder as any)._props || sale.currentOrder;
-        const orderItems = orderData.items || [];
-
-        // Find the order item ID
-        const orderItem = orderItems.find((item: any) => {
-          const itemData = item._props || item;
-          return itemData.productId === productId;
-        });
-
-        if (orderItem) {
-          const itemData = orderItem._props || orderItem;
-
-          const updatedOrder = await ordersService.updateItemQuantity(
-            orderId,
-            itemData.id,
-            newQuantity
-          );
-
-          // Check if the response has items, if not fetch the complete order
-          let finalOrder = updatedOrder;
-          if (!updatedOrder.items || updatedOrder.items.length === 0) {
-            finalOrder = await ordersService.getOrder(orderId);
-          }
-
-          // Sync local cart state with backend order state
-          const backendItems = (finalOrder.items || [])
-            .map((item: any) => {
-              const itemData = item._props || item;
-              const product = allProducts.find(
-                (p) => p.id === itemData.productId
-              );
-              if (!product) {
-                return null;
-              }
-              const cartItem = {
-                product,
-                quantity: itemData.quantity,
-                subtotal:
-                  itemData.subtotal || product.price * itemData.quantity,
-              };
-              return cartItem;
-            })
-            .filter((item: any): item is CartItem => item !== null);
-
-          const newSaleData = {
-            ...sale,
-            items: backendItems,
-            currentOrder: finalOrder,
-          };
-
-          const calculatedSale = calculateTotals(newSaleData);
-          // Use a more explicit state update
-          setSale(() => calculatedSale);
-
-          // Set flag to refresh orders list when returning
-          sessionStorage.setItem("shouldRefreshOrders", "true");
-        }
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to update quantity",
-        variant: "destructive",
-      });
-    }
+    await cartManagementService.updateQuantity(
+      productId,
+      newQuantity,
+      sale,
+      setSale,
+      allProducts
+    );
   };
 
   const removeFromCart = async (productId: string) => {
-    try {
-      if (sale.currentOrder) {
-        // Handle both getter method and _props structure for order ID
-        const orderId =
-          (sale.currentOrder as any)?._props?.id ||
-          (sale.currentOrder as any)?.id;
-
-        if (!orderId) {
-          throw new Error("Order ID is missing");
-        }
-
-        // Handle both direct properties and _props structure for order items
-        const orderData =
-          (sale.currentOrder as any)._props || sale.currentOrder;
-        const orderItems = orderData.items || [];
-
-        const orderItem = orderItems.find((item: any) => {
-          const itemData = item._props || item;
-          return itemData.productId === productId;
-        });
-
-        if (orderItem) {
-          const itemData = orderItem._props || orderItem;
-
-          const updatedOrder = await ordersService.removeItem(
-            orderId,
-            itemData.id
-          );
-
-          // Check if the response has items, if not fetch the complete order
-          let finalOrder = updatedOrder;
-          if (!updatedOrder.items || updatedOrder.items.length === 0) {
-            finalOrder = await ordersService.getOrder(orderId);
-          }
-
-          // Sync local cart state with backend order state
-          const backendItems = (finalOrder.items || [])
-            .map((item: any) => {
-              const itemData = item._props || item;
-              const product = allProducts.find(
-                (p) => p.id === itemData.productId
-              );
-              if (!product) {
-                return null;
-              }
-              const cartItem = {
-                product,
-                quantity: itemData.quantity,
-                subtotal:
-                  itemData.subtotal || product.price * itemData.quantity,
-              };
-              return cartItem;
-            })
-            .filter((item: any): item is CartItem => item !== null);
-
-          const newSaleData = {
-            ...sale,
-            items: backendItems,
-            currentOrder: finalOrder,
-          };
-
-          const calculatedSale = calculateTotals(newSaleData);
-          // Use a more explicit state update
-          setSale(() => calculatedSale);
-
-          // Set flag to refresh orders list when returning
-          sessionStorage.setItem("shouldRefreshOrders", "true");
-        }
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to remove item",
-        variant: "destructive",
-      });
-    }
+    await cartManagementService.removeFromCart(
+      productId,
+      sale,
+      setSale,
+      allProducts
+    );
   };
 
   const calculateTotals = (saleData: SaleData): SaleData => {
-    // Always preserve all the sale data from the input
-    const result = {
-      ...saleData,
-      items: saleData.items || [], // Ensure items are preserved
-      customer: saleData.customer, // Preserve customer data
-      currentOrder: saleData.currentOrder, // Preserve current order
-      selectedPaymentMethod: saleData.selectedPaymentMethod, // Preserve payment method
-      discount: saleData.discount || 0, // Preserve discount
-      discountType: saleData.discountType || "percentage", // Preserve discount type
-      amountTendered: saleData.amountTendered || 0, // Preserve amount tendered
-      tipAmount: saleData.tipAmount || 0, // Preserve tip amount
-      tipPercentage: saleData.tipPercentage || 0, // Preserve tip percentage
-    };
-
-    // If we have a current order with backend totals, use those for calculations
-    if (saleData.currentOrder) {
-      // Handle both direct properties and _props structure
-      const order = saleData.currentOrder as any;
-      const orderData = order._props || order;
-
-      return {
-        ...result,
-        subtotal: orderData.totalAmount || orderData.subtotal || 0,
-        tax: orderData.taxAmount || orderData.taxTotal || 0,
-        // Use tip values from order data, but preserve any existing tip values in sale data
-        tipAmount: orderData.tipAmount || saleData.tipAmount || 0,
-        tipPercentage: orderData.tipPercentage || saleData.tipPercentage || 0,
-        total: orderData.finalAmount || orderData.total || 0,
-      };
-    }
-
-    // Otherwise calculate locally
-    const subtotal = saleData.items.reduce(
-      (sum, item) => sum + item.subtotal,
-      0
-    );
-    const taxRate = taxes.reduce((sum, tax) => sum + tax.rate, 0);
-    const tax = subtotal * taxRate;
-    const discount =
-      saleData.discountType === "percentage"
-        ? subtotal * (saleData.discount / 100)
-        : saleData.discount;
-    const tipAmount = saleData.tipAmount || 0;
-    const total = subtotal + tax - discount + tipAmount;
-
-    return {
-      ...result,
-      subtotal,
-      tax,
-      tipAmount,
-      total,
-    };
+    return cartManagementService.calculateTotals(saleData, taxes);
   };
 
   const selectCustomer = async (customer: Customer) => {
@@ -1457,185 +1212,21 @@ export default function SalesPage() {
   };
 
   const handleCompleteOrder = async () => {
-    try {
-      // Handle both getter method and _props structure for order ID
-      const orderId =
-        (sale.currentOrder as any)?._props?.id ||
-        (sale.currentOrder as any)?.id;
-
-      if (!orderId) {
-        throw new Error("Order ID is missing");
-      }
-
-      // Validate delivery address if delivery is selected
-      if (
-        completionDetails.completionType === "DELIVERY" &&
-        !completionDetails.deliveryAddress.trim()
-      ) {
-        toast({
-          title: "Delivery address required",
-          description: "Please provide a delivery address for delivery orders",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Check current order status before processing
-      const currentOrder = await ordersService.getOrder(orderId);
-      const orderStatus =
-        (currentOrder as any)._props?.status || currentOrder.status;
-
-      // Check if order already has a payment before processing
-      try {
-        // Only confirm the order if it's in PENDING status
-        if (orderStatus === "PENDING") {
-          await ordersService.confirmOrder(
-            orderId,
-            "Order confirmed for payment processing"
-          );
-        } else if (orderStatus === "CONFIRMED" || orderStatus === "PAID") {
-          // Order is already confirmed or paid, skipping confirmation
-        } else {
-          throw new Error(
-            `Cannot process payment for order in status: ${orderStatus}`
-          );
-        }
-
-        // Only process payment if order is not already paid
-        if (orderStatus !== "PAID") {
-          const paymentData = {
-            orderId: orderId,
-            paymentMethodId: sale.selectedPaymentMethod!.id, // Use business payment method ID
-            amount: sale.total,
-            metadata: {
-              amountTendered:
-                sale.selectedPaymentMethod!.paymentMethod.code === "CASH" ||
-                sale.selectedPaymentMethod!.paymentMethod.code === "EFECTIVO"
-                  ? sale.amountTendered
-                  : undefined,
-              notes: `Payment processed for order ${orderId}`,
-              customerName: sale.customer?.name,
-              cashierName: user?.name,
-            },
-          };
-
-          // Add debugging information
-          console.log("Payment data being sent:", paymentData);
-          console.log("Selected payment method:", sale.selectedPaymentMethod);
-          console.log("Order status:", orderStatus);
-
-          await ordersService.processPayment(paymentData);
-        }
-      } catch (error: any) {
-        // If payment already exists, continue with order completion
-        if (
-          error.response?.status === 409 &&
-          error.response?.data?.message?.includes(
-            "already has a completed payment"
-          )
-        ) {
-          // Continue with order completion without creating a new payment
-        } else {
-          // Re-throw other errors
-          throw error;
-        }
-      }
-
-      // Check current order status before attempting completion
-      const updatedOrder = await ordersService.getOrder(orderId);
-      const updatedOrderStatus =
-        (updatedOrder as any)._props?.status || updatedOrder.status;
-
-      // Only complete the order if it's not already completed
-      if (updatedOrderStatus !== "COMPLETED") {
-        // Then complete the order with user-specified details (this sets status to COMPLETED)
-        const completeOrderData = {
-          completionType: getCompletionType(),
-          deliveryAddress: completionDetails.deliveryAddress || undefined,
-          estimatedTime: completionDetails.estimatedTime || undefined,
-          notes:
-            completionDetails.notes ||
-            (sale.customer ? `Customer: ${sale.customer.name}` : ""),
-        };
-
-        await ordersService.completeOrder(orderId, completeOrderData);
-      }
-
-      // Get the final updated order with COMPLETED status
-      const finalOrder = await ordersService.getOrder(orderId);
-
-      // Debug: Log the final order to see if items are present
-      console.log(
-        "Final completed order:",
-        JSON.stringify(finalOrder, null, 2)
-      );
-      console.log("Final order items count:", finalOrder.items?.length || 0);
-      console.log("Final order total:", finalOrder.total);
-      console.log("Final order total:", finalOrder.total);
-
-      // Set completed order details for success modal
-      setCompletedOrderDetails({
-        orderId: orderId,
-        total: sale.total || 0,
-        paymentMethod: sale.selectedPaymentMethod!.paymentMethod.name,
-        customerName: sale.customer?.name,
-      });
-
-      // Update the current order with the completed status before clearing
-      setSale((prev) => ({
-        ...prev,
-        currentOrder: finalOrder,
-      }));
-
-      // Set flag to indicate order was just completed
-      setOrderJustCompleted(true);
-
-      // Don't clear sale immediately for completed orders - let the success modal show the details
-      // The sale will be cleared when the user clicks "New Order" or navigates away
-      // Clear the selected table when order is completed
-      setCurrentTableOrder(null);
-      saveSelectedTable(null);
-      setShowCompletionModal(false);
-
-      // Show success modal
-      setShowSuccessModal(true);
-
-      // Reset the flag after a short delay
-      setTimeout(() => {
-        setOrderJustCompleted(false);
-      }, 2000);
-
-      // Reset completion details
-      setCompletionDetails({
-        completionType: "PICKUP",
-        deliveryAddress: "",
-        estimatedTime: "",
-        notes: "",
-      });
-    } catch (error: any) {
-      if (error.response?.status === 404) {
-        toast({
-          title: "API Error",
-          description: "Payment endpoint not found. Please contact support.",
-          variant: "destructive",
-        });
-      } else if (error.response?.status === 401) {
-        toast({
-          title: "Authentication Error",
-          description: "Your session has expired. Please log in again.",
-          variant: "destructive",
-        });
-        router.push("/");
-      } else {
-        toast({
-          title: "Error",
-          description:
-            error.response?.data?.message ||
-            "Failed to process payment. Please try again.",
-          variant: "destructive",
-        });
-      }
-    }
+    await orderCompletionService.handleCompleteOrder(
+      sale,
+      completionDetails,
+      currentTableOrder,
+      user,
+      setSale,
+      setCompletedOrderDetails,
+      setOrderJustCompleted,
+      clearSale,
+      setCurrentTableOrder,
+      saveSelectedTable,
+      setShowCompletionModal,
+      setShowSuccessModal,
+      setCompletionDetails
+    );
   };
 
   const getPaymentMethodIcon = (code: string) => {
@@ -3194,407 +2785,48 @@ export default function SalesPage() {
       </div>
 
       {/* Order Completion Modal */}
-      {showCompletionModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">
-                Order Completion Details
-              </h3>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowCompletionModal(false)}
-                disabled={isProcessing}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <div className="space-y-4">
-              {/* Completion Type - only show for non-table orders */}
-              {!currentTableOrder && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Completion Type
-                  </label>
-                  <select
-                    value={completionDetails.completionType}
-                    onChange={(e) =>
-                      setCompletionDetails((prev) => ({
-                        ...prev,
-                        completionType: e.target.value as
-                          | "PICKUP"
-                          | "DELIVERY"
-                          | "DINE_IN",
-                      }))
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="PICKUP">Pickup</option>
-                    <option value="DELIVERY">Delivery</option>
-                  </select>
-                </div>
-              )}
-
-              {/* Table Information - show for table orders */}
-              {currentTableOrder && (
-                <div className="bg-blue-50 p-4 rounded-md">
-                  <h4 className="font-medium text-blue-900 mb-2">
-                    Table Order
-                  </h4>
-                  <div className="text-sm text-blue-800 space-y-1">
-                    <div>Table: {currentTableOrder.tableNumber}</div>
-                    {currentTableOrder.tableName && (
-                      <div>Name: {currentTableOrder.tableName}</div>
-                    )}
-                    <div>Status: Dine In</div>
-                  </div>
-                </div>
-              )}
-
-              {/* Delivery Address - only show for delivery */}
-              {completionDetails.completionType === "DELIVERY" && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Delivery Address *
-                  </label>
-                  <textarea
-                    value={completionDetails.deliveryAddress}
-                    onChange={(e) =>
-                      setCompletionDetails((prev) => ({
-                        ...prev,
-                        deliveryAddress: e.target.value,
-                      }))
-                    }
-                    placeholder="Enter delivery address..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    rows={3}
-                  />
-                </div>
-              )}
-
-              {/* Estimated Time */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Estimated Time (optional)
-                </label>
-                <input
-                  type="text"
-                  value={completionDetails.estimatedTime}
-                  onChange={(e) =>
-                    setCompletionDetails((prev) => ({
-                      ...prev,
-                      estimatedTime: e.target.value,
-                    }))
-                  }
-                  placeholder="e.g., 30 minutes, 1 hour"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              {/* Notes */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Additional Notes (optional)
-                </label>
-                <textarea
-                  value={completionDetails.notes}
-                  onChange={(e) =>
-                    setCompletionDetails((prev) => ({
-                      ...prev,
-                      notes: e.target.value,
-                    }))
-                  }
-                  placeholder="Any special instructions or notes..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows={3}
-                />
-              </div>
-
-              {/* Order Summary */}
-              <div className="bg-gray-50 p-4 rounded-md">
-                <h4 className="font-medium text-gray-900 mb-2">
-                  Order Summary
-                </h4>
-                <div className="text-sm text-gray-600 space-y-1">
-                  <div>Items: {sale.items.length}</div>
-                  <div>Total: {formatPrice(sale.total || 0)}</div>
-                  <div>Customer: {sale.customer?.name || "No customer"}</div>
-                  <div>
-                    Payment: {sale.selectedPaymentMethod?.paymentMethod.name}
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowCompletionModal(false)}
-                  disabled={isProcessing}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleCompleteOrder}
-                  disabled={isProcessing}
-                  className="flex-1"
-                >
-                  {isProcessing ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard className="h-4 w-4 mr-2" />
-                      Complete Order & Process Payment
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <OrderCompletionModal
+        isOpen={showCompletionModal}
+        onClose={() => setShowCompletionModal(false)}
+        onComplete={handleCompleteOrder}
+        isProcessing={isProcessing}
+        sale={sale}
+        completionDetails={completionDetails}
+        setCompletionDetails={setCompletionDetails}
+        currentTableOrder={currentTableOrder}
+      />
 
       {/* Payment Modal */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Process Payment</h3>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowPaymentModal(false)}
-                disabled={isProcessing}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onProcessPayment={async () => {
+          // Close payment modal and show completion modal
+          setShowPaymentModal(false);
 
-            <div className="space-y-4">
-              {/* Payment Method Display */}
-              <div className="bg-gray-50 p-4 rounded-md">
-                <h4 className="font-medium text-gray-900 mb-2">
-                  Payment Method
-                </h4>
-                <div className="flex items-center gap-2">
-                  {getPaymentMethodIcon(
-                    sale.selectedPaymentMethod?.paymentMethod.code || ""
-                  )}
-                  <span className="text-sm font-medium">
-                    {sale.selectedPaymentMethod?.paymentMethod.name}
-                  </span>
-                </div>
-              </div>
-
-              {/* Order Summary */}
-              <div className="bg-gray-50 p-4 rounded-md">
-                <h4 className="font-medium text-gray-900 mb-2">
-                  Order Summary
-                </h4>
-                <div className="text-sm text-gray-600 space-y-1">
-                  <div>Items: {sale.items.length}</div>
-                  <div>Subtotal: {formatPrice(sale.subtotal || 0)}</div>
-                  <div>Tax: {formatPrice(sale.tax || 0)}</div>
-                  <div className="font-bold text-lg">
-                    Total: {formatPrice(sale.total || 0)}
-                  </div>
-                  <div>Customer: {sale.customer?.name || "No customer"}</div>
-                </div>
-              </div>
-
-              {/* Amount Tendered (for cash-like payments) */}
-              {(() => {
-                const selectedMethod = sale.selectedPaymentMethod;
-                const shouldShowAmountTendered =
-                  selectedMethod &&
-                  (selectedMethod.paymentMethod.code
-                    .toLowerCase()
-                    .includes("cash") ||
-                    selectedMethod.paymentMethod.code
-                      .toLowerCase()
-                      .includes("efectivo") ||
-                    selectedMethod.paymentMethod.code
-                      .toLowerCase()
-                      .includes("dinero") ||
-                    selectedMethod.paymentMethod.name
-                      .toLowerCase()
-                      .includes("cash") ||
-                    selectedMethod.paymentMethod.name
-                      .toLowerCase()
-                      .includes("efectivo") ||
-                    selectedMethod.paymentMethod.name
-                      .toLowerCase()
-                      .includes("dinero"));
-                return shouldShowAmountTendered;
-              })() && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Amount Tendered *
-                  </label>
-                  <Input
-                    type="number"
-                    placeholder="Enter amount"
-                    value={sale.amountTendered || ""}
-                    onChange={(e) =>
-                      setSale((prev) => ({
-                        ...prev,
-                        amountTendered: parseFloat(e.target.value) || 0,
-                      }))
-                    }
-                    step="0.01"
-                    min="0"
-                    className="text-sm"
-                  />
-                  {sale.amountTendered > 0 && (
-                    <div className="bg-green-50 border border-green-200 p-2 rounded-md mt-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-medium text-green-800">
-                          Change:
-                        </span>
-                        <span className="text-sm font-bold text-green-600">
-                          {formatPrice(
-                            Math.max(
-                              0,
-                              (sale.amountTendered || 0) - (sale.total || 0)
-                            )
-                          )}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowPaymentModal(false)}
-                  disabled={isProcessing}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={async () => {
-                    // Validate amount tendered for cash-like payments
-                    const selectedMethod = sale.selectedPaymentMethod;
-                    const isCashLikePayment =
-                      selectedMethod &&
-                      (selectedMethod.paymentMethod.code
-                        .toLowerCase()
-                        .includes("cash") ||
-                        selectedMethod.paymentMethod.code
-                          .toLowerCase()
-                          .includes("efectivo") ||
-                        selectedMethod.paymentMethod.code
-                          .toLowerCase()
-                          .includes("dinero") ||
-                        selectedMethod.paymentMethod.name
-                          .toLowerCase()
-                          .includes("cash") ||
-                        selectedMethod.paymentMethod.name
-                          .toLowerCase()
-                          .includes("efectivo") ||
-                        selectedMethod.paymentMethod.name
-                          .toLowerCase()
-                          .includes("dinero"));
-
-                    if (isCashLikePayment) {
-                      if (sale.amountTendered < sale.total) {
-                        toast({
-                          title: "Insufficient amount",
-                          description:
-                            "Amount tendered must be greater than or equal to total",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-                    }
-
-                    // Close payment modal and show completion modal
-                    setShowPaymentModal(false);
-
-                    // If table is selected, process payment directly
-                    if (currentTableOrder) {
-                      await handleCompleteOrder();
-                    } else {
-                      // Show completion modal for non-table orders
-                      setShowCompletionModal(true);
-                    }
-                  }}
-                  disabled={isProcessing}
-                  className="flex-1"
-                >
-                  {isProcessing ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <CreditCardIcon className="h-4 w-4 mr-2" />
-                      Process Payment
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+          // If table is selected, process payment directly
+          if (currentTableOrder) {
+            await handleCompleteOrder();
+          } else {
+            // Show completion modal for non-table orders
+            setShowCompletionModal(true);
+          }
+        }}
+        isProcessing={isProcessing}
+        sale={sale}
+        setSale={setSale}
+        toast={toast}
+      />
 
       {/* Customer Selection Modal */}
-      {showCustomerModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96 max-h-96 overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Select Customer</h3>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowCustomerModal(false)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <Input
-              placeholder="Search customers..."
-              value={customerSearchTerm}
-              onChange={(e) => setCustomerSearchTerm(e.target.value)}
-              className="mb-4"
-            />
-            <div className="space-y-2">
-              {customers
-                .filter(
-                  (customer) =>
-                    customer.name
-                      .toLowerCase()
-                      .includes(customerSearchTerm.toLowerCase()) ||
-                    customer.email
-                      .toLowerCase()
-                      .includes(customerSearchTerm.toLowerCase())
-                )
-                .map((customer) => (
-                  <div
-                    key={customer.id}
-                    className="p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
-                    onClick={() => selectCustomer(customer)}
-                  >
-                    <p className="font-medium">{customer.name}</p>
-                    <p className="text-sm text-gray-600">{customer.email}</p>
-                  </div>
-                ))}
-            </div>
-          </div>
-        </div>
-      )}
+      <CustomerModal
+        isOpen={showCustomerModal}
+        onClose={() => setShowCustomerModal(false)}
+        onSelectCustomer={selectCustomer}
+        customers={customers}
+        customerSearchTerm={customerSearchTerm}
+        setCustomerSearchTerm={setCustomerSearchTerm}
+      />
 
       {/* Barcode Scanner Modal */}
       <BarcodeScanner

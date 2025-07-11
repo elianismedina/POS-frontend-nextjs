@@ -26,8 +26,12 @@ const getStatusColor = (status: string) => {
   switch (status) {
     case "PENDING":
       return "bg-yellow-100 text-yellow-800";
+    case "RECEIVED":
+      return "bg-orange-100 text-orange-800";
     case "CONFIRMED":
       return "bg-blue-100 text-blue-800";
+    case "PREPARING":
+      return "bg-purple-100 text-purple-800";
     case "PAID":
       return "bg-green-100 text-green-800";
     case "COMPLETED":
@@ -43,7 +47,11 @@ const getStatusIcon = (status: string) => {
   switch (status) {
     case "PENDING":
       return <Clock className="h-4 w-4" />;
+    case "RECEIVED":
+      return <Receipt className="h-4 w-4" />;
     case "CONFIRMED":
+      return <Clock className="h-4 w-4" />;
+    case "PREPARING":
       return <Clock className="h-4 w-4" />;
     case "PAID":
       return <DollarSign className="h-4 w-4" />;
@@ -404,7 +412,9 @@ export default function CashierOrdersPage() {
         >
           <option value="ALL">All Statuses</option>
           <option value="PENDING">Pending</option>
+          <option value="RECEIVED">Received</option>
           <option value="CONFIRMED">Confirmed</option>
+          <option value="PREPARING">Preparing</option>
           <option value="PAID">Paid</option>
           <option value="COMPLETED">Completed</option>
           <option value="CANCELLED">Cancelled</option>

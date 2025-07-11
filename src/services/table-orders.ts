@@ -55,8 +55,15 @@ export class TableOrdersService {
   }
 
   static async getActiveTableOrders(): Promise<TableOrder[]> {
-    const response = await api.get("/table-orders/active");
-    return response.data;
+    try {
+      const response = await api.get("/table-orders/active");
+      return response.data;
+    } catch (error: any) {
+      console.error("Error fetching active table orders:", error);
+      console.error("Response status:", error.response?.status);
+      console.error("Response data:", error.response?.data);
+      throw error;
+    }
   }
 
   static async getActiveTableOrderByPhysicalTableId(

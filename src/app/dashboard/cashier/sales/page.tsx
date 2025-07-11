@@ -415,11 +415,15 @@ export default function SalesPage() {
         return;
       }
 
+      // Only load saved table if there's an existing order or if we're not starting a new sale
+      // Also don't load if there's no orderId in URL (indicating a fresh new order)
       if (
         !currentTableOrder &&
         !isLoading &&
         !tableCleared &&
-        !preventTableReload
+        !preventTableReload &&
+        (sale.currentOrder || !isStartingNewSale) &&
+        searchParams.get("orderId") // Only load saved table if there's an orderId in URL
       ) {
         const savedTable = await loadSelectedTable();
         if (savedTable && typeof savedTable === "object" && savedTable.id) {
@@ -431,7 +435,15 @@ export default function SalesPage() {
     };
 
     loadSavedTable();
-  }, [isLoading, currentTableOrder, tableCleared, preventTableReload]);
+  }, [
+    isLoading,
+    currentTableOrder,
+    tableCleared,
+    preventTableReload,
+    sale.currentOrder,
+    isStartingNewSale,
+    searchParams,
+  ]);
 
   // Always check and clear closed table orders
   useEffect(() => {
@@ -1717,6 +1729,26 @@ export default function SalesPage() {
   };
 
   const loadExistingTables = async () => {
+    // Check if user is authenticated
+    if (!isAuthenticated || !user) {
+      toast({
+        title: "Error de Autenticación",
+        description: "Debes iniciar sesión para acceder a esta función.",
+        variant: "destructive",
+      });
+      router.push("/");
+      return;
+    }
+
+    // Debug: Check authentication status
+    const token = localStorage.getItem("token");
+    console.log("Authentication debug:", {
+      isAuthenticated,
+      user: user?.id,
+      hasToken: !!token,
+      tokenLength: token?.length,
+    });
+
     try {
       setIsLoadingExistingTables(true);
 
@@ -1747,6 +1779,21 @@ export default function SalesPage() {
         });
       }
     } catch (error: any) {
+      console.error("Error loading existing tables:", error);
+
+      // Check if it's an authentication error
+      if (error.response?.status === 401) {
+        toast({
+          title: "Error de Autenticación",
+          description:
+            "Tu sesión ha expirado. Por favor, inicia sesión nuevamente.",
+          variant: "destructive",
+        });
+        // Redirect to login or refresh the page
+        router.push("/");
+        return;
+      }
+
       toast({
         title: "Error al cargar mesas",
         description: `No se pudieron cargar las mesas existentes: ${
@@ -1906,15 +1953,24 @@ export default function SalesPage() {
     url.searchParams.delete("orderId");
     window.history.replaceState({}, "", url.toString());
 
-    // Do NOT clear currentTableOrder - keep it for persistence
+    // Clear any saved table selection when starting a new order
+    setCurrentTableOrder(null);
+    setSelectedPhysicalTable(null);
+    saveSelectedTable(null);
+    setTableCleared(true);
+    setPreventTableReload(true);
+
     toast({
       title: "Listo para nuevo pedido",
-      description: "Ahora puedes iniciar una nueva venta para la misma mesa.",
+      description:
+        "Ahora puedes seleccionar una mesa para iniciar una nueva venta.",
     });
 
     // Reset the flag after a short delay to allow the state to settle
     setTimeout(() => {
       setIsStartingNewSale(false);
+      setTableCleared(false);
+      setPreventTableReload(false);
     }, 1000);
   };
 

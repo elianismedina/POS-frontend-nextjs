@@ -2,9 +2,7 @@ import axios from "axios";
 
 const baseURL =
   process.env.NEXT_PUBLIC_API_URL ||
-  (process.env.NODE_ENV === "development"
-    ? "https://cors-anywhere.herokuapp.com/https://pos-backend-hexagonal.onrender.com/api/v1"
-    : "https://pos-backend-hexagonal.onrender.com/api/v1");
+  "https://pos-backend-hexagonal.onrender.com/api/v1";
 
 export const api = axios.create({
   baseURL,

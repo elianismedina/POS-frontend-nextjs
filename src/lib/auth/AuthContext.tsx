@@ -90,8 +90,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setUser(response.data);
       return response.data;
-    } catch (error) {
-      throw error;
+    } catch (error: any) {
+      // Handle specific error types
+      if (error.response?.status === 401) {
+        console.error("Authentication failed - token may be expired");
+        // Clear tokens on authentication failure
+        localStorage.removeItem("token");
+        localStorage.removeItem("refreshToken");
+        setToken(null);
+        setRefreshToken(null);
+        setUser(null);
+        throw new Error("Authentication failed - please log in again");
+      } else if (error.response?.status === 404) {
+        console.error("Whoami endpoint not found");
+        throw new Error("Authentication service unavailable");
+      } else {
+        console.error("Error fetching user data:", error);
+        throw error;
+      }
     }
   };
 

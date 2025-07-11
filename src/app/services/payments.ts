@@ -22,15 +22,13 @@ export interface CreatePaymentRequest {
   orderId: string;
   paymentMethodId: string;
   amount: number;
-  amountTendered?: number;
-  transactionReference?: string;
-  notes?: string;
-  status?: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
+  metadata?: Record<string, unknown>;
 }
 
 class PaymentsService {
   async createPayment(data: CreatePaymentRequest): Promise<Payment> {
-    const response = await api.post("/payments", data);
+    // Use the correct endpoint that matches the backend controller
+    const response = await api.post("/payments/process", data);
     return response.data;
   }
 

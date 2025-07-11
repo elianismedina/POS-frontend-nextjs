@@ -71,6 +71,7 @@ import {
   Eye,
   Info,
   FileText,
+  CheckCircle,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -308,12 +309,6 @@ export default function SalesPage() {
     const orderStatus =
       (sale.currentOrder as any)._props?.status || sale.currentOrder.status;
     const isCompleted = orderStatus === "COMPLETED";
-    console.log("isOrderCompleted check:", {
-      orderId: (sale.currentOrder as any)._props?.id || sale.currentOrder.id,
-      orderStatus,
-      isCompleted,
-      currentOrder: sale.currentOrder,
-    });
     return isCompleted;
   };
 
@@ -556,8 +551,6 @@ export default function SalesPage() {
         });
       }
     } catch (error: any) {
-      console.error("Error processing barcode:", error);
-
       if (error.response?.status === 404) {
         toast({
           title: "Product Not Found",
@@ -738,14 +731,6 @@ export default function SalesPage() {
 
       // Set default payment method (first available method)
       const defaultMethod = paymentMethodsData[0];
-      console.log("Payment methods debug:", {
-        paymentMethodsData: paymentMethodsData.map((m) => ({
-          id: m.id,
-          code: m.paymentMethod.code,
-          name: m.paymentMethod.name,
-        })),
-        defaultMethod: defaultMethod,
-      });
       if (defaultMethod) {
         setSale((prev) => ({ ...prev, selectedPaymentMethod: defaultMethod }));
       }
@@ -819,14 +804,6 @@ export default function SalesPage() {
           .filter((item: any): item is CartItem => item !== null);
 
         // Update sale state with the loaded order
-        console.log("Loading order data:", {
-          orderId: orderData.id,
-          tipAmount: orderData.tipAmount,
-          tipPercentage: orderData.tipPercentage,
-          totalAmount: orderData.totalAmount,
-          finalAmount: orderData.finalAmount,
-        });
-
         const updatedSale = {
           items: cartItems,
           customer: orderData.customer || null,
@@ -848,19 +825,7 @@ export default function SalesPage() {
             cartItems.length > 0 ? orderData.tipPercentage || 0 : 0,
         };
 
-        console.log("Before calculateTotals:", {
-          tipAmount: updatedSale.tipAmount,
-          tipPercentage: updatedSale.tipPercentage,
-        });
-
-        const calculatedSale = calculateTotals(updatedSale);
-
-        console.log("After calculateTotals:", {
-          tipAmount: calculatedSale.tipAmount,
-          tipPercentage: calculatedSale.tipPercentage,
-        });
-
-        setSale(calculatedSale);
+        setSale(updatedSale);
 
         // Set table order if the order has one
         if (orderData.tableOrderId) {
@@ -1192,14 +1157,6 @@ export default function SalesPage() {
       const order = saleData.currentOrder as any;
       const orderData = order._props || order;
 
-      console.log("calculateTotals with current order:", {
-        orderId: orderData.id,
-        inputTipAmount: saleData.tipAmount,
-        inputTipPercentage: saleData.tipPercentage,
-        orderTipAmount: orderData.tipAmount,
-        orderTipPercentage: orderData.tipPercentage,
-      });
-
       return {
         ...result,
         subtotal: orderData.totalAmount || orderData.subtotal || 0,
@@ -1462,11 +1419,6 @@ export default function SalesPage() {
   };
 
   const processPayment = async () => {
-    console.log("processPayment called");
-    console.log("sale.items.length:", sale.items.length);
-    console.log("sale.selectedPaymentMethod:", sale.selectedPaymentMethod);
-    console.log("sale.currentOrder:", sale.currentOrder);
-
     if (sale.items.length === 0) {
       toast({
         title: "Empty cart",
@@ -1495,15 +1447,11 @@ export default function SalesPage() {
     }
 
     // Show payment modal first
-    console.log("Setting showPaymentModal to true");
     setShowPaymentModal(true);
-    console.log("showPaymentModal should now be true");
   };
 
   const handleCompleteOrder = async () => {
     try {
-      setIsProcessing(true);
-
       // Handle both getter method and _props structure for order ID
       const orderId =
         (sale.currentOrder as any)?._props?.id ||
@@ -1551,15 +1499,18 @@ export default function SalesPage() {
         if (orderStatus !== "PAID") {
           const paymentData = {
             orderId: orderId,
-            paymentMethodId: sale.selectedPaymentMethod!.paymentMethodId,
+            paymentMethodId: sale.selectedPaymentMethod!.id, // Use business payment method ID
             amount: sale.total,
-            amountTendered:
-              sale.selectedPaymentMethod!.paymentMethod.code === "CASH"
-                ? sale.amountTendered
-                : undefined,
-            transactionReference: `TRX-${Date.now()}`,
-            notes: `Payment processed for order ${orderId}`,
-            status: "COMPLETED" as const,
+            metadata: {
+              amountTendered:
+                sale.selectedPaymentMethod!.paymentMethod.code === "CASH" ||
+                sale.selectedPaymentMethod!.paymentMethod.code === "EFECTIVO"
+                  ? sale.amountTendered
+                  : undefined,
+              notes: `Payment processed for order ${orderId}`,
+              customerName: sale.customer?.name,
+              cashierName: user?.name,
+            },
           };
 
           await ordersService.processPayment(paymentData);
@@ -1642,13 +1593,28 @@ export default function SalesPage() {
         notes: "",
       });
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to process payment. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
+      if (error.response?.status === 404) {
+        toast({
+          title: "API Error",
+          description: "Payment endpoint not found. Please contact support.",
+          variant: "destructive",
+        });
+      } else if (error.response?.status === 401) {
+        toast({
+          title: "Authentication Error",
+          description: "Your session has expired. Please log in again.",
+          variant: "destructive",
+        });
+        router.push("/");
+      } else {
+        toast({
+          title: "Error",
+          description:
+            error.response?.data?.message ||
+            "Failed to process payment. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -1789,7 +1755,6 @@ export default function SalesPage() {
       const tables = await PhysicalTablesService.getAvailablePhysicalTables();
       setAvailablePhysicalTables(tables);
     } catch (error: any) {
-      console.error("Error loading available physical tables:", error);
       toast({
         title: "Error",
         description: "Failed to load available tables",
@@ -1843,21 +1808,12 @@ export default function SalesPage() {
         return;
       }
 
-      console.log("Assigning table to existing order:", {
-        orderId,
-        tableOrderId: tableOrder.id,
-        tableNumber: tableOrder.tableNumber,
-      });
-
       // Update the order with the table order ID
       const updatedOrder = await ordersService.updateOrder(orderId, {
         tableOrderId: tableOrder.id,
         customerName: sale.customerName || undefined,
       });
 
-      console.log("Order updated with table:", updatedOrder);
-
-      // Update local state
       setSale((prev) => ({
         ...prev,
         currentOrder: updatedOrder,
@@ -1872,7 +1828,6 @@ export default function SalesPage() {
       // Set flag to refresh orders list when returning
       sessionStorage.setItem("shouldRefreshOrders", "true");
     } catch (error: any) {
-      console.error("Error assigning table to existing order:", error);
       toast({
         title: "Error",
         description: "No se pudo asignar la mesa a la orden",
@@ -1883,9 +1838,6 @@ export default function SalesPage() {
 
   // Update selectPhysicalTable to handle existing orders without table
   const selectPhysicalTable = async (physicalTable: PhysicalTable) => {
-    console.log("=== SELECTING PHYSICAL TABLE ===");
-    console.log("Physical table selected:", physicalTable);
-
     // Reset preventTableReload when user manually selects a table
     setPreventTableReload(false);
 
@@ -1894,26 +1846,17 @@ export default function SalesPage() {
 
     try {
       // First, check if there's already an active table order for this physical table
-      console.log(
-        "Checking for existing active table order for physical table:",
-        physicalTable.id
-      );
       const existingTableOrder =
         await TableOrdersService.getActiveTableOrderByPhysicalTableId(
           physicalTable.id
         );
 
       if (existingTableOrder) {
-        console.log("Found existing active table order:", existingTableOrder);
-
         // If we have a current order without a table, assign the existing table order to it
         if (sale.currentOrder) {
           const orderData =
             (sale.currentOrder as any)._props || sale.currentOrder;
           if (!orderData.tableOrderId) {
-            console.log(
-              "Current order has no table, assigning existing table order"
-            );
             await assignTableToExistingOrder(existingTableOrder);
             setShowPhysicalTablesModal(false);
             return;
@@ -1923,8 +1866,6 @@ export default function SalesPage() {
         setCurrentTableOrder(existingTableOrder);
         saveSelectedTable(existingTableOrder); // Save to session storage
         setShowPhysicalTablesModal(false);
-
-        // Removed toast to avoid multiple notifications when selecting existing tables
 
         // Refresh table data after selection
         await refreshTableData();
@@ -1948,11 +1889,6 @@ export default function SalesPage() {
       }
 
       // Create a table order for the selected physical table
-      console.log(
-        "Creating new table order for physical table:",
-        physicalTable.id
-      );
-
       const tableOrderData: CreateTableOrderDto = {
         physicalTableId: physicalTable.id,
         tableNumber: physicalTable.tableNumber,
@@ -1962,21 +1898,15 @@ export default function SalesPage() {
         branchId,
       };
 
-      console.log("Table order data:", tableOrderData);
-      console.log("Physical table ID being sent:", physicalTable.id);
-      console.log("Physical table object:", physicalTable);
-
       const newTableOrder = await TableOrdersService.createTableOrder(
         tableOrderData
       );
-      console.log("Table order created:", newTableOrder);
 
       // If we have a current order without a table, assign the new table order to it
       if (sale.currentOrder) {
         const orderData =
           (sale.currentOrder as any)._props || sale.currentOrder;
         if (!orderData.tableOrderId) {
-          console.log("Current order has no table, assigning new table order");
           await assignTableToExistingOrder(newTableOrder);
           setShowPhysicalTablesModal(false);
           return;
@@ -1986,8 +1916,6 @@ export default function SalesPage() {
       setCurrentTableOrder(newTableOrder);
       saveSelectedTable(newTableOrder); // Save to session storage
       setShowPhysicalTablesModal(false);
-
-      // Removed toast to avoid multiple notifications when creating and selecting tables
 
       // Refresh table data after selection
       await refreshTableData();
@@ -2072,15 +2000,10 @@ export default function SalesPage() {
 
   // Update the clearTableOrder function to refresh data
   const clearTableOrder = async () => {
-    console.log("=== CLEARING TABLE ORDER ===");
-    console.log("Before clearing - currentTableOrder:", currentTableOrder);
-
     try {
       // First, close the table order in the backend if it exists
       if (currentTableOrder) {
-        console.log("Closing table order in backend:", currentTableOrder.id);
         await TableOrdersService.closeTableOrder(currentTableOrder.id);
-        console.log("Table order closed successfully in backend");
       }
 
       // Clear all table-related states immediately
@@ -2092,10 +2015,6 @@ export default function SalesPage() {
 
       // Force immediate cleanup of closed table orders
       if (currentTableOrder && currentTableOrder.status === "closed") {
-        console.warn(
-          "Immediately clearing closed table order:",
-          currentTableOrder
-        );
         setCurrentTableOrder(null);
         sessionStorage.removeItem("selectedTableOrder");
       }
@@ -2110,45 +2029,37 @@ export default function SalesPage() {
 
       // Verify sessionStorage is cleared
       const remainingTable = sessionStorage.getItem("selectedTableOrder");
-      console.log("SessionStorage after clearing:", remainingTable);
 
       // Also clear the table order from the current order if it exists
       if (sale.currentOrder) {
         const orderData =
           (sale.currentOrder as any)._props || sale.currentOrder;
         if (orderData.tableOrderId) {
-          console.log("Clearing tableOrderId from current order");
-
           try {
             // Update the order in the backend to remove tableOrderId
             const orderId = orderData.id;
-            console.log("Updating order in backend:", orderId);
             await ordersService.updateOrder(orderId, {
               tableOrderId: null,
             });
-            console.log("Order updated successfully in backend");
+
+            // Create a new order object without the tableOrderId
+            const updatedOrder = {
+              ...orderData,
+              tableOrderId: null,
+            };
+            setSale((prev) => ({
+              ...prev,
+              currentOrder: updatedOrder,
+            }));
           } catch (error) {
-            console.error("Error updating order in backend:", error);
             toast({
               title: "Error",
               description: "No se pudo actualizar la orden en el servidor",
               variant: "destructive",
             });
           }
-
-          // Create a new order object without the tableOrderId
-          const updatedOrder = {
-            ...orderData,
-            tableOrderId: null,
-          };
-          setSale((prev) => ({
-            ...prev,
-            currentOrder: updatedOrder,
-          }));
         }
       }
-
-      console.log("After clearing - currentTableOrder should be null");
 
       // Force an immediate re-render by updating the sale state
       setSale((prev) => ({ ...prev }));
@@ -2171,10 +2082,6 @@ export default function SalesPage() {
       // Force cleanup after a short delay
       setTimeout(() => {
         if (currentTableOrder && currentTableOrder.status === "closed") {
-          console.warn(
-            "Delayed cleanup of closed table order:",
-            currentTableOrder
-          );
           setCurrentTableOrder(null);
           sessionStorage.removeItem("selectedTableOrder");
         }
@@ -2185,7 +2092,6 @@ export default function SalesPage() {
         description: "La mesa ha sido liberada exitosamente",
       });
     } catch (error: any) {
-      console.error("Error clearing table order:", error);
       toast({
         title: "Error",
         description:
@@ -2197,7 +2103,6 @@ export default function SalesPage() {
 
   const loadExistingTables = async () => {
     try {
-      console.log("=== LOADING EXISTING TABLES ===");
       setIsLoadingExistingTables(true);
 
       // Add a shorter timeout to prevent hanging
@@ -2210,7 +2115,6 @@ export default function SalesPage() {
         timeoutPromise,
       ]);
 
-      console.log("Loaded existing tables:", tables);
       setExistingTables(tables);
 
       if (tables.length === 0) {
@@ -2228,12 +2132,6 @@ export default function SalesPage() {
         });
       }
     } catch (error: any) {
-      console.error("=== ERROR LOADING EXISTING TABLES ===");
-      console.error("Error object:", error);
-      console.error("Error message:", error.message);
-      console.error("Error response:", error.response);
-      console.error("Error response data:", error.response?.data);
-
       toast({
         title: "Error al cargar mesas",
         description: `No se pudieron cargar las mesas existentes: ${
@@ -2249,23 +2147,11 @@ export default function SalesPage() {
   // Update selectExistingTable to handle existing orders without table
   const selectExistingTable = async (tableOrder: TableOrder) => {
     try {
-      console.log("=== SELECTING EXISTING TABLE ===");
-      console.log("Table order to select:", tableOrder);
-      console.log("Table number:", tableOrder.tableNumber);
-      console.log("Table ID:", tableOrder.id);
-      console.log("Table orders:", tableOrder.orders);
-
-      // Reset preventTableReload when user manually selects a table
-      setPreventTableReload(false);
-
       // If we have a current order without a table, assign the selected table order to it
       if (sale.currentOrder) {
         const orderData =
           (sale.currentOrder as any)._props || sale.currentOrder;
         if (!orderData.tableOrderId) {
-          console.log(
-            "Current order has no table, assigning selected table order"
-          );
           await assignTableToExistingOrder(tableOrder);
           setShowExistingTablesModal(false);
           return;
@@ -2275,30 +2161,17 @@ export default function SalesPage() {
       // First, set the current table order
       setCurrentTableOrder(tableOrder);
       saveSelectedTable(tableOrder); // Save to session storage
-      console.log("setCurrentTableOrder called with:", tableOrder);
-      setShowExistingTablesModal(false);
 
       // Force a re-render to see if the state updates
-      setTimeout(() => {
-        console.log("=== AFTER SETTIMEOUT ===");
-        console.log("currentTableOrder should be:", tableOrder);
-      }, 100);
+      setTimeout(() => {}, 100);
 
       // Check if the table has orders and provide appropriate feedback
       const hasOrders = tableOrder.orders && tableOrder.orders.length > 0;
 
-      // Removed toast to avoid multiple notifications when selecting existing tables
-
       // Don't automatically load the most recent order
       // Let the user decide if they want to load an existing order
       // Just keep the table selected for new orders
-
-      console.log(
-        "Table selection completed. Current table order:",
-        tableOrder
-      );
     } catch (error: any) {
-      console.error("Error selecting existing table:", error);
       toast({
         title: "Error",
         description: "No se pudo seleccionar la mesa correctamente",
@@ -2309,7 +2182,6 @@ export default function SalesPage() {
 
   const createNewOrderForTable = async () => {
     try {
-      // Get the table order ID from the current order if currentTableOrder is not set
       let tableOrderId = currentTableOrder?.id;
       if (!tableOrderId && sale.currentOrder) {
         const orderData =
@@ -2510,23 +2382,6 @@ export default function SalesPage() {
                   !tableCleared
                 );
 
-                console.log("Table selection debug:", {
-                  currentTableOrder: currentTableOrder,
-                  currentTableOrderType: typeof currentTableOrder,
-                  currentTableOrderTableNumber: currentTableOrder?.tableNumber,
-                  selectedPhysicalTable: selectedPhysicalTable?.tableNumber,
-                  orderTableOrderId,
-                  orderTableOrderIdType: typeof orderTableOrderId,
-                  tableCleared,
-                  saleCurrentOrder: sale.currentOrder
-                    ? {
-                        id: orderData?.id,
-                        tableOrderId: orderTableOrderId,
-                      }
-                    : null,
-                  hasTableOrder,
-                });
-
                 return hasTableOrder ? (
                   <div className="flex items-center gap-2">
                     <Badge
@@ -2581,7 +2436,6 @@ export default function SalesPage() {
                     <Button
                       variant="outline"
                       onClick={() => {
-                        console.log("=== OPENING EXISTING TABLES MODAL ===");
                         loadExistingTables();
                         setShowExistingTablesModal(true);
                       }}
@@ -2989,7 +2843,6 @@ export default function SalesPage() {
                 )}
               </div>
 
-              {/* Tip Checkbox - Only show for table orders */}
               {(sale.currentOrder || currentTableOrder) && (
                 <div className="flex items-center justify-between pt-2 border-t border-gray-200">
                   <div className="flex items-center space-x-2">
@@ -3022,13 +2875,7 @@ export default function SalesPage() {
                         ) {
                           ordersService
                             .updateTip(orderId, newTipPercentage)
-                            .then((updatedOrder) => {
-                              console.log("Tip updated successfully:", {
-                                orderId: updatedOrder.id,
-                                tipAmount: updatedOrder.tipAmount,
-                                tipPercentage: updatedOrder.tipPercentage,
-                              });
-                            })
+                            .then((updatedOrder) => {})
                             .catch((error) => {
                               console.error("Error updating tip:", error);
                             });
@@ -3279,12 +3126,6 @@ export default function SalesPage() {
                     .toLowerCase()
                     .includes("dinero"));
 
-              console.log("Amount tendered debug:", {
-                selectedPaymentMethod: selectedMethod,
-                paymentMethodCode: selectedMethod?.paymentMethod?.code,
-                paymentMethodName: selectedMethod?.paymentMethod?.name,
-                shouldShowAmountTendered,
-              });
               return shouldShowAmountTendered;
             })() && (
               <div className="flex-1">

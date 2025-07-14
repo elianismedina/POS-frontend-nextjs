@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
 import { api } from "@/lib/api";
+import { Logo } from "@/components/shared/Logo";
 
 export default function Home() {
   const [email, setEmail] = useState("");
@@ -167,14 +168,10 @@ export default function Home() {
         <Card className="backdrop-blur-sm bg-background/80 border-primary/20 shadow-xl">
           <CardHeader className="space-y-4">
             <div className="flex justify-center">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
-                <span className="text-2xl font-bold text-primary-foreground">
-                  POS
-                </span>
-              </div>
+              <Logo width={80} height={80} />
             </div>
             <CardTitle className="text-3xl font-bold text-center bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-              Welcome to POS System
+              Bienvenido a Pladiv POS
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -198,7 +195,7 @@ export default function Home() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder="Ingresa tu correo electrónico"
                   value={email}
                   onChange={handleEmailChange}
                   required
@@ -210,7 +207,7 @@ export default function Home() {
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Enter your password"
+                  placeholder="Ingresa tu contraseña"
                   value={password}
                   onChange={handlePasswordChange}
                   required
@@ -227,17 +224,17 @@ export default function Home() {
                   htmlFor="remember"
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
-                  Remember me
+                  Recordarme
                 </Label>
               </div>
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Signing in...
+                    Iniciando sesión...
                   </>
                 ) : (
-                  "Sign in"
+                  "Iniciar sesión"
                 )}
               </Button>
             </form>
@@ -247,7 +244,7 @@ export default function Home() {
 
       {/* Footer */}
       <div className="absolute bottom-4 text-center text-sm text-muted-foreground/90">
-        <p>© 2025 POS System. All rights reserved.</p>
+        <p>© 2025 Pladiv POS. Todos los derechos reservados.</p>
       </div>
     </div>
   );

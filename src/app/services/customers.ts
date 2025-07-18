@@ -59,9 +59,9 @@ export class CustomersService {
     await api.delete(`/customers/${id}`);
   }
 
-  static async getCustomersByBusiness(businessId: string): Promise<Customer[]> {
-    const response = await api.get(`/customers/business/${businessId}`);
-    return response.data;
+  static async getCustomersByBusiness(): Promise<Customer[]> {
+    const response = await api.get(`/customers/my-business-customers`);
+    return response.data.data || response.data; // Handle both paginated and direct response
   }
 
   static async findCustomerByEmail(email: string): Promise<Customer | null> {

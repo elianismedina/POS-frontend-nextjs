@@ -36,6 +36,7 @@ interface Reservation {
   branchId: string;
   branchName?: string;
   physicalTableId?: string;
+  physicalTableNumber?: string;
   physicalTableName?: string;
   reservationTime: string;
   numberOfGuests: number;
@@ -134,13 +135,13 @@ export default function AdminReservationsPage() {
         ? branches.find((b) => b.id === res.branchId)?.name
         : undefined) ||
       res.branchId,
-    physicalTableName:
-      res.physicalTableName ||
+    physicalTableNumber:
+      res.physicalTableNumber ||
       (res.physicalTableId
-        ? (Array.isArray(tables)
-            ? tables.find((t) => t.id === res.physicalTableId)?.tableName
-            : undefined) || res.physicalTableId
-        : "-"),
+        ? Array.isArray(tables)
+          ? tables.find((t) => t.id === res.physicalTableId)?.tableNumber
+          : undefined
+        : null),
   }));
 
   const filteredReservations = mappedReservations.filter((reservation) => {
@@ -151,7 +152,7 @@ export default function AdminReservationsPage() {
       reservation.branchName
         ?.toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
-      reservation.physicalTableName
+      reservation.physicalTableNumber
         ?.toLowerCase()
         .includes(searchTerm.toLowerCase());
 
@@ -249,7 +250,13 @@ export default function AdminReservationsPage() {
                     {reservation.customerName}
                   </CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    {reservation.branchName} - {reservation.physicalTableName}
+                    {reservation.branchName} -{" "}
+                    {reservation.physicalTableNumber
+                      ? `Mesa ${reservation.physicalTableNumber.padStart(
+                          2,
+                          "0"
+                        )}`
+                      : "Sin mesa específica"}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

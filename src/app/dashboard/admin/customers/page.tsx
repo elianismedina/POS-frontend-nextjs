@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
-import { customersService, Customer } from "@/app/services/customers";
+import { CustomersService, Customer } from "@/app/services/customers";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { format } from "date-fns";
@@ -68,10 +68,14 @@ export default function CustomersPage() {
       setIsLoading(true);
       setError(null);
 
-      const response = await customersService.getCustomers(currentPage, 10);
-      setCustomers(response.data);
-      setTotalPages(response.meta.totalPages);
-      setTotalCustomers(response.meta.total);
+      const response = await CustomersService.getCustomersByBusiness();
+
+      // Ensure response is an array
+      const customersArray = Array.isArray(response) ? response : [];
+
+      setCustomers(customersArray);
+      setTotalPages(1);
+      setTotalCustomers(customersArray.length);
     } catch (error: any) {
       console.error("Error fetching customers:", error);
       const errorMessage =
@@ -80,6 +84,8 @@ export default function CustomersPage() {
         "Failed to load customers. Please try again.";
 
       setError(errorMessage);
+      setCustomers([]); // Set empty array on error
+      setTotalCustomers(0);
       toast({
         title: "Error",
         description: errorMessage,
@@ -182,13 +188,15 @@ export default function CustomersPage() {
     },
   ];
 
-  const filteredCustomers = customers.filter(
-    (customer) =>
-      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.phone.includes(searchTerm) ||
-      customer.documentNumber.includes(searchTerm)
-  );
+  const filteredCustomers = Array.isArray(customers)
+    ? customers.filter(
+        (customer) =>
+          customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          customer.phone.includes(searchTerm) ||
+          customer.documentNumber.includes(searchTerm)
+      )
+    : [];
 
   // Mobile customer card component
   const CustomerCard = ({ customer }: { customer: Customer }) => (
@@ -324,7 +332,7 @@ export default function CustomersPage() {
                 <p className="mt-2 text-gray-600">Loading customers...</p>
               </div>
             </div>
-          ) : customers.length === 0 ? (
+          ) : !Array.isArray(customers) || customers.length === 0 ? (
             <div className="text-center py-12">
               <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                 <Search className="h-8 w-8 text-gray-400" />

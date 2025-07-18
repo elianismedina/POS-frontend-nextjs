@@ -34,33 +34,11 @@ export interface UpdateReservationDto {
 }
 
 export class ReservationsService {
-  static async getReservations(): Promise<Reservation[]> {
-    const response = await api.get("/reservations");
-    return response.data;
-  }
-
-  static async getReservation(id: string): Promise<Reservation> {
-    const response = await api.get(`/reservations/${id}`);
-    return response.data;
-  }
-
   static async createReservation(
     data: CreateReservationDto
   ): Promise<Reservation> {
-    const response = await api.post("/reservations", data);
+    const response = await api.post('/reservations', data);
     return response.data;
-  }
-
-  static async updateReservation(
-    id: string,
-    data: UpdateReservationDto
-  ): Promise<Reservation> {
-    const response = await api.put(`/reservations/${id}`, data);
-    return response.data;
-  }
-
-  static async deleteReservation(id: string): Promise<void> {
-    await api.delete(`/reservations/${id}`);
   }
 
   static async getReservationsByBusiness(

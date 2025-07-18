@@ -16,6 +16,18 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { formatPrice } from "@/lib/utils";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { ReservationsService } from "@/app/services/reservations";
+import { CustomersService } from "@/app/services/customers";
+import { BranchesService } from "@/app/services/branches";
+import { PhysicalTablesService } from "@/app/services/physical-tables";
 
 interface Reservation {
   id: string;
@@ -27,6 +39,7 @@ interface Reservation {
   physicalTableName?: string;
   reservationTime: string;
   numberOfGuests: number;
+  partySize?: number;
   status: "pending" | "confirmed" | "cancelled" | "completed";
   createdAt: string;
   updatedAt: string;
@@ -39,6 +52,11 @@ export default function AdminReservationsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [selectedReservation, setSelectedReservation] =
+    useState<Reservation | null>(null);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
+  const [tables, setTables] = useState<any[]>([]);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -52,39 +70,29 @@ export default function AdminReservationsPage() {
     }
   }, [user]);
 
+  useEffect(() => {
+    CustomersService.getCustomers().then((data) =>
+      setCustomers(Array.isArray(data) ? data : [])
+    );
+    BranchesService.getBranches().then((data) =>
+      setBranches(Array.isArray(data) ? data : [])
+    );
+    PhysicalTablesService.getAvailablePhysicalTables().then((data) =>
+      setTables(Array.isArray(data) ? data : [])
+    );
+  }, []);
+
   const fetchReservations = async () => {
     try {
       setLoading(true);
-      // TODO: Replace with actual API call
-      const mockReservations: Reservation[] = [
-        {
-          id: "1",
-          customerId: "customer-1",
-          customerName: "Juan Pérez",
-          branchId: "branch-1",
-          branchName: "Sucursal Centro",
-          physicalTableId: "table-1",
-          physicalTableName: "Mesa 1",
-          reservationTime: "2024-12-25T19:00:00.000Z",
-          numberOfGuests: 4,
-          status: "pending",
-          createdAt: "2024-12-20T10:00:00.000Z",
-          updatedAt: "2024-12-20T10:00:00.000Z",
-        },
-        {
-          id: "2",
-          customerId: "customer-2",
-          customerName: "María García",
-          branchId: "branch-1",
-          branchName: "Sucursal Centro",
-          reservationTime: "2024-12-26T20:00:00.000Z",
-          numberOfGuests: 6,
-          status: "confirmed",
-          createdAt: "2024-12-19T15:30:00.000Z",
-          updatedAt: "2024-12-19T15:30:00.000Z",
-        },
-      ];
-      setReservations(mockReservations);
+      const businessId = user?.business?.[0]?.id;
+      if (businessId) {
+        const reservations =
+          await ReservationsService.getReservationsByBusiness(businessId);
+        setReservations(reservations);
+      } else {
+        setReservations([]);
+      }
     } catch (error) {
       console.error("Error fetching reservations:", error);
     } finally {
@@ -104,7 +112,38 @@ export default function AdminReservationsPage() {
     return <Badge className={config.color}>{config.label}</Badge>;
   };
 
-  const filteredReservations = reservations.filter((reservation) => {
+  const statusLabels: Record<string, string> = {
+    pending: "Pendiente",
+    confirmed: "Confirmada",
+    cancelled: "Cancelada",
+    completed: "Completada",
+  };
+
+  const mappedReservations = reservations.map((res) => ({
+    ...res,
+    numberOfGuests: res.numberOfGuests ?? res.partySize ?? 0,
+    customerName:
+      res.customerName ||
+      (Array.isArray(customers)
+        ? customers.find((c) => c.id === res.customerId)?.name
+        : undefined) ||
+      res.customerId,
+    branchName:
+      res.branchName ||
+      (Array.isArray(branches)
+        ? branches.find((b) => b.id === res.branchId)?.name
+        : undefined) ||
+      res.branchId,
+    physicalTableName:
+      res.physicalTableName ||
+      (res.physicalTableId
+        ? (Array.isArray(tables)
+            ? tables.find((t) => t.id === res.physicalTableId)?.tableName
+            : undefined) || res.physicalTableId
+        : "-"),
+  }));
+
+  const filteredReservations = mappedReservations.filter((reservation) => {
     const matchesSearch =
       reservation.customerName
         ?.toLowerCase()
@@ -176,6 +215,13 @@ export default function AdminReservationsPage() {
         </div>
         <div className="flex gap-2">
           <Button
+            onClick={() => router.push("/dashboard/admin/reservations/create")}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Nueva Reservación
+          </Button>
+          <Button
             variant="outline"
             onClick={fetchReservations}
             disabled={loading}
@@ -183,121 +229,56 @@ export default function AdminReservationsPage() {
             <RefreshCw
               className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
             />
-            Actualizar
-          </Button>
-          <Button
-            onClick={() => router.push("/dashboard/admin/reservations/create")}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Nueva Reservación
+            {loading ? "Cargando..." : "Actualizar"}
           </Button>
         </div>
       </div>
 
       {/* Reservations List */}
-      <div className="grid gap-4">
-        {loading ? (
-          <div className="text-center py-8">
-            <p className="text-muted-foreground">Cargando reservaciones...</p>
-          </div>
-        ) : filteredReservations.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-8">
-              <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">
-                No hay reservaciones
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                {searchTerm || statusFilter !== "all"
-                  ? "No se encontraron reservaciones con los filtros aplicados"
-                  : "Aún no hay reservaciones registradas"}
-              </p>
-              <Button
-                onClick={() =>
-                  router.push("/dashboard/admin/reservations/create")
-                }
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Crear Primera Reservación
-              </Button>
-            </CardContent>
-          </Card>
+      <div className="grid gap-6">
+        {filteredReservations.length === 0 ? (
+          <p className="text-center text-muted-foreground">
+            No se encontraron reservaciones.
+          </p>
         ) : (
           filteredReservations.map((reservation) => (
-            <Card
-              key={reservation.id}
-              className="hover:shadow-md transition-shadow"
-            >
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Calendar className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <CardTitle className="text-lg">
-                        {reservation.customerName || "Cliente"}
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        {reservation.branchName}
-                        {reservation.physicalTableName &&
-                          ` - ${reservation.physicalTableName}`}
-                      </p>
-                    </div>
-                  </div>
-                  {getStatusBadge(reservation.status)}
+            <Card key={reservation.id}>
+              <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div>
+                  <CardTitle className="text-lg font-semibold">
+                    {reservation.customerName}
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    {reservation.branchName} - {reservation.physicalTableName}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-blue-100 text-blue-800">
+                    {reservation.reservationTime}
+                  </Badge>
+                  <Badge className="bg-green-100 text-green-800">
+                    {reservation.numberOfGuests} invitados
+                  </Badge>
+                  <Badge className="bg-purple-100 text-purple-800">
+                    {statusLabels[reservation.status] || reservation.status}
+                  </Badge>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Fecha y Hora
-                    </p>
-                    <p className="text-sm">
-                      {new Date(reservation.reservationTime).toLocaleDateString(
-                        "es-ES",
-                        {
-                          weekday: "long",
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        }
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Número de Personas
-                    </p>
-                    <p className="text-sm">
-                      {reservation.numberOfGuests} personas
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Creada
-                    </p>
-                    <p className="text-sm">
-                      {new Date(reservation.createdAt).toLocaleDateString(
-                        "es-ES"
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-end">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        router.push(
-                          `/dashboard/admin/reservations/${reservation.id}`
-                        )
-                      }
-                    >
-                      Ver Detalles
-                    </Button>
-                  </div>
-                </div>
+                <p className="text-sm text-muted-foreground">
+                  Creado:{" "}
+                  {reservation.createdAt &&
+                  !isNaN(new Date(reservation.createdAt).getTime())
+                    ? new Date(reservation.createdAt).toLocaleDateString()
+                    : "-"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Actualizado:{" "}
+                  {reservation.updatedAt &&
+                  !isNaN(new Date(reservation.updatedAt).getTime())
+                    ? new Date(reservation.updatedAt).toLocaleDateString()
+                    : "-"}
+                </p>
               </CardContent>
             </Card>
           ))

@@ -254,7 +254,19 @@ export default function AdminReservationsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge className="bg-blue-100 text-blue-800">
-                    {reservation.reservationTime}
+                    {reservation.reservationTime
+                      ? new Date(reservation.reservationTime).toLocaleString(
+                          "es-CO",
+                          {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            hour12: false,
+                          }
+                        )
+                      : "-"}
                   </Badge>
                   <Badge className="bg-green-100 text-green-800">
                     {reservation.numberOfGuests} invitados

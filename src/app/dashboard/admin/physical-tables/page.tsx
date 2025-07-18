@@ -31,7 +31,7 @@ import {
   PhysicalTable,
   CreatePhysicalTableDto,
 } from "@/services/physical-tables";
-import { branchesService, Branch } from "@/app/services/branches";
+import { BranchesService, Branch } from "@/app/services/branches";
 import {
   Plus,
   Edit,
@@ -98,7 +98,7 @@ export default function PhysicalTablesPage() {
   const fetchBranches = async () => {
     try {
       console.log("Fetching branches...");
-      const branchesData = await branchesService.getAllBranches();
+      const branchesData = await BranchesService.getBranches();
       console.log("Branches fetched:", branchesData);
       setBranches(branchesData);
     } catch (error: any) {

@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { usersService, User, CashierWithBranch } from "@/app/services/users";
-import { branchesService, Branch } from "@/app/services/branches";
+import { BranchesService, Branch } from "@/app/services/branches";
 import {
   Search,
   UserCheck,
@@ -70,7 +70,7 @@ export default function CashiersPage() {
       setIsLoading(true);
       const [cashiersData, branchesData] = await Promise.all([
         usersService.getCashiers(),
-        branchesService.getAllBranches(),
+        BranchesService.getBranches(),
       ]);
 
       // Map cashiers with their branch information

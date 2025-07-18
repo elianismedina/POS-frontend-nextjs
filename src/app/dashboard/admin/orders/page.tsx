@@ -9,7 +9,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ordersService, Order } from "@/app/services/orders";
-import { branchesService, Branch } from "@/app/services/branches";
+import { BranchesService, Branch } from "@/app/services/branches";
 import { usersService, User } from "@/app/services/users";
 import { formatPrice } from "@/lib/utils";
 import {
@@ -192,7 +192,7 @@ export default function AdminOrdersPage() {
 
   const fetchBranches = async () => {
     try {
-      const branchesData = await branchesService.getAllBranches();
+      const branchesData = await BranchesService.getBranches();
       console.log("Branches data:", branchesData);
       setBranches(branchesData);
     } catch (error) {

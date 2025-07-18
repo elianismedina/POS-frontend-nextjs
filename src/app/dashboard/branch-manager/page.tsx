@@ -22,7 +22,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { userBranchesService, UserBranch } from "@/app/services/user-branches";
-import { branchesService } from "@/app/services/branches";
+import { BranchesService } from "@/app/services/branches";
 
 interface BranchData {
   id: string;
@@ -65,7 +65,7 @@ function BranchManagerDashboardContent() {
         const branchId = branches[0].branchId;
 
         // Get branch details
-        const branch = await branchesService.getById(branchId);
+        const branch = await BranchesService.getBranch(branchId);
         setBranchData(branch);
       }
     } catch (error: any) {

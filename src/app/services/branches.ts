@@ -4,42 +4,65 @@ export interface Branch {
   id: string;
   name: string;
   address: string;
-  phone: string;
-  email: string;
+  phone?: string;
+  email?: string;
   isActive: boolean;
   businessId: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export const branchesService = {
-  async getById(branchId: string) {
-    const response = await api.get(`/branches/${branchId}`);
-    return response.data;
-  },
+export interface CreateBranchDto {
+  name: string;
+  address: string;
+  phone?: string;
+  email?: string;
+  businessId: string;
+}
 
-  async getAllBranches(): Promise<Branch[]> {
-    try {
-      const response = await api.get("/branches/my-business-simple");
-      // Handle the _props wrapper if present
-      const branches = response.data.map((branch: any) => {
-        const branchData = branch._props || branch;
-        return {
-          id: branchData.id,
-          name: branchData.name,
-          address: branchData.address,
-          phone: branchData.phone,
-          email: branchData.email,
-          isActive: branchData.isActive,
-          businessId: branchData.businessId,
-          createdAt: branchData.createdAt,
-          updatedAt: branchData.updatedAt,
-        };
-      });
-      return branches;
-    } catch (error) {
-      console.error("Error fetching branches:", error);
-      throw error;
-    }
-  },
-};
+export interface UpdateBranchDto {
+  name?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  isActive?: boolean;
+}
+
+export class BranchesService {
+  static async getBranches(): Promise<Branch[]> {
+    const response = await api.get("/branches/my-business");
+    return response.data;
+  }
+
+  static async getBranch(id: string): Promise<Branch> {
+    const response = await api.get(`/branches/${id}`);
+    return response.data;
+  }
+
+  static async createBranch(data: CreateBranchDto): Promise<Branch> {
+    const response = await api.post("/branches", data);
+    return response.data;
+  }
+
+  static async updateBranch(
+    id: string,
+    data: UpdateBranchDto
+  ): Promise<Branch> {
+    const response = await api.put(`/branches/${id}`, data);
+    return response.data;
+  }
+
+  static async deleteBranch(id: string): Promise<void> {
+    await api.delete(`/branches/${id}`);
+  }
+
+  static async getBranchesByBusiness(businessId: string): Promise<Branch[]> {
+    const response = await api.get(`/branches/business/${businessId}`);
+    return response.data;
+  }
+
+  static async getMyBusinessBranches(): Promise<Branch[]> {
+    const response = await api.get("/branches/my-business");
+    return response.data;
+  }
+}

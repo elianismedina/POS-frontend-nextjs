@@ -30,6 +30,7 @@ import {
   Table,
   UserCheck,
   CreditCard,
+  Calendar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -199,6 +200,12 @@ export function AdminSidebar() {
               label="Clientes"
               href="/dashboard/admin/customers"
               isActive={pathname.includes("/customers")}
+            />
+            <SidebarItem
+              icon={<Calendar className="h-4 w-4" />}
+              label="Reservaciones"
+              href="/dashboard/admin/reservations"
+              isActive={pathname.includes("/reservations")}
             />
             <SidebarItem
               icon={<UserCheck className="h-4 w-4" />}

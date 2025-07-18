@@ -12,6 +12,8 @@ import {
   TrendingUp,
   Clock,
   RefreshCw,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { ShiftManager } from "@/components/cashier/ShiftManager";
 import { dashboardService, DashboardStats } from "@/app/services/dashboard";
@@ -28,6 +30,7 @@ export default function CashierDashboard() {
     todayOrders: 0,
   });
   const [statsLoading, setStatsLoading] = useState(true);
+  const [showStats, setShowStats] = useState(true);
 
   const fetchStats = async () => {
     if (user?.branch?.business?.id) {
@@ -58,6 +61,20 @@ export default function CashierDashboard() {
       sessionStorage.removeItem("shouldRefreshOrders");
     }
   }, []);
+
+  // Load stats visibility preference from localStorage
+  useEffect(() => {
+    const savedStatsVisibility = localStorage.getItem("cashier-stats-visible");
+    if (savedStatsVisibility !== null) {
+      setShowStats(savedStatsVisibility === "true");
+    }
+  }, []);
+
+  const toggleStatsVisibility = () => {
+    const newVisibility = !showStats;
+    setShowStats(newVisibility);
+    localStorage.setItem("cashier-stats-visible", newVisibility.toString());
+  };
 
   if (isLoading) {
     return (
@@ -155,38 +172,65 @@ export default function CashierDashboard() {
         <h2 className="text-base sm:text-lg lg:text-xl font-bold">
           Mis Estadísticas de Ventas
         </h2>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={fetchStats}
-          disabled={statsLoading}
-          className="flex items-center gap-2 w-full sm:w-auto text-xs"
-        >
-          <RefreshCw
-            className={`h-3 w-3 ${statsLoading ? "animate-spin" : ""}`}
-          />
-          Actualizar Estadísticas
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleStatsVisibility}
+            className="flex items-center gap-2 text-xs"
+          >
+            {showStats ? (
+              <>
+                <EyeOff className="h-3 w-3" />
+                Ocultar Estadísticas
+              </>
+            ) : (
+              <>
+                <Eye className="h-3 w-3" />
+                Mostrar Estadísticas
+              </>
+            )}
+          </Button>
+          {showStats && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchStats}
+              disabled={statsLoading}
+              className="flex items-center gap-2 text-xs"
+            >
+              <RefreshCw
+                className={`h-3 w-3 ${statsLoading ? "animate-spin" : ""}`}
+              />
+              Actualizar
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Stats Grid - Responsive with better breakpoints for sidebar */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
-        {stats.map((stat) => (
-          <Card key={stat.title} className="hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 sm:px-4">
-              <CardTitle className="text-xs sm:text-sm font-medium leading-tight">
-                {stat.title}
-              </CardTitle>
-              <div className="text-gray-500">{stat.icon}</div>
-            </CardHeader>
-            <CardContent className="px-3 sm:px-4 pb-3 sm:pb-4">
-              <div className="text-base sm:text-lg lg:text-xl font-bold text-gray-900">
-                {stat.value}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {showStats && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
+          {stats.map((stat) => (
+            <Card
+              key={stat.title}
+              className="hover:shadow-md transition-shadow"
+            >
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 sm:px-4">
+                <CardTitle className="text-xs sm:text-sm font-medium leading-tight">
+                  {stat.title}
+                </CardTitle>
+                <div className="text-gray-500">{stat.icon}</div>
+              </CardHeader>
+              <CardContent className="px-3 sm:px-4 pb-3 sm:pb-4">
+                <div className="text-base sm:text-lg lg:text-xl font-bold text-gray-900">
+                  {stat.value}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Quick Actions Section - Compact */}
       <div className="space-y-3 sm:space-y-4">
@@ -228,31 +272,33 @@ export default function CashierDashboard() {
       </div>
 
       {/* Mobile Quick Stats Summary - Only on mobile */}
-      <div className="block sm:hidden mt-4">
-        <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-          <h3 className="text-sm font-semibold text-blue-900 mb-2">
-            Resumen de Hoy
-          </h3>
-          <div className="space-y-2 text-xs">
-            <div className="flex justify-between">
-              <span className="text-blue-700">Ventas:</span>
-              <span className="font-semibold text-blue-900">
-                {statsLoading
-                  ? "Cargando..."
-                  : formatPrice(dashboardStats.todaySales)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-blue-700">Pedidos:</span>
-              <span className="font-semibold text-blue-900">
-                {statsLoading
-                  ? "Cargando..."
-                  : dashboardStats.pendingOrders.toString()}
-              </span>
+      {showStats && (
+        <div className="block sm:hidden mt-4">
+          <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+            <h3 className="text-sm font-semibold text-blue-900 mb-2">
+              Resumen de Hoy
+            </h3>
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-blue-700">Ventas:</span>
+                <span className="font-semibold text-blue-900">
+                  {statsLoading
+                    ? "Cargando..."
+                    : formatPrice(dashboardStats.todaySales)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-blue-700">Pedidos:</span>
+                <span className="font-semibold text-blue-900">
+                  {statsLoading
+                    ? "Cargando..."
+                    : dashboardStats.pendingOrders.toString()}
+                </span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

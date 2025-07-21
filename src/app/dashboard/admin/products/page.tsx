@@ -25,6 +25,7 @@ import {
 import { CreateProductForm } from "@/components/products/CreateProductForm";
 import { BulkUploadForm } from "@/components/products/BulkUploadForm";
 import Image from "next/image";
+import { formatPrice } from "@/lib/utils";
 
 export default function ProductsPage() {
   const { isAuthenticated, user, isLoading: authLoading } = useAuth();
@@ -375,8 +376,9 @@ export default function ProductsPage() {
                 Aún no hay productos
               </h3>
               <p className="text-gray-500 mb-6">
-                Comience agregando su primer producto a su inventario.
-                Los productos le ayudan a gestionar su stock y ventas de manera efectiva.
+                Comience agregando su primer producto a su inventario. Los
+                productos le ayudan a gestionar su stock y ventas de manera
+                efectiva.
               </p>
               <div className="flex gap-2 justify-center">
                 <Button
@@ -401,7 +403,9 @@ export default function ProductsPage() {
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Lista de Productos ({products.length} productos)</CardTitle>
+            <CardTitle>
+              Lista de Productos ({products.length} productos)
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {/* Desktop Table View */}
@@ -454,22 +458,7 @@ export default function ProductsPage() {
                       <TableCell className="font-medium">
                         {product.name || "Producto Sin Nombre"}
                       </TableCell>
-                      <TableCell>
-                        $
-                        {(() => {
-                          const price = product.price;
-                          if (typeof price === "number") {
-                            return price.toFixed(2);
-                          } else if (typeof price === "string") {
-                            const numPrice = parseFloat(price);
-                            return isNaN(numPrice)
-                              ? "0.00"
-                              : numPrice.toFixed(2);
-                          } else {
-                            return "0.00";
-                          }
-                        })()}
-                      </TableCell>
+                      <TableCell>{formatPrice(product.price)}</TableCell>
                       <TableCell>{product.stock || 0}</TableCell>
                       <TableCell>
                         <Badge
@@ -651,20 +640,7 @@ export default function ProductsPage() {
                               Precio:
                             </span>
                             <span className="text-sm text-gray-900 font-semibold">
-                              $
-                              {(() => {
-                                const price = product.price;
-                                if (typeof price === "number") {
-                                  return price.toFixed(2);
-                                } else if (typeof price === "string") {
-                                  const numPrice = parseFloat(price);
-                                  return isNaN(numPrice)
-                                    ? "0.00"
-                                    : numPrice.toFixed(2);
-                                } else {
-                                  return "0.00";
-                                }
-                              })()}
+                              {formatPrice(product.price)}
                             </span>
                           </div>
 

@@ -1,0 +1,316 @@
+---
+description:
+## Overview
+This document defines rules and best practices for using the Shadcn MCP server tools effectively in the POS frontend project. The MCP server provides access to Shadcn UI v4 components, demos, and blocks.
+globs:
+alwaysApply: true
+
+# Shadcn MCP Server Rules for POS Frontend
+
+
+
+## Available MCP Tools
+
+### Core Tools
+- `list_components` - Get all available Shadcn UI components (46 total)
+- `get_component` - Get source code for a specific component
+- `get_component_demo` - Get demo code showing how to use a component
+- `get_component_metadata` - Get metadata for a specific component
+- `list_blocks` - Get all available blocks (pre-built UI patterns)
+- `get_block` - Get source code for a specific block
+- `get_directory_structure` - Get repository structure
+
+## Project-Specific Rules
+
+### 1. Component Integration Rules
+
+#### When Adding New Components
+- **Always check existing components first**: Use `list_components` to see what's available
+- **Get demo code**: Use `get_component_demo` to see proper usage patterns
+- **Review source code**: Use `get_component` to understand the implementation
+- **Follow project structure**: Place new components in `src/components/ui/`
+- **Use proper imports**: Import from `@/components/ui/` using the project aliases
+
+#### Component Installation Workflow
+```bash
+# 1. List available components
+# Use list_components tool
+
+# 2. Get demo for desired component
+# Use get_component_demo tool
+
+# 3. Get source code
+# Use get_component tool
+
+# 4. Install manually following project structure
+```
+
+### 2. Project Configuration Alignment
+
+#### Current Project Setup
+- **Style**: `new-york` (already configured)
+- **Framework**: Next.js with RSC enabled
+- **Styling**: Tailwind CSS with CSS variables
+- **Icons**: Lucide React
+- **Base Color**: Neutral
+- **Aliases**: 
+  - `@/components` → `src/components`
+  - `@/lib/utils` → `src/lib/utils`
+  - `@/components/ui` → `src/components/ui`
+
+#### Import Patterns
+```tsx
+// ✅ Correct - Use project aliases
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+
+// ❌ Incorrect - Don't use relative paths
+import { Button } from "../../components/ui/button"
+```
+
+### 3. Component Usage Guidelines
+
+#### Form Components
+- **Form**: Use with React Hook Form for complex forms
+- **Input**: Use for text inputs, numbers, emails
+- **Select**: Use for dropdown selections
+- **Checkbox**: Use for boolean inputs
+- **Switch**: Use for toggle states
+- **Textarea**: Use for multi-line text
+
+#### Layout Components
+- **Card**: Use for content containers
+- **Dialog**: Use for modal dialogs
+- **Sheet**: Use for slide-out panels
+- **Sidebar**: Use for navigation
+- **Table**: Use for data display
+- **Data-table**: Use for sortable/filterable tables
+
+#### Feedback Components
+- **Toast**: Use for notifications (already implemented)
+- **Alert**: Use for important messages
+- **Badge**: Use for status indicators
+- **Skeleton**: Use for loading states
+
+#### Navigation Components
+- **Button**: Use for actions
+- **Pagination**: Use for large datasets
+- **Breadcrumb**: Use for navigation hierarchy
+
+### 4. POS-Specific Component Usage
+
+#### Sales Interface
+```tsx
+// Product selection
+<Select>
+  <SelectTrigger>
+    <SelectValue placeholder="Select product" />
+  </SelectTrigger>
+  <SelectContent>
+    {products.map(product => (
+      <SelectItem key={product.id} value={product.id}>
+        {product.name}
+      </SelectItem>
+    ))}
+  </SelectContent>
+</Select>
+
+// Payment methods
+<Select>
+  <SelectTrigger>
+    <SelectValue placeholder="Payment method" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="cash">Cash</SelectItem>
+    <SelectItem value="card">Card</SelectItem>
+    <SelectItem value="transfer">Transfer</SelectItem>
+  </SelectContent>
+</Select>
+```
+
+#### Admin Interface
+```tsx
+// Data tables for management
+<DataTable
+  columns={columns}
+  data={data}
+  searchKey="name"
+/>
+
+// Forms for CRUD operations
+<Form {...form}>
+  <FormField
+    control={form.control}
+    name="name"
+    render={({ field }) => (
+      <FormItem>
+        <FormLabel>Name</FormLabel>
+        <FormControl>
+          <Input {...field} />
+        </FormControl>
+        <FormMessage />
+      </FormItem>
+    )}
+  />
+</Form>
+```
+
+### 5. Block Usage Guidelines
+
+#### When to Use Blocks
+- **Dashboard layouts**: Use dashboard blocks for admin interfaces
+- **Authentication**: Use login blocks for auth pages
+- **Data management**: Use table blocks for CRUD operations
+- **Navigation**: Use sidebar blocks for navigation
+
+#### Block Integration
+```bash
+# 1. List available blocks
+# Use list_blocks tool
+
+# 2. Get block source code
+# Use get_block tool with includeComponents=true
+
+# 3. Adapt to project structure
+# Modify imports to use project aliases
+# Adjust styling to match project theme
+```
+
+### 6. Styling and Theming Rules
+
+#### Color Usage
+- **Primary**: Use for main actions and branding
+- **Secondary**: Use for secondary actions
+- **Destructive**: Use for delete/danger actions
+- **Muted**: Use for disabled states
+- **Accent**: Use for highlights and focus states
+
+#### Spacing and Layout
+- **Consistent spacing**: Use Tailwind spacing scale
+- **Responsive design**: Use mobile-first approach
+- **Accessibility**: Ensure proper contrast and focus states
+
+#### Custom Styling
+```tsx
+// ✅ Good - Use cn utility for conditional classes
+<Button className={cn(
+  "bg-primary text-primary-foreground",
+  isActive && "bg-accent"
+)}>
+
+// ✅ Good - Use CSS variables for theming
+<div className="bg-background text-foreground border-border">
+```
+
+### 7. Performance and Best Practices
+
+#### Component Optimization
+- **Lazy loading**: Use dynamic imports for heavy components
+- **Memoization**: Use React.memo for expensive components
+- **Bundle size**: Import only needed components
+
+#### Accessibility
+- **ARIA labels**: Always provide proper labels
+- **Keyboard navigation**: Ensure all components are keyboard accessible
+- **Screen readers**: Test with screen reader software
+
+#### Error Handling
+```tsx
+// ✅ Good - Handle loading and error states
+{isLoading ? (
+  <Skeleton className="h-10 w-full" />
+) : error ? (
+  <Alert variant="destructive">
+    <AlertDescription>{error.message}</AlertDescription>
+  </Alert>
+) : (
+  <Component />
+)}
+```
+
+### 8. Testing Guidelines
+
+#### Component Testing
+- **Unit tests**: Test individual components
+- **Integration tests**: Test component interactions
+- **Accessibility tests**: Test with accessibility tools
+
+#### Test Patterns
+```tsx
+// Example test structure
+describe('ProductSelect', () => {
+  it('should render product options', () => {
+    // Test implementation
+  })
+  
+  it('should handle selection', () => {
+    // Test selection logic
+  })
+})
+```
+
+### 9. MCP Tool Usage Patterns
+
+#### Component Discovery
+```bash
+# 1. List all components
+mcp_shadcn-ui-server_list_components
+
+# 2. Get specific component demo
+mcp_shadcn-ui-server_get_component_demo --componentName button
+
+# 3. Get component source
+mcp_shadcn-ui-server_get_component --componentName button
+
+# 4. Get component metadata
+mcp_shadcn-ui-server_get_component_metadata --componentName button
+```
+
+#### Block Discovery
+```bash
+# 1. List all blocks
+mcp_shadcn-ui-server_list_blocks
+
+# 2. List blocks by category
+mcp_shadcn-ui-server_list_blocks --category dashboard
+
+# 3. Get specific block
+mcp_shadcn-ui-server_get_block --blockName dashboard-01
+```
+
+### 10. Common Use Cases
+
+#### Adding New UI Components
+1. Use `list_components` to find the right component
+2. Use `get_component_demo` to see usage examples
+3. Use `get_component` to get the source code
+4. Install manually following project structure
+5. Update imports to use project aliases
+6. Test the component in context
+
+#### Creating Complex Layouts
+1. Use `list_blocks` to find relevant blocks
+2. Use `get_block` to get the complete layout
+3. Adapt the block to project structure
+4. Customize styling to match project theme
+5. Test the layout with real data
+
+#### Form Implementation
+1. Use `get_component_demo` for form components
+2. Combine with React Hook Form
+3. Use proper validation with class-validator
+4. Handle form states (loading, error, success)
+5. Test form submission and validation
+
+## Conclusion
+
+This rule set ensures consistent, maintainable, and accessible UI components throughout the POS frontend project. Always prioritize user experience, accessibility, and performance when implementing new components or layouts.
+
+Remember to:
+- ✅ Use project aliases for imports
+- ✅ Follow the established component structure
+- ✅ Test components thoroughly
+- ✅ Maintain accessibility standards
+- ✅ Keep bundle size optimized
+- ✅ Use the MCP tools effectively for discovery and implementation 
+---

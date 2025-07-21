@@ -40,8 +40,8 @@ export function BulkUploadForm({ onSuccess, onCancel }: BulkUploadFormProps) {
   const handleUpload = async (file: File) => {
     if (!file.name.toLowerCase().endsWith(".csv")) {
       toast({
-        title: "Invalid File Type",
-        description: "Please select a CSV file",
+        title: "Tipo de archivo inválido",
+        description: "Por favor, seleccione un archivo CSV",
         variant: "destructive",
       });
       return;
@@ -57,48 +57,49 @@ export function BulkUploadForm({ onSuccess, onCancel }: BulkUploadFormProps) {
       const result = response.result || response;
 
       if (!result || typeof result !== "object") {
-        throw new Error("Invalid response format from server");
+        throw new Error("Formato de respuesta inválido del servidor");
       }
 
       setUploadResult({ result });
 
       if (result.successful > 0) {
         toast({
-          title: "Upload Successful",
-          description: `Successfully created ${result.successful} products`,
+          title: "Carga exitosa",
+          description: `Se crearon exitosamente ${result.successful} productos`,
         });
         onSuccess();
       } else {
         toast({
-          title: "Upload Failed",
-          description: "No products were created. Please check the CSV format.",
+          title: "Carga fallida",
+          description:
+            "No se crearon productos. Por favor, verifique el formato del CSV.",
           variant: "destructive",
         });
       }
     } catch (error: any) {
-      console.error("Bulk upload error:", error);
+      console.error("Error de carga masiva:", error);
 
       // Provide more specific error messages
-      let errorMessage = "Failed to upload products";
+      let errorMessage = "Error al cargar los productos";
 
       if (error.response?.data?.message) {
         const message = error.response.data.message;
         if (message.includes("Invalid Record Length")) {
           errorMessage =
-            "CSV format error: The file has inconsistent column counts. Please ensure all rows have the same number of columns and use commas as separators.";
+            "Error de formato CSV: El archivo tiene un número inconsistente de columnas. Asegúrese de que todas las filas tengan el mismo número de columnas y use comas como separadores.";
         } else if (message.includes("CSV file is empty")) {
           errorMessage =
-            "The CSV file is empty. Please add product data to the file.";
+            "El archivo CSV está vacío. Por favor, agregue datos de productos al archivo.";
         } else if (message.includes("Missing required fields")) {
           errorMessage =
-            "CSV error: Some required fields (name, price, stock) are missing or invalid.";
+            "Error CSV: Algunos campos requeridos (nombre, precio, stock) están faltando o son inválidos.";
         } else {
           errorMessage = message;
         }
       }
 
       toast({
-        title: "Upload Error",
+        title: "Error de carga",
         description: errorMessage,
         variant: "destructive",
       });
@@ -120,13 +121,13 @@ export function BulkUploadForm({ onSuccess, onCancel }: BulkUploadFormProps) {
   };
 
   const downloadTemplate = () => {
-    // Use the existing products.csv file from public assets
-    const templateUrl = "/assets/files/products.csv";
+    // Use the ProductsUpload.csv file from public assets
+    const templateUrl = "/assets/files/ProductsUpload.csv";
 
     // Create a link element to download the file
     const link = document.createElement("a");
     link.href = templateUrl;
-    link.download = "products_template.csv";
+    link.download = "ProductsUpload.csv";
     link.target = "_blank";
 
     // Append to body, click, and remove
@@ -142,46 +143,49 @@ export function BulkUploadForm({ onSuccess, onCancel }: BulkUploadFormProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Upload className="h-5 w-5" />
-            Bulk Upload Products
+            Carga Masiva de Productos
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="text-sm text-gray-600">
             <p className="mb-2">
-              Upload a CSV file to create multiple products at once. The CSV
-              should include the following columns:
+              Sube un archivo CSV para crear múltiples productos a la vez. El
+              archivo CSV debe incluir las siguientes columnas:
             </p>
             <ul className="list-disc list-inside space-y-1 text-xs">
               <li>
-                <strong>name</strong> (required): Product name
+                <strong>name</strong> (requerido): Nombre del producto
               </li>
               <li>
-                <strong>description</strong> (optional): Product description
+                <strong>description</strong> (opcional): Descripción del
+                producto
               </li>
               <li>
-                <strong>price</strong> (required): Product price (numeric)
+                <strong>price</strong> (requerido): Precio del producto
+                (numérico)
               </li>
               <li>
-                <strong>stock</strong> (required): Initial stock quantity
-                (numeric)
+                <strong>stock</strong> (requerido): Cantidad inicial en
+                inventario (numérico)
               </li>
               <li>
-                <strong>imageUrl</strong> (optional): URL of the product image
+                <strong>imageUrl</strong> (opcional): URL de la imagen del
+                producto
               </li>
               <li>
-                <strong>barcode</strong> (optional): Product barcode in EAN-13
-                format
+                <strong>barcode</strong> (opcional): Código de barras del
+                producto en formato EAN-13
               </li>
               <li>
-                <strong>discountable</strong> (optional): Whether the product
-                can be discounted (true/false)
+                <strong>discountable</strong> (opcional): Si el producto puede
+                tener descuento (true/false)
               </li>
               <li>
-                <strong>categoryId</strong> (optional): UUID of the category
+                <strong>categoryId</strong> (opcional): UUID de la categoría
               </li>
               <li>
-                <strong>subcategoryId</strong> (optional): UUID of the
-                subcategory
+                <strong>subcategoryId</strong> (opcional): UUID de la
+                subcategoría
               </li>
             </ul>
 
@@ -189,20 +193,23 @@ export function BulkUploadForm({ onSuccess, onCancel }: BulkUploadFormProps) {
               <div className="flex items-start gap-2">
                 <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
                 <div className="text-xs text-blue-800">
-                  <p className="font-medium mb-1">CSV Format Requirements:</p>
+                  <p className="font-medium mb-1">Requisitos de formato CSV:</p>
                   <ul className="list-disc list-inside space-y-1">
-                    <li>Use commas (,) as column separators</li>
+                    <li>Usa comas (,) como separador de columnas</li>
                     <li>
-                      Enclose text fields in double quotes (") if they contain
-                      commas
+                      Si un campo de texto contiene comas, enciérralo entre
+                      comillas dobles (")
                     </li>
-                    <li>Ensure all rows have exactly 9 columns</li>
                     <li>
-                      Leave optional fields empty (no quotes needed for empty
-                      fields)
+                      Asegúrate de que todas las filas tengan exactamente 9
+                      columnas
                     </li>
-                    <li>Use decimal points (.) for prices, not commas</li>
-                    <li>Save the file with UTF-8 encoding</li>
+                    <li>
+                      Deja los campos opcionales vacíos (no necesitas comillas
+                      para campos vacíos)
+                    </li>
+                    <li>Usa punto (.) para decimales en precios, no comas</li>
+                    <li>Guarda el archivo con codificación UTF-8</li>
                   </ul>
                 </div>
               </div>
@@ -216,7 +223,7 @@ export function BulkUploadForm({ onSuccess, onCancel }: BulkUploadFormProps) {
               className="flex items-center gap-2"
             >
               <Download className="h-4 w-4" />
-              Download Template
+              Descargar Plantilla
             </Button>
           </div>
 
@@ -236,11 +243,11 @@ export function BulkUploadForm({ onSuccess, onCancel }: BulkUploadFormProps) {
             <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
             <p className="text-sm text-gray-600">
               {isUploading
-                ? "Uploading..."
-                : "Click to select a CSV file or drag and drop"}
+                ? "Subiendo..."
+                : "Haz clic para seleccionar un archivo CSV o arrástralo aquí"}
             </p>
             <p className="text-xs text-gray-500 mt-1">
-              Only CSV files are supported
+              Solo se admiten archivos CSV
             </p>
           </div>
         </CardContent>
@@ -252,7 +259,7 @@ export function BulkUploadForm({ onSuccess, onCancel }: BulkUploadFormProps) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-green-600" />
-              Upload Results
+              Resultados de la Carga
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -261,19 +268,19 @@ export function BulkUploadForm({ onSuccess, onCancel }: BulkUploadFormProps) {
                 <div className="text-2xl font-bold text-gray-900">
                   {uploadResult.result.total}
                 </div>
-                <div className="text-sm text-gray-600">Total Records</div>
+                <div className="text-sm text-gray-600">Registros Totales</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-600">
                   {uploadResult.result.successful}
                 </div>
-                <div className="text-sm text-gray-600">Successful</div>
+                <div className="text-sm text-gray-600">Exitosos</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-red-600">
                   {uploadResult.result.failed}
                 </div>
-                <div className="text-sm text-gray-600">Failed</div>
+                <div className="text-sm text-gray-600">Fallidos</div>
               </div>
             </div>
 
@@ -281,7 +288,7 @@ export function BulkUploadForm({ onSuccess, onCancel }: BulkUploadFormProps) {
               <div className="space-y-2">
                 <h4 className="font-medium text-gray-900 flex items-center gap-2">
                   <AlertCircle className="h-4 w-4 text-red-600" />
-                  Errors ({uploadResult.result.errors.length})
+                  Errores ({uploadResult.result.errors.length})
                 </h4>
                 <div className="max-h-40 overflow-y-auto space-y-1">
                   {uploadResult.result.errors.map((error, index) => (
@@ -291,7 +298,7 @@ export function BulkUploadForm({ onSuccess, onCancel }: BulkUploadFormProps) {
                     >
                       <XCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
                       <div>
-                        <span className="font-medium">Row {error.row}:</span>{" "}
+                        <span className="font-medium">Fila {error.row}:</span>{" "}
                         {error.message}
                       </div>
                     </div>
@@ -306,10 +313,10 @@ export function BulkUploadForm({ onSuccess, onCancel }: BulkUploadFormProps) {
       {/* Action Buttons */}
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={onCancel}>
-          Close
+          Cerrar
         </Button>
         {uploadResult && uploadResult.result.successful > 0 && (
-          <Button onClick={onCancel}>Done</Button>
+          <Button onClick={onCancel}>Listo</Button>
         )}
       </div>
     </div>

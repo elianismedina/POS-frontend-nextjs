@@ -225,6 +225,12 @@ export function AdminSidebar() {
               href="/dashboard/admin/cashiers"
               isActive={pathname.includes("/cashiers")}
             />
+            <SidebarItem
+              icon={<Users className="h-2 w-2" />}
+              label="Meseros"
+              href="/dashboard/admin/waiters"
+              isActive={pathname.includes("/waiters")}
+            />
           </SidebarGroup>
 
           <SidebarGroup key="reports-nav">

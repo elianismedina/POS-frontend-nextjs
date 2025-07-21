@@ -280,14 +280,14 @@ export default function PhysicalTablesPage() {
     <div className="container mx-auto p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Physical Tables</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Mesas Físicas</h1>
           <p className="text-gray-600">
-            Manage physical tables for your business
+            Administra las mesas físicas de tu negocio
           </p>
         </div>
         <Button onClick={() => setShowCreateModal(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Add Table
+          Agregar Mesa
         </Button>
       </div>
 
@@ -296,7 +296,7 @@ export default function PhysicalTablesPage() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
-            placeholder="Search tables by number, name, or location..."
+            placeholder="Buscar mesas por número, nombre o ubicación..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -307,24 +307,24 @@ export default function PhysicalTablesPage() {
       {/* Tables List */}
       <Card>
         <CardHeader>
-          <CardTitle>Physical Tables ({filteredTables.length})</CardTitle>
+          <CardTitle>Mesas Físicas ({filteredTables.length})</CardTitle>
         </CardHeader>
         <CardContent>
           {filteredTables.length === 0 ? (
             <div className="text-center py-8">
               <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No Physical Tables
+                No hay mesas físicas
               </h3>
               <p className="text-sm text-gray-500 mb-4">
                 {searchTerm
-                  ? "No tables match your search criteria."
-                  : "Get started by creating your first physical table."}
+                  ? "Ninguna mesa coincide con tu búsqueda."
+                  : "Comienza creando tu primera mesa física."}
               </p>
               {!searchTerm && (
                 <Button onClick={() => setShowCreateModal(true)}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Create First Table
+                  Crear Primera Mesa
                 </Button>
               )}
             </div>
@@ -332,13 +332,13 @@ export default function PhysicalTablesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Table Number</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Capacity</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Branch</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>Número</TableHead>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Capacidad</TableHead>
+                  <TableHead>Ubicación</TableHead>
+                  <TableHead>Sucursal</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -373,7 +373,7 @@ export default function PhysicalTablesPage() {
                     </TableCell>
                     <TableCell>
                       <Badge variant={table.isActive ? "default" : "secondary"}>
-                        {table.isActive ? "Active" : "Inactive"}
+                        {table.isActive ? "Activa" : "Inactiva"}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -408,10 +408,10 @@ export default function PhysicalTablesPage() {
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <Plus className="h-5 w-5 text-blue-600" />
-              Add Physical Table
+              Agregar Mesa Física
             </SheetTitle>
             <SheetDescription>
-              Create a new physical table for your business.
+              Crea una nueva mesa física para tu negocio.
             </SheetDescription>
           </SheetHeader>
 
@@ -419,11 +419,11 @@ export default function PhysicalTablesPage() {
             {/* Table Number */}
             <div className="space-y-2">
               <Label htmlFor="tableNumber" className="text-base font-medium">
-                Table Number *
+                Número de Mesa *
               </Label>
               <Input
                 id="tableNumber"
-                placeholder="e.g., 01, 02, A1, B2"
+                placeholder="Ej: 01, 02, A1, B2"
                 value={formData.tableNumber}
                 onChange={(e) =>
                   setFormData({ ...formData, tableNumber: e.target.value })
@@ -434,11 +434,11 @@ export default function PhysicalTablesPage() {
             {/* Table Name */}
             <div className="space-y-2">
               <Label htmlFor="tableName" className="text-base font-medium">
-                Table Name (Optional)
+                Nombre de Mesa (Opcional)
               </Label>
               <Input
                 id="tableName"
-                placeholder="e.g., Window Table, Corner Table"
+                placeholder="Ej: Mesa Ventana, Mesa Esquina"
                 value={formData.tableName}
                 onChange={(e) =>
                   setFormData({ ...formData, tableName: e.target.value })
@@ -449,7 +449,7 @@ export default function PhysicalTablesPage() {
             {/* Capacity */}
             <div className="space-y-2">
               <Label htmlFor="capacity" className="text-base font-medium">
-                Capacity *
+                Capacidad *
               </Label>
               <Input
                 id="capacity"
@@ -470,11 +470,11 @@ export default function PhysicalTablesPage() {
             {/* Location */}
             <div className="space-y-2">
               <Label htmlFor="location" className="text-base font-medium">
-                Location (Optional)
+                Ubicación (Opcional)
               </Label>
               <Input
                 id="location"
-                placeholder="e.g., Main Floor, Window, Patio, Bar"
+                placeholder="Ej: Planta Principal, Ventana, Patio, Barra"
                 value={formData.location}
                 onChange={(e) =>
                   setFormData({ ...formData, location: e.target.value })
@@ -485,7 +485,7 @@ export default function PhysicalTablesPage() {
             {/* Branch Selection */}
             <div className="space-y-2">
               <Label htmlFor="branchId" className="text-base font-medium">
-                Branch *
+                Sucursal *
               </Label>
               <select
                 key={`branch-select-${branches?.length || 0}`}
@@ -497,11 +497,11 @@ export default function PhysicalTablesPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option key="select-default" value="">
-                  Select a branch
+                  Selecciona una sucursal
                 </option>
                 {!branches || branches.length === 0 ? (
                   <option key="no-branches" value="" disabled>
-                    No branches available
+                    No hay sucursales disponibles
                   </option>
                 ) : (
                   (branches || []).map((branch) => (
@@ -513,7 +513,8 @@ export default function PhysicalTablesPage() {
               </select>
               {branches.length === 0 && (
                 <p className="text-sm text-red-600">
-                  No branches found. Please create a branch first.
+                  No se encontraron sucursales. Por favor, crea una sucursal
+                  primero.
                 </p>
               )}
             </div>
@@ -529,7 +530,7 @@ export default function PhysicalTablesPage() {
               disabled={isSubmitting}
               className="flex-1"
             >
-              Cancel
+              Cancelar
             </Button>
             <Button
               onClick={handleCreateTable}
@@ -541,12 +542,12 @@ export default function PhysicalTablesPage() {
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating...
+                  Creando...
                 </>
               ) : (
                 <>
                   <Plus className="h-4 w-4 mr-2" />
-                  Create Table
+                  Crear Mesa
                 </>
               )}
             </Button>
@@ -560,10 +561,10 @@ export default function PhysicalTablesPage() {
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <Edit className="h-5 w-5 text-blue-600" />
-              Edit Physical Table
+              Editar Mesa Física
             </SheetTitle>
             <SheetDescription>
-              Update the physical table information.
+              Actualiza la información de la mesa física.
             </SheetDescription>
           </SheetHeader>
 
@@ -574,11 +575,11 @@ export default function PhysicalTablesPage() {
                 htmlFor="edit-tableNumber"
                 className="text-base font-medium"
               >
-                Table Number *
+                Número de Mesa *
               </Label>
               <Input
                 id="edit-tableNumber"
-                placeholder="e.g., 01, 02, A1, B2"
+                placeholder="Ej: 01, 02, A1, B2"
                 value={formData.tableNumber}
                 onChange={(e) =>
                   setFormData({ ...formData, tableNumber: e.target.value })
@@ -589,11 +590,11 @@ export default function PhysicalTablesPage() {
             {/* Table Name */}
             <div className="space-y-2">
               <Label htmlFor="edit-tableName" className="text-base font-medium">
-                Table Name (Optional)
+                Nombre de Mesa (Opcional)
               </Label>
               <Input
                 id="edit-tableName"
-                placeholder="e.g., Window Table, Corner Table"
+                placeholder="Ej: Mesa Ventana, Mesa Esquina"
                 value={formData.tableName}
                 onChange={(e) =>
                   setFormData({ ...formData, tableName: e.target.value })
@@ -604,7 +605,7 @@ export default function PhysicalTablesPage() {
             {/* Capacity */}
             <div className="space-y-2">
               <Label htmlFor="edit-capacity" className="text-base font-medium">
-                Capacity *
+                Capacidad *
               </Label>
               <Input
                 id="edit-capacity"
@@ -625,11 +626,11 @@ export default function PhysicalTablesPage() {
             {/* Location */}
             <div className="space-y-2">
               <Label htmlFor="edit-location" className="text-base font-medium">
-                Location (Optional)
+                Ubicación (Opcional)
               </Label>
               <Input
                 id="edit-location"
-                placeholder="e.g., Main Floor, Window, Patio, Bar"
+                placeholder="Ej: Planta Principal, Ventana, Patio, Barra"
                 value={formData.location}
                 onChange={(e) =>
                   setFormData({ ...formData, location: e.target.value })
@@ -640,7 +641,7 @@ export default function PhysicalTablesPage() {
             {/* Branch Selection */}
             <div className="space-y-2">
               <Label htmlFor="edit-branchId" className="text-base font-medium">
-                Branch *
+                Sucursal *
               </Label>
               <select
                 key={`edit-branch-select-${branches?.length || 0}`}
@@ -652,11 +653,11 @@ export default function PhysicalTablesPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option key="edit-select-default" value="">
-                  Select a branch
+                  Selecciona una sucursal
                 </option>
                 {!branches || branches.length === 0 ? (
                   <option key="edit-no-branches" value="" disabled>
-                    No branches available
+                    No hay sucursales disponibles
                   </option>
                 ) : (
                   (branches || []).map((branch) => (
@@ -668,7 +669,8 @@ export default function PhysicalTablesPage() {
               </select>
               {branches.length === 0 && (
                 <p className="text-sm text-red-600">
-                  No branches found. Please create a branch first.
+                  No se encontraron sucursales. Por favor, crea una sucursal
+                  primero.
                 </p>
               )}
             </div>
@@ -685,7 +687,7 @@ export default function PhysicalTablesPage() {
               disabled={isSubmitting}
               className="flex-1"
             >
-              Cancel
+              Cancelar
             </Button>
             <Button
               onClick={handleEditTable}
@@ -697,12 +699,12 @@ export default function PhysicalTablesPage() {
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Updating...
+                  Actualizando...
                 </>
               ) : (
                 <>
                   <Edit className="h-4 w-4 mr-2" />
-                  Update Table
+                  Actualizar Mesa
                 </>
               )}
             </Button>

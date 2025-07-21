@@ -26,6 +26,7 @@ import { CreateProductForm } from "@/components/products/CreateProductForm";
 import { BulkUploadForm } from "@/components/products/BulkUploadForm";
 import Image from "next/image";
 import { formatPrice } from "@/lib/utils";
+import { Pagination } from "@/components/ui/pagination";
 
 export default function ProductsPage() {
   const { isAuthenticated, user, isLoading: authLoading } = useAuth();
@@ -44,6 +45,17 @@ export default function ProductsPage() {
   const [selectedSubcategoryId, setSelectedSubcategoryId] =
     useState<string>("");
   const [searchTerm, setSearchTerm] = useState<string>("");
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const PRODUCTS_PER_PAGE = 10;
+
+  // Calculate paginated products
+  const totalPages = Math.ceil(products.length / PRODUCTS_PER_PAGE);
+  const paginatedProducts = products.slice(
+    (currentPage - 1) * PRODUCTS_PER_PAGE,
+    currentPage * PRODUCTS_PER_PAGE
+  );
 
   useEffect(() => {
     if (!authLoading) {
@@ -67,6 +79,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     applyFilters();
+    setCurrentPage(1); // Reset to first page on filter/search change
   }, [allProducts, selectedCategoryId, selectedSubcategoryId, searchTerm]);
 
   const fetchProducts = async () => {
@@ -424,7 +437,7 @@ export default function ProductsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {products.map((product, index) => (
+                  {paginatedProducts.map((product, index) => (
                     <TableRow key={product.id || `product-${index}`}>
                       <TableCell>
                         {product.imageUrl ? (
@@ -578,7 +591,7 @@ export default function ProductsPage() {
                   </div>
                 </CardContent>
               </Card>
-              {products.map((product, index) => (
+              {paginatedProducts.map((product, index) => (
                 <Card
                   key={product.id || `product-${index}`}
                   className="overflow-hidden"
@@ -708,6 +721,17 @@ export default function ProductsPage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-6 flex justify-center">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        </div>
       )}
 
       {/* Create Product Modal */}

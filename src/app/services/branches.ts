@@ -28,6 +28,11 @@ export interface UpdateBranchDto {
   isActive?: boolean;
 }
 
+export async function getBranches() {
+  const res = await api.get("/branches/my-business");
+  return res.data;
+}
+
 export class BranchesService {
   static async getBranches(): Promise<Branch[]> {
     const response = await api.get("/branches/my-business");

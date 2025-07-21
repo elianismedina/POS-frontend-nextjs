@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { getWaiters, createWaiter } from "@/app/services/waiters";
+import { getBranches } from "@/app/services/branches";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +10,13 @@ import { useToast } from "@/components/ui/use-toast";
 export default function WaitersPage() {
   const { toast } = useToast();
   const [waiters, setWaiters] = useState([]);
-  const [form, setForm] = useState({ email: "", password: "", name: "" });
+  const [branches, setBranches] = useState([]);
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+    name: "",
+    branchId: "",
+  });
   const [loading, setLoading] = useState(false);
 
   const fetchWaiters = async () => {
@@ -27,7 +34,21 @@ export default function WaitersPage() {
     setLoading(false);
   };
 
+  const fetchBranches = async () => {
+    try {
+      const data = await getBranches();
+      setBranches(data);
+    } catch (e) {
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las sucursales",
+        variant: "destructive",
+      });
+    }
+  };
+
   useEffect(() => {
+    fetchBranches();
     fetchWaiters();
   }, []);
 
@@ -37,7 +58,7 @@ export default function WaitersPage() {
     try {
       await createWaiter(form);
       toast({ title: "Éxito", description: "Mesero creado correctamente" });
-      setForm({ email: "", password: "", name: "" });
+      setForm({ email: "", password: "", name: "", branchId: "" });
       fetchWaiters();
     } catch (e) {
       toast({
@@ -80,6 +101,19 @@ export default function WaitersPage() {
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               required
             />
+            <select
+              value={form.branchId}
+              onChange={(e) => setForm({ ...form, branchId: e.target.value })}
+              required
+              className="border rounded px-3 py-2"
+            >
+              <option value="">Selecciona una sucursal</option>
+              {branches.map((branch: any) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name}
+                </option>
+              ))}
+            </select>
             <Button type="submit" disabled={loading}>
               {loading ? "Creando..." : "Crear Mesero"}
             </Button>
@@ -95,7 +129,9 @@ export default function WaitersPage() {
           {loading ? (
             <div>Cargando...</div>
           ) : waiters.length === 0 ? (
-            <div className="text-center text-gray-500 py-4">No se encontraron meseros.</div>
+            <div className="text-center text-gray-500 py-4">
+              No se encontraron meseros.
+            </div>
           ) : (
             <table className="min-w-full">
               <thead>
@@ -110,7 +146,7 @@ export default function WaitersPage() {
                   <tr key={waiter.id}>
                     <td>{waiter.name}</td>
                     <td>{waiter.email}</td>
-                    <td>{waiter.business?.name || "—"}</td>
+                    <td>{waiter.branch?.name || "—"}</td>
                   </tr>
                 ))}
               </tbody>

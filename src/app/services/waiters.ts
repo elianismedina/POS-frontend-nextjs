@@ -9,6 +9,7 @@ export async function createWaiter(data: {
   email: string;
   password: string;
   name?: string;
+  branchId: string;
 }) {
   const res = await api.post("/users/waiters", data);
   return res.data;

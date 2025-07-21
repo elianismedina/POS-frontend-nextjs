@@ -36,6 +36,8 @@ export default function Home() {
         router.replace("/dashboard/admin");
       } else if (user.role.name === "cashier") {
         router.replace("/dashboard/cashier");
+      } else if (user.role.name === "waiter") {
+        router.replace("/dashboard/waiter");
       }
     }
   }, [
@@ -102,6 +104,8 @@ export default function Home() {
           router.replace("/dashboard/admin");
         } else if (response.data.role === "cashier") {
           router.replace("/dashboard/cashier");
+        } else if (response.data.role === "waiter") {
+          router.replace("/dashboard/waiter");
         }
       }, 1500);
     } catch (err: any) {

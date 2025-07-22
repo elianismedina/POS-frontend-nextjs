@@ -10,7 +10,9 @@ import { PaymentModal } from "./components/PaymentModal";
 import { CustomerModal } from "./components/CustomerModal";
 import { useSalesState } from "./hooks/useSalesState";
 import { useSalesActions } from "./hooks/useSalesActions";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { ordersService } from "@/app/services/orders";
 import { productsService } from "@/app/services/products";
 import { CustomersService } from "@/app/services/customers";
 import { taxesService } from "@/app/services/taxes";
@@ -24,6 +26,20 @@ export default function SalesPage() {
   const { sale, setSale, updateSale, state, setState, updateState } =
     useSalesState();
   const actions = useSalesActions(sale, setSale, state, updateState, user);
+
+  // Add pagination state
+  const productsPerPage = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.ceil(state.products.length / productsPerPage);
+  const paginatedProducts = state.products.slice(
+    (currentPage - 1) * productsPerPage,
+    currentPage * productsPerPage
+  );
+
+  // Reset to page 1 when products change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [state.products]);
 
   // Data loading effect: fetch products and active shift, and extract categories
   useEffect(() => {
@@ -122,6 +138,63 @@ export default function SalesPage() {
     if (!authLoading && !isAuthenticated) router.replace("/");
   }, [isAuthenticated, authLoading, router]);
 
+  const searchParams = useSearchParams();
+  const orderIdParam = searchParams.get("orderId");
+
+  // Load existing order if orderId is present in URL and allProducts are loaded
+  useEffect(() => {
+    const loadExistingOrder = async () => {
+      if (!orderIdParam || !state.allProducts || state.allProducts.length === 0)
+        return;
+      try {
+        updateState({ isLoading: true });
+        const order = await ordersService.getOrder(orderIdParam);
+        const orderData = order._props || order;
+        const backendItems = (orderData.items || [])
+          .map((item: any) => {
+            const itemData = item._props || item;
+            let product = state.allProducts.find(
+              (p) => p.id === itemData.productId
+            );
+            if (!product && itemData.product) {
+              product = itemData.product;
+            }
+            if (!product) return null;
+            return {
+              product,
+              quantity: itemData.quantity || 1,
+              subtotal:
+                itemData.subtotal || product.price * (itemData.quantity || 1),
+            };
+          })
+          .filter(
+            (
+              item: any
+            ): item is { product: any; quantity: number; subtotal: number } =>
+              item !== null
+          );
+        // Recalculate summary fields
+        const newSale = {
+          ...sale,
+          items: backendItems,
+          currentOrder: order,
+        };
+        const calculatedSale = actions.calculateTotals(newSale);
+        setSale(calculatedSale);
+        updateState({ isLoading: false });
+      } catch (error) {
+        updateState({ isLoading: false });
+        toast({
+          title: "Error",
+          description: "Error al cargar pedido existente",
+          variant: "destructive",
+        });
+      }
+    };
+    loadExistingOrder();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderIdParam, state.allProducts]);
+
   // Loading state
   if (!isAuthenticated || authLoading || state.isLoading) {
     return (
@@ -189,6 +262,17 @@ export default function SalesPage() {
         <h1 className="text-2xl font-bold text-gray-900">POS Venta</h1>
         {/* Add more header actions as needed */}
       </div>
+      {/* Show current order ID if exists */}
+      {sale.currentOrder && (
+        <div className="bg-blue-50 border-b px-6 py-2 flex items-center gap-4">
+          <span className="text-xs text-blue-800 font-mono">
+            ID del Pedido:{" "}
+            {sale.currentOrder.id ||
+              (sale.currentOrder._props && sale.currentOrder._props.id) ||
+              "desconocido"}
+          </span>
+        </div>
+      )}
       {/* Category filter UI */}
       <div className="bg-white border-b px-6 py-2 flex items-center gap-4">
         <label htmlFor="categoryFilter" className="text-sm font-medium">
@@ -214,13 +298,33 @@ export default function SalesPage() {
         <div className="flex-1 flex flex-col">
           {/* Search/filter UI can be extracted if needed */}
           <ProductGrid
-            products={state.products}
+            products={paginatedProducts}
             isLoading={state.isLoadingProducts}
             isOrderCompleted={
               !!sale.currentOrder && sale.currentOrder.status === "COMPLETED"
             }
             onAddToCart={actions.addToCart}
           />
+          {/* Pagination controls */}
+          <div className="flex justify-center items-center gap-2 py-4">
+            <button
+              className="px-3 py-1 rounded border bg-white disabled:opacity-50"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              Anterior
+            </button>
+            <span className="text-sm">
+              Página {currentPage} de {totalPages}
+            </span>
+            <button
+              className="px-3 py-1 rounded border bg-white disabled:opacity-50"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Siguiente
+            </button>
+          </div>
         </div>
         {/* Cart and summary */}
         <CartSection

@@ -2,7 +2,7 @@ import {
   productsService,
   PaginatedProductsResponse,
 } from "@/app/services/products";
-import { customersService } from "@/app/services/customers";
+import { CustomersService } from "@/app/services/customers";
 import { taxesService } from "@/app/services/taxes";
 import { businessPaymentMethodsService } from "@/app/services/business-payment-methods";
 import { shiftsService } from "@/app/services/shifts";
@@ -51,7 +51,7 @@ export class SalesService {
   }
 
   static async loadCustomers(): Promise<any> {
-    return await customersService.getCustomers(1, 100);
+    return await CustomersService.getCustomers();
   }
 
   static async loadTaxes(businessId: string): Promise<any[]> {

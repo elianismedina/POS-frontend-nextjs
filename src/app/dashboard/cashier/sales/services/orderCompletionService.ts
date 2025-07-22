@@ -1,6 +1,7 @@
 import { ordersService } from "@/app/services/orders";
 import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from "next/navigation";
+import type { CompleteOrderRequest } from "@/app/services/orders"; // adjust path if needed
 
 export interface OrderCompletionService {
   handleCompleteOrder: (
@@ -151,8 +152,11 @@ export function useOrderCompletionService(): OrderCompletionService {
       // Only complete the order if it's not already completed
       if (updatedOrderStatus !== "COMPLETED") {
         // Then complete the order with user-specified details (this sets status to COMPLETED)
-        const completeOrderData = {
-          completionType: getCompletionType(currentTableOrder),
+        const completeOrderData: CompleteOrderRequest = {
+          completionType: completionDetails.completionType as
+            | "PICKUP"
+            | "DELIVERY"
+            | "DINE_IN",
           deliveryAddress: completionDetails.deliveryAddress || undefined,
           estimatedTime: completionDetails.estimatedTime || undefined,
           notes:

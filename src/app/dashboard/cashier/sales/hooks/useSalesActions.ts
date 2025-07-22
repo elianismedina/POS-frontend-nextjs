@@ -6,7 +6,6 @@ import { Customer } from "@/app/services/customers";
 import { BusinessPaymentMethod } from "@/app/services/business-payment-methods";
 import { ordersService, Order } from "@/app/services/orders";
 import { productsService } from "@/app/services/products";
-import { customersService } from "@/app/services/customers";
 import { taxesService } from "@/app/services/taxes";
 import { businessPaymentMethodsService } from "@/app/services/business-payment-methods";
 import { shiftsService } from "@/app/services/shifts";
@@ -83,8 +82,30 @@ export const useSalesActions = (
       try {
         let currentOrder = sale.currentOrder;
         if (!currentOrder) {
-          // Create new order logic would go here
-          return;
+          // Create a new order if none exists
+          let businessId: string | undefined;
+          if (user?.business?.[0]?.id) {
+            businessId = user.business[0].id;
+          } else if (user?.branch?.business?.id) {
+            businessId = user.branch.business.id;
+          }
+          if (!businessId) throw new Error("No business ID found");
+
+          const newOrder = await ordersService.createOrder({
+            businessId,
+            cashierId: user.id,
+          });
+          currentOrder = newOrder;
+          setSale((prev) => ({ ...prev, currentOrder: newOrder }));
+          const orderId =
+            newOrder.id ||
+            (newOrder._props && newOrder._props.id) ||
+            "desconocido";
+          toast({
+            title: "Nuevo pedido creado",
+            description: `ID del pedido: ${orderId}`,
+            variant: "default",
+          });
         }
 
         const orderId =
@@ -103,23 +124,33 @@ export const useSalesActions = (
         };
 
         const updatedOrder = await ordersService.addItem(orderId, addItemData);
+        const orderData = updatedOrder._props || updatedOrder;
+        console.log("orderData.items:", orderData.items);
 
-        const backendItems = (updatedOrder.items || [])
+        const backendItems = (orderData.items || [])
           .map((item: any) => {
             const itemData = item._props || item;
-            const product = state.allProducts.find(
+            let product = state.allProducts.find(
               (p: Product) => p.id === itemData.productId
             );
+            // Fallback: use itemData.product if available
+            if (!product && itemData.product) {
+              product = itemData.product;
+            }
             if (!product) {
+              console.warn(
+                "Product not found for cart item:",
+                itemData.productId,
+                state.products
+              );
               return null;
             }
-            const cartItem = {
+            return {
               product,
               quantity: itemData.quantity || 1,
               subtotal:
                 itemData.subtotal || product.price * (itemData.quantity || 1),
             };
-            return cartItem;
           })
           .filter((item: any): item is CartItem => item !== null);
 
@@ -141,7 +172,7 @@ export const useSalesActions = (
         });
       }
     },
-    [sale, state.taxes, state.allProducts, setSale, calculateTotals, toast]
+    [sale, state.taxes, state.products, setSale, calculateTotals, toast, user]
   );
 
   const updateQuantity = useCallback(

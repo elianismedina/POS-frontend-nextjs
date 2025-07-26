@@ -67,7 +67,9 @@ export const useSalesActions = (
         saleData.discountType === "percentage"
           ? subtotal * (saleData.discount / 100)
           : saleData.discount;
-      const tipAmount = saleData.tipAmount || 0;
+      // Recalculate tip amount based on current tip percentage and new subtotal
+      const tipPercentage = saleData.tipPercentage || 0;
+      const tipAmount = subtotal * tipPercentage;
       const total = subtotal + tax - discount + tipAmount;
 
       return {
@@ -75,6 +77,7 @@ export const useSalesActions = (
         subtotal,
         tax,
         tipAmount,
+        tipPercentage,
         total,
       };
     },
@@ -244,7 +247,8 @@ export const useSalesActions = (
             const updatedOrder = await ordersService.updateItemQuantity(
               orderId,
               itemData.id,
-              newQuantity
+              newQuantity,
+              { tipPercentage: sale.tipPercentage || 0 }
             );
 
             let finalOrder = updatedOrder;
@@ -320,7 +324,8 @@ export const useSalesActions = (
 
             const updatedOrder = await ordersService.removeItem(
               orderId,
-              itemData.id
+              itemData.id,
+              { tipPercentage: sale.tipPercentage || 0 }
             );
 
             let finalOrder = updatedOrder;
@@ -489,6 +494,38 @@ export const useSalesActions = (
     [setSale]
   );
 
+  const clearCustomer = useCallback(async () => {
+    try {
+      setSale((prev) => ({ ...prev, customer: null }));
+
+      if (sale.currentOrder) {
+        const orderId =
+          (sale.currentOrder as any)?._props?.id ||
+          (sale.currentOrder as any)?.id;
+
+        if (orderId) {
+          const updatedOrder = await ordersService.updateOrder(orderId, {
+            customerId: null,
+          });
+
+          setSale((prev) => ({
+            ...prev,
+            currentOrder: updatedOrder,
+            customer: null,
+          }));
+
+          sessionStorage.setItem("shouldRefreshOrders", "true");
+        }
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to clear customer from order",
+        variant: "destructive",
+      });
+    }
+  }, [sale.currentOrder, setSale, toast]);
+
   return {
     calculateTotals,
     addToCart,
@@ -496,5 +533,6 @@ export const useSalesActions = (
     removeFromCart,
     selectCustomer,
     selectPaymentMethod,
+    clearCustomer,
   };
 };

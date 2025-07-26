@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/utils";
 import { CartItem, SaleData } from "../types";
-import { Minus, Plus, Trash2, ShoppingCart } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingCart, X } from "lucide-react";
 
 interface CartSectionProps {
   sale: SaleData;
@@ -11,6 +11,7 @@ interface CartSectionProps {
   onUpdateQuantity: (productId: string, quantity: number) => void;
   onRemoveFromCart: (productId: string) => void;
   onTipChange: (tipPercentage: number) => void;
+  onClearCustomer?: () => void;
 }
 
 export const CartSection = ({
@@ -20,6 +21,7 @@ export const CartSection = ({
   onUpdateQuantity,
   onRemoveFromCart,
   onTipChange,
+  onClearCustomer,
 }: CartSectionProps) => {
   return (
     <div className="w-96 bg-white border-l flex flex-col h-full">
@@ -128,6 +130,41 @@ export const CartSection = ({
           </div>
         )}
       </div>
+
+      {/* Customer Information */}
+      {sale.customer && (
+        <div className="bg-blue-50 border-t border-blue-200 p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <h4 className="text-sm font-semibold text-blue-900">
+                Cliente Seleccionado
+              </h4>
+              <p className="text-sm text-blue-800 font-medium">
+                {sale.customer.name}
+              </p>
+              <p className="text-xs text-blue-700">{sale.customer.email}</p>
+              {sale.customer.phone && (
+                <p className="text-xs text-blue-600">{sale.customer.phone}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-xs">
+                Cliente
+              </Badge>
+              {onClearCustomer && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={onClearCustomer}
+                  className="h-6 w-6 p-0 text-blue-600 hover:text-blue-800"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Order Summary */}
       <div className="flex-shrink-0 border-t bg-gray-50 p-4">

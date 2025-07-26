@@ -4,9 +4,9 @@ export interface Customer {
   id: string;
   name: string;
   email: string;
-  phone: string;
-  address: string;
-  documentNumber: string;
+  phone?: string;
+  address?: string;
+  documentNumber?: string;
   isActive: boolean;
   businessId: string;
   createdAt: string;
@@ -16,9 +16,9 @@ export interface Customer {
 export interface CreateCustomerDto {
   name: string;
   email: string;
-  phone: string;
-  address: string;
-  documentNumber: string;
+  phone?: string;
+  address?: string;
+  documentNumber?: string;
   businessId: string;
 }
 

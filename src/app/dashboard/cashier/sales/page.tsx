@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { X } from "lucide-react";
 
 export default function SalesPage() {
   const { isAuthenticated, user, isLoading: authLoading } = useAuth();
@@ -67,14 +68,20 @@ export default function SalesPage() {
         }
         if (!businessId) throw new Error("No business ID found");
 
-        // Fetch all products, active shift, and payment methods
-        const [productsRes, allProductsRes, shiftRes, paymentMethodsRes] =
-          await Promise.all([
-            productsService.getPaginated({ businessId, page: 0, limit: 1000 }),
-            productsService.getPaginated({ businessId, page: 0, limit: 10000 }),
-            shiftsService.getActiveShift(user.id),
-            businessPaymentMethodsService.getBusinessPaymentMethods(),
-          ]);
+        // Fetch all products, active shift, payment methods, and customers
+        const [
+          productsRes,
+          allProductsRes,
+          shiftRes,
+          paymentMethodsRes,
+          customersRes,
+        ] = await Promise.all([
+          productsService.getPaginated({ businessId, page: 0, limit: 1000 }),
+          productsService.getPaginated({ businessId, page: 0, limit: 10000 }),
+          shiftsService.getActiveShift(user.id),
+          businessPaymentMethodsService.getBusinessPaymentMethods(),
+          CustomersService.getCustomersByBusiness(),
+        ]);
 
         // Extract unique categories from products
         const uniqueCategories = [
@@ -88,6 +95,7 @@ export default function SalesPage() {
           categories: uniqueCategories,
           activeShift: shiftRes,
           paymentMethods: paymentMethodsRes,
+          customers: customersRes,
           isLoading: false,
         });
         console.log("Fetched products:", productsRes.products);
@@ -190,11 +198,29 @@ export default function SalesPage() {
               item !== null
           );
         // Recalculate summary fields
+        const orderCustomer = orderData.customer || order.customer;
+        const customer = orderCustomer
+          ? {
+              id: orderCustomer.id,
+              name: orderCustomer.name,
+              email: orderCustomer.email,
+              phone: orderCustomer.phone || "",
+              address: orderCustomer.address || "",
+              documentNumber: orderCustomer.documentNumber || "",
+              isActive: true,
+              businessId: order.businessId,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            }
+          : null;
+
         const newSale = {
           ...sale,
           items: backendItems,
           currentOrder: order,
+          customer,
         };
+
         const calculatedSale = actions.calculateTotals(newSale);
         setSale(calculatedSale);
         updateState({
@@ -460,17 +486,43 @@ export default function SalesPage() {
       {/* Header, filters, and actions can be further extracted if needed */}
       <div className="bg-white border-b px-6 py-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">POS Venta</h1>
-        <Button
-          onClick={() => updateState({ showPaymentModal: true })}
-          disabled={
-            sale.items.length === 0 ||
-            !!(sale.currentOrder && sale.currentOrder.status === "COMPLETED")
-          }
-          className="px-6 py-2 text-base"
-        >
-          Ir a Pago
-        </Button>
-        {/* Add more header actions as needed */}
+        <div className="flex items-center gap-4">
+          {/* Customer Selection Button */}
+          <Button
+            onClick={() => updateState({ showCustomerModal: true })}
+            variant="outline"
+            className="px-4 py-2"
+          >
+            {sale.customer ? (
+              <div className="flex items-center gap-2">
+                <span>Cliente: {sale.customer.name}</span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    actions.clearCustomer();
+                  }}
+                  className="h-6 w-6 p-0"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            ) : (
+              "Seleccionar Cliente"
+            )}
+          </Button>
+          <Button
+            onClick={() => updateState({ showPaymentModal: true })}
+            disabled={
+              sale.items.length === 0 ||
+              !!(sale.currentOrder && sale.currentOrder.status === "COMPLETED")
+            }
+            className="px-6 py-2 text-base"
+          >
+            Ir a Pago
+          </Button>
+        </div>
       </div>
       {/* Show current order ID if exists */}
       {sale.currentOrder && (
@@ -606,6 +658,7 @@ export default function SalesPage() {
           onUpdateQuantity={actions.updateQuantity}
           onRemoveFromCart={actions.removeFromCart}
           onTipChange={onTipChange}
+          onClearCustomer={actions.clearCustomer}
         />
       </div>
       {/* Modals */}
@@ -640,6 +693,7 @@ export default function SalesPage() {
         setCustomerSearchTerm={(term) =>
           updateState({ customerSearchTerm: term })
         }
+        businessId={user?.business?.[0]?.id || user?.branch?.business?.id || ""}
       />
     </div>
   );

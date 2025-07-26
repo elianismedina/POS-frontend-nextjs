@@ -45,8 +45,11 @@ export default function WaiterLayout({
   // Render the layout with sidebar and content
   return (
     <div className="flex h-screen">
-      <WaiterSidebar />
-      <main className="flex-1 overflow-auto bg-background md:ml-0 ml-[60px]">
+      {/* Sidebar - hidden on mobile, visible on desktop */}
+      <div className="hidden md:block">
+        <WaiterSidebar />
+      </div>
+      <main className="flex-1 overflow-auto bg-background w-full">
         {children}
       </main>
     </div>

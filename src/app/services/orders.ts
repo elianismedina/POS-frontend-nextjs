@@ -214,10 +214,7 @@ class OrdersService {
       paymentId?: string;
     }
   ): Promise<Order> {
-    const response = await api.patch(
-      `/api/v1/orders/${orderId}/payment-info`,
-      data
-    );
+    const response = await api.patch(`/orders/${orderId}/payment-info`, data);
     return response.data;
   }
 

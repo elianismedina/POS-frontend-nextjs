@@ -30,8 +30,8 @@ export const ProductGrid = ({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+    <div className="flex-1 overflow-y-auto p-2">
+      <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
         {products.map((product) => (
           <Card
             key={product.id}
@@ -42,26 +42,26 @@ export const ProductGrid = ({
             }`}
             onClick={() => !isOrderCompleted && onAddToCart(product)}
           >
-            <CardContent className="p-4">
-              <div className="aspect-square relative mb-3">
+            <CardContent className="p-2">
+              <div className="aspect-[4/3] relative mb-2">
                 {product.imageUrl ? (
                   <Image
                     src={product.imageUrl}
                     alt={product.name}
                     fill
-                    className="object-cover rounded-lg"
-                    sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
+                    className="object-cover rounded-md"
+                    sizes="(max-width: 768px) 33vw, (max-width: 1200px) 25vw, 16vw"
                   />
                 ) : (
-                  <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
-                    <Package className="h-8 w-8 text-gray-400" />
+                  <div className="w-full h-full bg-gray-100 rounded-md flex items-center justify-center">
+                    <Package className="h-6 w-6 text-gray-400" />
                   </div>
                 )}
               </div>
-              <h3 className="font-semibold text-sm mb-1 line-clamp-2">
+              <h3 className="font-semibold text-xs mb-1 line-clamp-2 leading-tight">
                 {product.name}
               </h3>
-              <p className="text-lg font-bold text-green-600">
+              <p className="text-sm font-bold text-green-600">
                 {formatPrice(product.price)}
               </p>
               <p className="text-xs text-gray-500">

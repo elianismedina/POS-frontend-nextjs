@@ -44,13 +44,22 @@ export const useSalesActions = (
         console.log("orderData.taxAmount:", orderData.taxAmount);
         console.log("orderData.taxTotal:", orderData.taxTotal);
 
+        const subtotal = orderData.totalAmount || orderData.subtotal || 0;
+        const tax = orderData.taxAmount || orderData.taxTotal || 0;
+        const tipPercentage =
+          orderData.tipPercentage || saleData.tipPercentage || 0;
+
+        // Recalculate tip amount based on current tip percentage and new subtotal
+        const tipAmount = subtotal * tipPercentage;
+        const total = orderData.finalAmount || orderData.total || 0;
+
         return {
           ...result,
-          subtotal: orderData.totalAmount || orderData.subtotal || 0,
-          tax: orderData.taxAmount || orderData.taxTotal || 0,
-          tipAmount: orderData.tipAmount || saleData.tipAmount || 0,
-          tipPercentage: orderData.tipPercentage || saleData.tipPercentage || 0,
-          total: orderData.finalAmount || orderData.total || 0,
+          subtotal,
+          tax,
+          tipAmount,
+          tipPercentage,
+          total,
         };
       }
 
@@ -159,6 +168,7 @@ export const useSalesActions = (
           currentOrder = updatedOrder;
         }
 
+        // Always update the sale state with the latest order data
         const orderData = currentOrder?._props || currentOrder;
         console.log("orderData.items:", orderData?.items);
 
@@ -505,7 +515,7 @@ export const useSalesActions = (
 
         if (orderId) {
           const updatedOrder = await ordersService.updateOrder(orderId, {
-            customerId: null,
+            customerId: undefined,
           });
 
           setSale((prev) => ({

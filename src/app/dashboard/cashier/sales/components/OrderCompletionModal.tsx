@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { formatPrice } from "@/lib/utils";
 import { Loader2, X, CreditCard } from "lucide-react";
+import React from "react";
 
 interface OrderCompletionModalProps {
   isOpen: boolean;

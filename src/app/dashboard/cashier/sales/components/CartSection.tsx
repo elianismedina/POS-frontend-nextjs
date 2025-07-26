@@ -46,10 +46,10 @@ export const CartSection = ({
             </p>
           </div>
         ) : (
-          <div className="space-y-2" key={`cart-items-${sale.items.length}`}>
+          <div className="space-y-2">
             {sale.items.map((item, index) => (
               <div
-                key={`${item.product.id}-${item.quantity}-${index}`}
+                key={`${item.product.id}-${index}`}
                 className="bg-white border border-gray-300 rounded-md p-2 shadow-sm hover:shadow-md transition-all duration-200"
               >
                 <div className="flex items-center justify-between">

@@ -8,6 +8,7 @@ import { CartSection } from "./components/CartSection";
 import { OrderCompletionModal } from "./components/OrderCompletionModal";
 import { PaymentModal } from "./components/PaymentModal";
 import { CustomerModal } from "./components/CustomerModal";
+import { OrderSuccessScreen } from "./components/OrderSuccessScreen";
 import { useSalesState } from "./hooks/useSalesState";
 import { useSalesActions } from "./hooks/useSalesActions";
 import { useEffect, useState } from "react";
@@ -18,6 +19,7 @@ import { CustomersService } from "@/app/services/customers";
 import { taxesService } from "@/app/services/taxes";
 import { businessPaymentMethodsService } from "@/app/services/business-payment-methods";
 import { shiftsService } from "@/app/services/shifts";
+import { paymentsService } from "@/app/services/payments";
 import {
   PhysicalTablesService,
   PhysicalTable,
@@ -40,8 +42,12 @@ export default function SalesPage() {
     useSalesState();
   const actions = useSalesActions(sale, setSale, state, updateState, user);
 
+  // Add success screen state
+  const [showSuccessScreen, setShowSuccessScreen] = useState(false);
+  const [completedOrder, setCompletedOrder] = useState<any>(null);
+
   // Add pagination state
-  const productsPerPage = 10;
+  const productsPerPage = 20;
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.ceil(state.products.length / productsPerPage);
   const paginatedProducts = state.products.slice(
@@ -49,10 +55,51 @@ export default function SalesPage() {
     currentPage * productsPerPage
   );
 
+  // Check if current order is completed
+  const isOrderCompleted =
+    sale.currentOrder &&
+    (sale.currentOrder.status === "COMPLETED" ||
+      sale.currentOrder.status === "DELIVERED" ||
+      sale.currentOrder._props?.status === "COMPLETED" ||
+      sale.currentOrder._props?.status === "DELIVERED");
+
+  // Check if order is paid but not yet completed (for PICKUP/DELIVERY)
+  const isOrderPaid =
+    sale.currentOrder &&
+    (sale.currentOrder.status === "PAID" ||
+      sale.currentOrder.status === "RECEIVED" ||
+      sale.currentOrder._props?.status === "PAID" ||
+      sale.currentOrder._props?.status === "RECEIVED");
+
+  // Check if order is in a finalized status (should hide table selection)
+  const isOrderFinalized =
+    sale.currentOrder &&
+    (sale.currentOrder.status === "PAID" ||
+      sale.currentOrder.status === "COMPLETED" ||
+      sale.currentOrder.status === "CONFIRMED" ||
+      sale.currentOrder.status === "DELIVERED" ||
+      sale.currentOrder._props?.status === "PAID" ||
+      sale.currentOrder._props?.status === "COMPLETED" ||
+      sale.currentOrder._props?.status === "CONFIRMED" ||
+      sale.currentOrder._props?.status === "DELIVERED");
+
   // Reset to page 1 when products change
   useEffect(() => {
     setCurrentPage(1);
   }, [state.products]);
+
+  // Recalculate tip amount when subtotal changes
+  useEffect(() => {
+    if (sale.tipPercentage > 0) {
+      const newTipAmount = (sale.subtotal || 0) * sale.tipPercentage;
+      if (Math.abs(newTipAmount - sale.tipAmount) > 0.01) {
+        setSale((prev) => ({
+          ...prev,
+          tipAmount: newTipAmount,
+        }));
+      }
+    }
+  }, [sale.subtotal, sale.tipPercentage, sale.tipAmount, setSale]);
 
   // Data loading effect: fetch products and active shift, and extract categories
   useEffect(() => {
@@ -198,7 +245,8 @@ export default function SalesPage() {
               item !== null
           );
         // Recalculate summary fields
-        const orderCustomer = orderData.customer || order.customer;
+        const orderWithCustomer = order as any;
+        const orderCustomer = orderData.customer || orderWithCustomer?.customer;
         const customer = orderCustomer
           ? {
               id: orderCustomer.id,
@@ -208,7 +256,7 @@ export default function SalesPage() {
               address: orderCustomer.address || "",
               documentNumber: orderCustomer.documentNumber || "",
               isActive: true,
-              businessId: order.businessId,
+              businessId: orderWithCustomer.businessId,
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
             }
@@ -304,7 +352,9 @@ export default function SalesPage() {
 
   // Inline handlers for props that are not in useSalesActions
   const onTipChange = async (tipPercentage: number) => {
+    // Always recalculate tip amount based on current subtotal
     const newTipAmount = (sale.subtotal || 0) * tipPercentage;
+
     // Persist tip to backend if there is a current order
     if (sale.currentOrder && sale.currentOrder.id) {
       try {
@@ -332,12 +382,56 @@ export default function SalesPage() {
   };
 
   const handleCompleteOrder = async () => {
-    console.log("Complete order clicked", { isProcessing: state.isProcessing });
-    if (!sale.currentOrder || !sale.currentOrder.id) return;
+    if (
+      !sale.currentOrder ||
+      (!sale.currentOrder.id && !sale.currentOrder._props?.id)
+    ) {
+      toast({
+        title: "Error",
+        description: "No se encontró el pedido para completar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if order is already completed
+    const orderStatus =
+      sale.currentOrder.status || sale.currentOrder._props?.status;
+    if (orderStatus === "COMPLETED" || orderStatus === "PAID") {
+      toast({
+        title: "Pedido ya completado",
+        description: "Este pedido ya ha sido completado y procesado.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate order has items
+    if (!sale.items || sale.items.length === 0) {
+      toast({
+        title: "Pedido vacío",
+        description: "No se puede completar un pedido sin items.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate payment method is selected
+    if (!sale.selectedPaymentMethod) {
+      toast({
+        title: "Método de pago requerido",
+        description:
+          "Por favor selecciona un método de pago antes de continuar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Require completionType
     const completionType = state.selectedPhysicalTable
       ? "DINE_IN"
       : state.completionDetails.completionType;
+
     if (!completionType) {
       toast({
         title: "Tipo de finalización requerido",
@@ -360,41 +454,98 @@ export default function SalesPage() {
         tipAmount: sale.tipAmount,
         tipPercentage: sale.tipPercentage,
       };
-      const updatedOrder = await ordersService.completeOrder(
-        sale.currentOrder.id,
-        completionDetails
-      );
-      console.log("Order completed, response:", updatedOrder);
 
-      // Process payment after completing the order
-      const paymentMethod =
-        sale.selectedPaymentMethod?.paymentMethod?.name || "CASH";
+      const orderId = sale.currentOrder.id || sale.currentOrder._props?.id;
+      if (!orderId) {
+        throw new Error("Order ID is missing");
+      }
 
-      const paidOrder = await ordersService.updatePaymentInfo(
-        sale.currentOrder.id,
-        {
-          paymentStatus: "COMPLETED",
-          isPaid: true,
-          paymentMethod: paymentMethod,
+      // Create payment record
+      const paymentMethodId = sale.selectedPaymentMethod?.id || "CASH";
+      console.log("Selected payment method:", sale.selectedPaymentMethod);
+      console.log("Payment method ID being used:", paymentMethodId);
+      const paymentDetails = {
+        orderId: orderId,
+        paymentMethodId: paymentMethodId,
+        amount: sale.total,
+        metadata: {
+          notes: state.completionDetails.notes,
+          completionType: completionDetails.completionType,
+        },
+      };
+      console.log("Creating payment with details:", paymentDetails);
+
+      let createdPayment;
+      try {
+        createdPayment = await paymentsService.createPayment(paymentDetails);
+        console.log("Payment created successfully:", createdPayment);
+      } catch (error) {
+        console.error("Payment creation failed with selected method:", error);
+        // Try with a default payment method if the selected one fails
+        if (paymentMethodId !== "CASH") {
+          console.log("Retrying with CASH payment method...");
+          const fallbackPaymentDetails = {
+            ...paymentDetails,
+            paymentMethodId: "CASH",
+          };
+          createdPayment = await paymentsService.createPayment(
+            fallbackPaymentDetails
+          );
+          console.log(
+            "Payment created successfully with fallback:",
+            createdPayment
+          );
+        } else {
+          throw error; // Re-throw if we're already using CASH
         }
-      );
+      }
+
+      // Only call completeOrder for DINE_IN orders
+      // For PICKUP/DELIVERY, the payment service already handles the status transition
+      let updatedOrder;
+      if (completionDetails.completionType === "DINE_IN") {
+        updatedOrder = await ordersService.completeOrder(
+          orderId,
+          completionDetails
+        );
+      } else {
+        // For PICKUP/DELIVERY, just get the order after payment
+        updatedOrder = await ordersService.getOrder(orderId);
+      }
+
+      // Fetch the complete order with items to ensure we have all data for the success screen
+      const completeOrder = await ordersService.getOrder(orderId);
 
       setSale((prev) => ({
         ...prev,
-        currentOrder: paidOrder,
+        currentOrder: completeOrder,
       }));
+
+      // Show success screen
+      setCompletedOrder(completeOrder);
+      setShowSuccessScreen(true);
 
       toast({
         title: "Order completed and payment processed",
-        description: `Order status: ${paidOrder.status}, Payment: ${paymentMethod}`,
+        description: `Order status: ${updatedOrder.status}, Payment: ${
+          sale.selectedPaymentMethod?.paymentMethod?.name || "CASH"
+        }`,
         variant: "default",
       });
       updateState({ showCompletionModal: false });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to complete order:", error);
+      let errorMessage = "No se pudo completar el pedido.";
+
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       toast({
         title: "Error",
-        description: "No se pudo completar el pedido.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -404,6 +555,41 @@ export default function SalesPage() {
   };
 
   const processPayment = async () => {
+    // Validate order has items
+    if (!sale.items || sale.items.length === 0) {
+      toast({
+        title: "Pedido vacío",
+        description: "No se puede procesar el pago de un pedido sin items.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate payment method is selected
+    if (!sale.selectedPaymentMethod) {
+      toast({
+        title: "Método de pago requerido",
+        description:
+          "Por favor selecciona un método de pago antes de continuar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if order is already completed
+    if (sale.currentOrder) {
+      const orderStatus =
+        sale.currentOrder.status || sale.currentOrder._props?.status;
+      if (orderStatus === "COMPLETED" || orderStatus === "PAID") {
+        toast({
+          title: "Pedido ya completado",
+          description: "Este pedido ya ha sido completado y procesado.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     // If no table is selected, close payment modal and show completion type modal
     if (!state.selectedPhysicalTable) {
       updateState({ showPaymentModal: false, showCompletionModal: true });
@@ -435,20 +621,55 @@ export default function SalesPage() {
         completionDetails
       );
 
-      // Update payment information
-      const paymentMethod =
-        sale.selectedPaymentMethod?.paymentMethod?.name || "CASH";
+      // Create payment record
+      const paymentMethodId = sale.selectedPaymentMethod?.id || "CASH";
+      const paymentDetails = {
+        orderId: orderId,
+        paymentMethodId: paymentMethodId,
+        amount: sale.total,
+        metadata: {
+          notes: state.completionDetails.notes,
+          completionType: completionDetails.completionType,
+        },
+      };
+      console.log("Creating payment with details:", paymentDetails);
 
-      const paidOrder = await ordersService.updatePaymentInfo(orderId, {
-        paymentStatus: "COMPLETED",
-        isPaid: true,
-        paymentMethod: paymentMethod,
-      });
+      let createdPayment;
+      try {
+        createdPayment = await paymentsService.createPayment(paymentDetails);
+        console.log("Payment created:", createdPayment);
+      } catch (error) {
+        console.error("Payment creation failed with selected method:", error);
+        // Try with a default payment method if the selected one fails
+        if (paymentMethodId !== "CASH") {
+          console.log("Retrying with CASH payment method...");
+          const fallbackPaymentDetails = {
+            ...paymentDetails,
+            paymentMethodId: "CASH",
+          };
+          createdPayment = await paymentsService.createPayment(
+            fallbackPaymentDetails
+          );
+          console.log(
+            "Payment created successfully with fallback:",
+            createdPayment
+          );
+        } else {
+          throw error; // Re-throw if we're already using CASH
+        }
+      }
 
       setSale((prev) => ({
         ...prev,
-        currentOrder: paidOrder,
+        currentOrder: updatedOrder,
       }));
+
+      // Fetch the complete order with items to ensure we have all data for the success screen
+      const completeOrder = await ordersService.getOrder(orderId);
+
+      // Show success screen
+      setCompletedOrder(completeOrder);
+      setShowSuccessScreen(true);
 
       toast({
         title: "Pago procesado",
@@ -456,11 +677,19 @@ export default function SalesPage() {
         variant: "default",
       });
       updateState({ showPaymentModal: false });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Payment processing error:", error);
+      let errorMessage = "Hubo un problema al procesar el pago.";
+
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       toast({
         title: "Error",
-        description: "Hubo un problema al procesar el pago.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -471,11 +700,15 @@ export default function SalesPage() {
 
   // Helper to open the completion modal and ensure completionType is set
   const openCompletionModal = () => {
+    const defaultCompletionType = state.selectedPhysicalTable
+      ? "DINE_IN"
+      : "PICKUP";
     updateState({
       showCompletionModal: true,
       completionDetails: {
         ...state.completionDetails,
-        completionType: state.completionDetails.completionType || "PICKUP",
+        completionType:
+          state.completionDetails.completionType || defaultCompletionType,
       },
     });
   };
@@ -492,31 +725,41 @@ export default function SalesPage() {
             onClick={() => updateState({ showCustomerModal: true })}
             variant="outline"
             className="px-4 py-2"
+            disabled={!!(isOrderCompleted || isOrderPaid)}
           >
             {sale.customer ? (
               <div className="flex items-center gap-2">
                 <span>Cliente: {sale.customer.name}</span>
-                <Button
-                  size="sm"
-                  variant="ghost"
+                <div
                   onClick={(e) => {
                     e.stopPropagation();
                     actions.clearCustomer();
                   }}
-                  className="h-6 w-6 p-0"
+                  className="h-6 w-6 p-0 flex items-center justify-center hover:bg-gray-100 rounded cursor-pointer"
                 >
                   <X className="h-3 w-3" />
-                </Button>
+                </div>
               </div>
             ) : (
               "Seleccionar Cliente"
             )}
           </Button>
           <Button
-            onClick={() => updateState({ showPaymentModal: true })}
+            onClick={() => {
+              // Auto-select first payment method if none is selected
+              if (
+                !sale.selectedPaymentMethod &&
+                state.paymentMethods.length > 0
+              ) {
+                setSale((prev) => ({
+                  ...prev,
+                  selectedPaymentMethod: state.paymentMethods[0],
+                }));
+              }
+              updateState({ showPaymentModal: true });
+            }}
             disabled={
-              sale.items.length === 0 ||
-              !!(sale.currentOrder && sale.currentOrder.status === "COMPLETED")
+              sale.items.length === 0 || !!(isOrderCompleted || isOrderPaid)
             }
             className="px-6 py-2 text-base"
           >
@@ -524,9 +767,58 @@ export default function SalesPage() {
           </Button>
         </div>
       </div>
+
+      {/* Show completed order message */}
+      {isOrderCompleted && (
+        <div className="bg-yellow-50 border-b px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-yellow-800 font-medium">
+              Pedido Completado - Solo Lectura
+            </span>
+            <Badge
+              variant="secondary"
+              className="bg-yellow-100 text-yellow-800"
+            >
+              {sale.currentOrder?.status || sale.currentOrder?._props?.status}
+            </Badge>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setSale((prev) => ({ ...prev, currentOrder: null }));
+            }}
+          >
+            Nuevo Pedido
+          </Button>
+        </div>
+      )}
+
+      {/* Show paid order message for PICKUP/DELIVERY */}
+      {isOrderPaid && !isOrderCompleted && (
+        <div className="bg-blue-50 border-b px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-blue-800 font-medium">
+              Pedido Pagado - En Preparación
+            </span>
+            <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+              {sale.currentOrder?.status || sale.currentOrder?._props?.status}
+            </Badge>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setSale((prev) => ({ ...prev, currentOrder: null }));
+            }}
+          >
+            Nuevo Pedido
+          </Button>
+        </div>
+      )}
       {/* Show current order ID if exists */}
       {sale.currentOrder && (
-        <div className="bg-blue-50 border-b px-6 py-2 flex items-center gap-4">
+        <div className="bg-blue-50 border-b px-6 py-1 flex items-center gap-4">
           <span className="text-xs text-blue-800 font-mono">
             ID del Pedido:{" "}
             {sale.currentOrder.id ||
@@ -536,29 +828,57 @@ export default function SalesPage() {
         </div>
       )}
       {/* Table selection UI */}
-      <div className="bg-white border-b px-6 py-2 flex items-center gap-4">
-        <Button onClick={() => setShowTableModal(true)} variant="outline">
-          {state.selectedPhysicalTable
-            ? `Mesa: ${state.selectedPhysicalTable.tableNumber}`
-            : "Seleccionar Mesa"}
-        </Button>
-        {state.selectedPhysicalTable && (
-          <Badge variant="secondary">
-            Mesa {state.selectedPhysicalTable.tableNumber}
-          </Badge>
-        )}
-        {state.selectedPhysicalTable && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => updateState({ selectedPhysicalTable: null })}
-          >
-            Quitar Mesa
+      {!isOrderFinalized && (
+        <div className="bg-white border-b px-6 py-1 flex items-center gap-4">
+          <Button onClick={() => setShowTableModal(true)} variant="outline">
+            {state.selectedPhysicalTable
+              ? `Mesa: ${state.selectedPhysicalTable.tableNumber}`
+              : "Seleccionar Mesa"}
           </Button>
+          {state.selectedPhysicalTable && (
+            <Badge variant="secondary">
+              Mesa {state.selectedPhysicalTable.tableNumber}
+            </Badge>
+          )}
+          {state.selectedPhysicalTable && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => updateState({ selectedPhysicalTable: null })}
+            >
+              Quitar Mesa
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Display table info for finalized orders */}
+      {isOrderFinalized &&
+        (state.selectedPhysicalTable ||
+          sale.currentOrder?.tableOrderId ||
+          (sale.currentOrder &&
+            (sale.currentOrder.completionType === "DINE_IN" ||
+              sale.currentOrder._props?.completionType === "DINE_IN"))) && (
+          <div className="bg-gray-50 border-b px-6 py-1 flex items-center gap-4">
+            <span className="text-sm text-gray-600">Mesa asignada:</span>
+            <Badge variant="secondary" className="bg-gray-100 text-gray-800">
+              {state.selectedPhysicalTable
+                ? `Mesa ${state.selectedPhysicalTable.tableNumber}`
+                : sale.currentOrder?.tableOrderId
+                ? `Mesa ${sale.currentOrder.tableOrderId}`
+                : "Mesa (DINE_IN)"}
+            </Badge>
+          </div>
         )}
-      </div>
       {/* Table selection modal */}
-      <Sheet open={showTableModal} onOpenChange={setShowTableModal}>
+      <Sheet
+        open={showTableModal && !isOrderFinalized}
+        onOpenChange={(open) => {
+          if (!isOrderFinalized) {
+            setShowTableModal(open);
+          }
+        }}
+      >
         <SheetContent className="w-[400px]">
           <SheetHeader>
             <SheetTitle>Seleccionar Mesa Física</SheetTitle>
@@ -596,7 +916,7 @@ export default function SalesPage() {
         </SheetContent>
       </Sheet>
       {/* Category filter UI */}
-      <div className="bg-white border-b px-6 py-2 flex items-center gap-4">
+      <div className="bg-white border-b px-6 py-1 flex items-center gap-4">
         <label htmlFor="categoryFilter" className="text-sm font-medium">
           Categoría:
         </label>
@@ -604,7 +924,7 @@ export default function SalesPage() {
           id="categoryFilter"
           value={state.selectedCategory || ""}
           onChange={(e) => updateState({ selectedCategory: e.target.value })}
-          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">Todas las Categorías</option>
           {state.categories &&
@@ -622,13 +942,11 @@ export default function SalesPage() {
           <ProductGrid
             products={paginatedProducts}
             isLoading={state.isLoadingProducts}
-            isOrderCompleted={
-              !!sale.currentOrder && sale.currentOrder.status === "COMPLETED"
-            }
+            isOrderCompleted={!!(isOrderCompleted || isOrderPaid)}
             onAddToCart={actions.addToCart}
           />
           {/* Pagination controls */}
-          <div className="flex justify-center items-center gap-2 py-4">
+          <div className="flex justify-center items-center gap-2 py-2">
             <button
               className="px-3 py-1 rounded border bg-white disabled:opacity-50"
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
@@ -652,9 +970,7 @@ export default function SalesPage() {
         <CartSection
           sale={sale}
           taxes={state.taxes}
-          isOrderCompleted={
-            !!sale.currentOrder && sale.currentOrder.status === "COMPLETED"
-          }
+          isOrderCompleted={!!(isOrderCompleted || isOrderPaid)}
           onUpdateQuantity={actions.updateQuantity}
           onRemoveFromCart={actions.removeFromCart}
           onTipChange={onTipChange}
@@ -695,6 +1011,39 @@ export default function SalesPage() {
         }
         businessId={user?.business?.[0]?.id || user?.branch?.business?.id || ""}
       />
+      {showSuccessScreen && completedOrder && (
+        <OrderSuccessScreen
+          order={completedOrder}
+          onNewOrder={() => {
+            setShowSuccessScreen(false);
+            setCompletedOrder(null);
+            // Reset the sale state for a new order
+            setSale({
+              items: [],
+              subtotal: 0,
+              tax: 0,
+              tipAmount: 0,
+              tipPercentage: 0,
+              total: 0,
+              currentOrder: null,
+              customer: null,
+              selectedPaymentMethod: null,
+              amountTendered: 0,
+              discount: 0,
+              discountType: "percentage",
+            });
+            updateState({
+              selectedPhysicalTable: null,
+              completionDetails: {
+                completionType: "PICKUP",
+                deliveryAddress: "",
+                estimatedTime: "",
+                notes: "",
+              },
+            });
+          }}
+        />
+      )}
     </div>
   );
 }

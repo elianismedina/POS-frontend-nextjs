@@ -4,6 +4,7 @@ import { formatPrice } from "@/lib/utils";
 import { Loader2, X, CreditCard as CreditCardIcon } from "lucide-react";
 
 import { BusinessPaymentMethod } from "@/app/services/business-payment-methods";
+import React from "react";
 
 interface PaymentModalProps {
   isOpen: boolean;

@@ -268,7 +268,7 @@ export default function NewOrderPage() {
         </div>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className={`p-4 space-y-4 ${cart.length > 0 ? "pb-32" : ""}`}>
         {/* Customer & Table Selection */}
         <div className="space-y-3">
           <Card>
@@ -420,7 +420,7 @@ export default function NewOrderPage() {
 
         {/* Cart */}
         {cart.length > 0 && (
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4">
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 md:bottom-0 bottom-16">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">Carrito ({cart.length} items)</h3>

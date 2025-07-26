@@ -259,11 +259,11 @@ export default function OrdersPage() {
                           </div>
                         </Badge>
                         <span className="text-sm text-gray-500">
-                          #{order.id.slice(-8)}
+                          #{order.id?.slice(-8) || "N/A"}
                         </span>
                       </div>
                       <p className="text-lg font-bold">
-                        ${order.total.toLocaleString()}
+                        ${(order.total || 0).toLocaleString()}
                       </p>
                     </div>
 
@@ -296,7 +296,7 @@ export default function OrdersPage() {
 
                     {/* Items Preview */}
                     <div className="space-y-1">
-                      {order.items.slice(0, 3).map((item, index) => (
+                      {(order.items || []).slice(0, 3).map((item, index) => (
                         <div
                           key={index}
                           className="flex justify-between text-sm"
@@ -305,13 +305,13 @@ export default function OrdersPage() {
                             {item.quantity}x {item.productName}
                           </span>
                           <span className="text-gray-900">
-                            ${item.subtotal.toLocaleString()}
+                            ${(item.subtotal || 0).toLocaleString()}
                           </span>
                         </div>
                       ))}
-                      {order.items.length > 3 && (
+                      {(order.items || []).length > 3 && (
                         <p className="text-xs text-gray-500">
-                          +{order.items.length - 3} más items
+                          +{(order.items || []).length - 3} más items
                         </p>
                       )}
                     </div>
@@ -323,7 +323,9 @@ export default function OrdersPage() {
                         size="sm"
                         className="flex-1"
                         onClick={() =>
-                          router.push(`/dashboard/waiter/orders/${order.id}`)
+                          router.push(
+                            `/dashboard/waiter/orders/${order.id || "unknown"}`
+                          )
                         }
                       >
                         <Eye className="h-4 w-4 mr-1" />
@@ -333,7 +335,7 @@ export default function OrdersPage() {
                         <Button
                           size="sm"
                           className="flex-1"
-                          onClick={() => confirmOrder(order.id)}
+                          onClick={() => confirmOrder(order.id || "")}
                         >
                           <CheckCircle className="h-4 w-4 mr-1" />
                           Confirmar

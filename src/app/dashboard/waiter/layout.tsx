@@ -4,6 +4,8 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { WaiterSidebar } from "@/components/waiter/Sidebar";
+import { MobileBottomNav } from "@/components/waiter/MobileBottomNav";
+import { Logo } from "@/components/shared/Logo";
 
 export default function WaiterLayout({
   children,
@@ -42,16 +44,33 @@ export default function WaiterLayout({
     return null;
   }
 
-  // Render the layout with sidebar and content
+  // Render the layout with top bar, sidebar, content, and mobile bottom nav
   return (
     <div className="flex h-screen">
       {/* Sidebar - hidden on mobile, visible on desktop */}
       <div className="hidden md:block">
         <WaiterSidebar />
       </div>
-      <main className="flex-1 overflow-auto bg-background w-full">
-        {children}
-      </main>
+      <div className="flex-1 flex flex-col w-full">
+        {/* Top Bar */}
+        <div className="bg-white border-b px-4 py-3 flex items-center justify-between">
+          <Logo width={40} height={40} />
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">Mesero</span>
+            {user?.name && (
+              <span className="text-sm font-medium text-gray-900">
+                {user.name}
+              </span>
+            )}
+          </div>
+        </div>
+        {/* Main Content */}
+        <main className="flex-1 overflow-auto bg-background md:pb-0 pb-16">
+          {children}
+        </main>
+      </div>
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav />
     </div>
   );
 }

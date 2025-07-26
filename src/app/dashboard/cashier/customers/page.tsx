@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Pagination } from "@/components/ui/pagination";
 import { useToast } from "@/components/ui/use-toast";
-import { customersService, Customer } from "@/app/services/customers";
+import { CustomersService, Customer } from "@/app/services/customers";
 import {
   Search,
   RefreshCw,
@@ -58,11 +58,11 @@ export default function CashierCustomersPage() {
       setIsLoading(true);
       setError(null);
 
-      const response = await customersService.getCustomers(page, 20); // Reduced to 20 per page for better performance
-      setCustomers(response.data);
-      setAllCustomers(response.data);
-      setTotalPages(response.meta.totalPages);
-      setTotalCustomers(response.meta.total);
+      const response = await CustomersService.getCustomers();
+      setCustomers(response);
+      setAllCustomers(response);
+      setTotalPages(1);
+      setTotalCustomers(response.length);
     } catch (error: any) {
       console.error("Error fetching customers:", error);
       const errorMessage =

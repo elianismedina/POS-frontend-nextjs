@@ -94,6 +94,7 @@ export interface CreateOrderRequest {
   notes?: string;
   tableOrderId?: string | null;
   customerName?: string;
+  item?: AddItemRequest; // Add optional item for creating order with first item
 }
 
 export interface AddItemRequest {
@@ -103,6 +104,7 @@ export interface AddItemRequest {
   taxes?: Array<{
     taxId: string;
   }>;
+  tipPercentage?: number;
 }
 
 export interface CompleteOrderRequest {
@@ -110,6 +112,8 @@ export interface CompleteOrderRequest {
   deliveryAddress?: string;
   estimatedTime?: string;
   notes?: string;
+  tipAmount?: number;
+  tipPercentage?: number;
 }
 
 export interface GetOrdersRequest {
@@ -121,6 +125,13 @@ export interface GetOrdersRequest {
 class OrdersService {
   async createOrder(data: CreateOrderRequest): Promise<Order> {
     const response = await api.post("/orders", data);
+    return response.data;
+  }
+
+  async createOrderWithItem(
+    data: CreateOrderRequest & { item: AddItemRequest }
+  ): Promise<Order> {
+    const response = await api.post("/orders/with-item", data);
     return response.data;
   }
 
@@ -151,17 +162,33 @@ class OrdersService {
   async updateItemQuantity(
     orderId: string,
     itemId: string,
-    quantity: number
+    quantity: number,
+    options?: { tipPercentage?: number }
   ): Promise<Order> {
     const response = await api.patch(
       `/orders/${orderId}/items/${itemId}/quantity`,
-      { quantity }
+      {
+        quantity,
+        ...(options?.tipPercentage !== undefined
+          ? { tipPercentage: options.tipPercentage }
+          : {}),
+      }
     );
     return response.data;
   }
 
-  async removeItem(orderId: string, itemId: string): Promise<Order> {
-    const response = await api.delete(`/orders/${orderId}/items/${itemId}`);
+  async removeItem(
+    orderId: string,
+    itemId: string,
+    options?: { tipPercentage?: number }
+  ): Promise<Order> {
+    // Use POST to a custom endpoint if you want to send a body, or PATCH if your backend supports it
+    // Here, we'll use a workaround: send as query param if tipPercentage is provided
+    let url = `/orders/${orderId}/items/${itemId}`;
+    if (options?.tipPercentage !== undefined) {
+      url += `?tipPercentage=${options.tipPercentage}`;
+    }
+    const response = await api.delete(url);
     return response.data;
   }
 
@@ -175,6 +202,22 @@ class OrdersService {
     data: Partial<CreateOrderRequest>
   ): Promise<Order> {
     const response = await api.patch(`/orders/${orderId}`, data);
+    return response.data;
+  }
+
+  async updatePaymentInfo(
+    orderId: string,
+    data: {
+      paymentStatus?: string;
+      isPaid?: boolean;
+      paymentMethod?: string;
+      paymentId?: string;
+    }
+  ): Promise<Order> {
+    const response = await api.patch(
+      `/api/v1/orders/${orderId}/payment-info`,
+      data
+    );
     return response.data;
   }
 

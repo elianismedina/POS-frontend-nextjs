@@ -18,6 +18,18 @@ import { CustomersService } from "@/app/services/customers";
 import { taxesService } from "@/app/services/taxes";
 import { businessPaymentMethodsService } from "@/app/services/business-payment-methods";
 import { shiftsService } from "@/app/services/shifts";
+import {
+  PhysicalTablesService,
+  PhysicalTable,
+} from "@/services/physical-tables";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 export default function SalesPage() {
   const { isAuthenticated, user, isLoading: authLoading } = useAuth();
@@ -55,12 +67,14 @@ export default function SalesPage() {
         }
         if (!businessId) throw new Error("No business ID found");
 
-        // Fetch all products and active shift
-        const [productsRes, allProductsRes, shiftRes] = await Promise.all([
-          productsService.getPaginated({ businessId, page: 0, limit: 1000 }),
-          productsService.getPaginated({ businessId, page: 0, limit: 10000 }),
-          shiftsService.getActiveShift(user.id),
-        ]);
+        // Fetch all products, active shift, and payment methods
+        const [productsRes, allProductsRes, shiftRes, paymentMethodsRes] =
+          await Promise.all([
+            productsService.getPaginated({ businessId, page: 0, limit: 1000 }),
+            productsService.getPaginated({ businessId, page: 0, limit: 10000 }),
+            shiftsService.getActiveShift(user.id),
+            businessPaymentMethodsService.getBusinessPaymentMethods(),
+          ]);
 
         // Extract unique categories from products
         const uniqueCategories = [
@@ -73,11 +87,13 @@ export default function SalesPage() {
           allProducts: allProductsRes.products,
           categories: uniqueCategories,
           activeShift: shiftRes,
+          paymentMethods: paymentMethodsRes,
           isLoading: false,
         });
         console.log("Fetched products:", productsRes.products);
         console.log("Fetched all products:", allProductsRes.products);
         console.log("Fetched active shift:", shiftRes);
+        console.log("Fetched payment methods:", paymentMethodsRes);
       } catch (error) {
         console.error("Error loading products or active shift:", error);
         updateState({ isLoading: false });
@@ -181,7 +197,13 @@ export default function SalesPage() {
         };
         const calculatedSale = actions.calculateTotals(newSale);
         setSale(calculatedSale);
-        updateState({ isLoading: false });
+        updateState({
+          isLoading: false,
+          completionDetails: {
+            ...state.completionDetails,
+            completionType: orderData.completionType || "PICKUP",
+          },
+        });
       } catch (error) {
         updateState({ isLoading: false });
         toast({
@@ -191,9 +213,37 @@ export default function SalesPage() {
         });
       }
     };
-    loadExistingOrder();
+    if (orderIdParam && state.allProducts && state.allProducts.length > 0) {
+      loadExistingOrder();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderIdParam, state.allProducts]);
+
+  // Table selection modal state
+  const [showTableModal, setShowTableModal] = useState(false);
+
+  // Fetch available physical tables on mount
+  useEffect(() => {
+    const fetchTables = async () => {
+      try {
+        let businessId: string | undefined;
+        if (user?.business?.[0]?.id) {
+          businessId = user.business[0].id;
+        } else if (user?.branch?.business?.id) {
+          businessId = user.branch.business.id;
+        }
+        if (!businessId) return;
+        const tables = await PhysicalTablesService.getAvailablePhysicalTables();
+        updateState({ availablePhysicalTables: tables });
+      } catch (error) {
+        // Optionally show a toast
+      }
+    };
+    if (isAuthenticated && user && !authLoading) {
+      fetchTables();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user, authLoading]);
 
   // Loading state
   if (!isAuthenticated || authLoading || state.isLoading) {
@@ -227,31 +277,181 @@ export default function SalesPage() {
   }
 
   // Inline handlers for props that are not in useSalesActions
-  const onTipChange = (tipPercentage: number) => {
+  const onTipChange = async (tipPercentage: number) => {
     const newTipAmount = (sale.subtotal || 0) * tipPercentage;
-    setSale((prev) => ({
-      ...prev,
-      tipPercentage,
-      tipAmount: newTipAmount,
-      total:
-        (prev.subtotal || 0) +
-        (prev.tax || 0) -
-        (prev.discount || 0) +
-        newTipAmount,
-    }));
-    // Optionally update backend if needed
+    // Persist tip to backend if there is a current order
+    if (sale.currentOrder && sale.currentOrder.id) {
+      try {
+        const updatedOrder = await ordersService.updateTip(
+          sale.currentOrder.id,
+          tipPercentage
+        );
+        setSale((prev) => ({
+          ...prev,
+          currentOrder: updatedOrder,
+          tipPercentage: updatedOrder.tipPercentage,
+          tipAmount: updatedOrder.tipAmount,
+        }));
+      } catch (error) {
+        console.error("Failed to update tip:", error);
+      }
+    } else {
+      // Fallback: just update local state
+      setSale((prev) => ({
+        ...prev,
+        tipPercentage,
+        tipAmount: newTipAmount,
+      }));
+    }
   };
 
-  const handleCompleteOrder = () => {
-    // You may want to call an action or service here
-    // For now, just close the modal as a placeholder
-    updateState({ showCompletionModal: false });
+  const handleCompleteOrder = async () => {
+    console.log("Complete order clicked", { isProcessing: state.isProcessing });
+    if (!sale.currentOrder || !sale.currentOrder.id) return;
+    // Require completionType
+    const completionType = state.selectedPhysicalTable
+      ? "DINE_IN"
+      : state.completionDetails.completionType;
+    if (!completionType) {
+      toast({
+        title: "Tipo de finalización requerido",
+        description:
+          "Por favor selecciona PICKUP o DELIVERY antes de completar el pedido.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Set processing state to true
+    updateState({ isProcessing: true });
+
+    try {
+      const completionDetails = {
+        completionType: completionType || "PICKUP",
+        deliveryAddress: state.completionDetails.deliveryAddress,
+        estimatedTime: state.completionDetails.estimatedTime,
+        notes: state.completionDetails.notes,
+        tipAmount: sale.tipAmount,
+        tipPercentage: sale.tipPercentage,
+      };
+      const updatedOrder = await ordersService.completeOrder(
+        sale.currentOrder.id,
+        completionDetails
+      );
+      console.log("Order completed, response:", updatedOrder);
+
+      // Process payment after completing the order
+      const paymentMethod =
+        sale.selectedPaymentMethod?.paymentMethod?.name || "CASH";
+
+      const paidOrder = await ordersService.updatePaymentInfo(
+        sale.currentOrder.id,
+        {
+          paymentStatus: "COMPLETED",
+          isPaid: true,
+          paymentMethod: paymentMethod,
+        }
+      );
+
+      setSale((prev) => ({
+        ...prev,
+        currentOrder: paidOrder,
+      }));
+
+      toast({
+        title: "Order completed and payment processed",
+        description: `Order status: ${paidOrder.status}, Payment: ${paymentMethod}`,
+        variant: "default",
+      });
+      updateState({ showCompletionModal: false });
+    } catch (error) {
+      console.error("Failed to complete order:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo completar el pedido.",
+        variant: "destructive",
+      });
+    } finally {
+      // Set processing state back to false
+      updateState({ isProcessing: false });
+    }
   };
 
-  const processPayment = () => {
-    // You may want to call an action or service here
-    // For now, just close the modal as a placeholder
-    updateState({ showPaymentModal: false });
+  const processPayment = async () => {
+    // If no table is selected, close payment modal and show completion type modal
+    if (!state.selectedPhysicalTable) {
+      updateState({ showPaymentModal: false, showCompletionModal: true });
+      return;
+    }
+
+    // Set processing state to true
+    updateState({ isProcessing: true });
+
+    try {
+      if (!sale.currentOrder) throw new Error("No order to complete");
+      const orderId = sale.currentOrder.id || sale.currentOrder._props?.id;
+      if (!orderId) throw new Error("Order ID is missing");
+
+      // Use the current completion type and details
+      const completionDetails = {
+        completionType: state.selectedPhysicalTable
+          ? "DINE_IN"
+          : state.completionDetails.completionType || "PICKUP",
+        deliveryAddress: state.completionDetails.deliveryAddress,
+        estimatedTime: state.completionDetails.estimatedTime,
+        notes: state.completionDetails.notes,
+        tipAmount: sale.tipAmount,
+        tipPercentage: sale.tipPercentage,
+      };
+
+      const updatedOrder = await ordersService.completeOrder(
+        orderId,
+        completionDetails
+      );
+
+      // Update payment information
+      const paymentMethod =
+        sale.selectedPaymentMethod?.paymentMethod?.name || "CASH";
+
+      const paidOrder = await ordersService.updatePaymentInfo(orderId, {
+        paymentStatus: "COMPLETED",
+        isPaid: true,
+        paymentMethod: paymentMethod,
+      });
+
+      setSale((prev) => ({
+        ...prev,
+        currentOrder: paidOrder,
+      }));
+
+      toast({
+        title: "Pago procesado",
+        description: "El pago se ha realizado exitosamente.",
+        variant: "default",
+      });
+      updateState({ showPaymentModal: false });
+    } catch (error) {
+      console.error("Payment processing error:", error);
+      toast({
+        title: "Error",
+        description: "Hubo un problema al procesar el pago.",
+        variant: "destructive",
+      });
+    } finally {
+      // Set processing state back to false
+      updateState({ isProcessing: false });
+    }
+  };
+
+  // Helper to open the completion modal and ensure completionType is set
+  const openCompletionModal = () => {
+    updateState({
+      showCompletionModal: true,
+      completionDetails: {
+        ...state.completionDetails,
+        completionType: state.completionDetails.completionType || "PICKUP",
+      },
+    });
   };
 
   // Main layout
@@ -260,6 +460,16 @@ export default function SalesPage() {
       {/* Header, filters, and actions can be further extracted if needed */}
       <div className="bg-white border-b px-6 py-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">POS Venta</h1>
+        <Button
+          onClick={() => updateState({ showPaymentModal: true })}
+          disabled={
+            sale.items.length === 0 ||
+            !!(sale.currentOrder && sale.currentOrder.status === "COMPLETED")
+          }
+          className="px-6 py-2 text-base"
+        >
+          Ir a Pago
+        </Button>
         {/* Add more header actions as needed */}
       </div>
       {/* Show current order ID if exists */}
@@ -273,6 +483,66 @@ export default function SalesPage() {
           </span>
         </div>
       )}
+      {/* Table selection UI */}
+      <div className="bg-white border-b px-6 py-2 flex items-center gap-4">
+        <Button onClick={() => setShowTableModal(true)} variant="outline">
+          {state.selectedPhysicalTable
+            ? `Mesa: ${state.selectedPhysicalTable.tableNumber}`
+            : "Seleccionar Mesa"}
+        </Button>
+        {state.selectedPhysicalTable && (
+          <Badge variant="secondary">
+            Mesa {state.selectedPhysicalTable.tableNumber}
+          </Badge>
+        )}
+        {state.selectedPhysicalTable && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => updateState({ selectedPhysicalTable: null })}
+          >
+            Quitar Mesa
+          </Button>
+        )}
+      </div>
+      {/* Table selection modal */}
+      <Sheet open={showTableModal} onOpenChange={setShowTableModal}>
+        <SheetContent className="w-[400px]">
+          <SheetHeader>
+            <SheetTitle>Seleccionar Mesa Física</SheetTitle>
+          </SheetHeader>
+          <div className="py-4">
+            {state.availablePhysicalTables &&
+            state.availablePhysicalTables.length > 0 ? (
+              <ul className="space-y-2">
+                {state.availablePhysicalTables.map((table) => (
+                  <li key={table.id}>
+                    <Button
+                      variant={
+                        state.selectedPhysicalTable?.id === table.id
+                          ? "default"
+                          : "outline"
+                      }
+                      className="w-full justify-start"
+                      onClick={() => {
+                        updateState({ selectedPhysicalTable: table });
+                        setShowTableModal(false);
+                      }}
+                    >
+                      Mesa {table.tableNumber}{" "}
+                      {table.tableName ? `- ${table.tableName}` : ""}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="text-gray-500">
+                No hay mesas físicas disponibles.
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
       {/* Category filter UI */}
       <div className="bg-white border-b px-6 py-2 flex items-center gap-4">
         <label htmlFor="categoryFilter" className="text-sm font-medium">
@@ -349,7 +619,7 @@ export default function SalesPage() {
         setCompletionDetails={(details) =>
           updateState({ completionDetails: details })
         }
-        currentTableOrder={state.currentTableOrder}
+        currentTableOrder={state.selectedPhysicalTable}
       />
       <PaymentModal
         isOpen={state.showPaymentModal}
@@ -359,6 +629,7 @@ export default function SalesPage() {
         sale={sale}
         setSale={setSale}
         toast={toast}
+        paymentMethods={state.paymentMethods}
       />
       <CustomerModal
         isOpen={state.showCustomerModal}

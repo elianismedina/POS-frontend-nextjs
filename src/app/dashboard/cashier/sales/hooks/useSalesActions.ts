@@ -40,6 +40,10 @@ export const useSalesActions = (
         const order = saleData.currentOrder as any;
         const orderData = order._props || order;
 
+        // Debug log for backend tax values
+        console.log("orderData.taxAmount:", orderData.taxAmount);
+        console.log("orderData.taxTotal:", orderData.taxTotal);
+
         return {
           ...result,
           subtotal: orderData.totalAmount || orderData.subtotal || 0,
@@ -82,7 +86,7 @@ export const useSalesActions = (
       try {
         let currentOrder = sale.currentOrder;
         if (!currentOrder) {
-          // Create a new order if none exists
+          // Create a new order with the first item instead of empty order
           let businessId: string | undefined;
           if (user?.business?.[0]?.id) {
             businessId = user.business[0].id;
@@ -91,10 +95,28 @@ export const useSalesActions = (
           }
           if (!businessId) throw new Error("No business ID found");
 
-          const newOrder = await ordersService.createOrder({
+          // Create order with the first item
+          const addItemData = {
+            ...(product.barcode
+              ? { barcode: product.barcode }
+              : { productId: product.id }),
+            quantity: 1,
+            taxes: state.taxes.map((tax: any) => ({ taxId: tax.id })),
+            tipPercentage: sale.tipPercentage || 0,
+          };
+
+          console.log("[Frontend] addItemData being sent:", addItemData);
+          console.log("[Frontend] sale.tipPercentage:", sale.tipPercentage);
+
+          const newOrder = await ordersService.createOrderWithItem({
             businessId,
             cashierId: user.id,
+            customerId: sale.customer?.id,
+            tableOrderId: state.selectedPhysicalTable?.id || null,
+            customerName: sale.customerName,
+            item: addItemData,
           });
+
           currentOrder = newOrder;
           setSale((prev) => ({ ...prev, currentOrder: newOrder }));
           const orderId =
@@ -106,28 +128,38 @@ export const useSalesActions = (
             description: `ID del pedido: ${orderId}`,
             variant: "default",
           });
+        } else {
+          // Add item to existing order
+          const orderId =
+            (currentOrder as any)?._props?.id || (currentOrder as any)?.id;
+
+          if (!orderId) {
+            throw new Error("Order ID is missing");
+          }
+
+          const addItemData = {
+            ...(product.barcode
+              ? { barcode: product.barcode }
+              : { productId: product.id }),
+            quantity: 1,
+            taxes: state.taxes.map((tax: any) => ({ taxId: tax.id })),
+            tipPercentage: sale.tipPercentage || 0,
+          };
+
+          console.log("[Frontend] addItemData being sent:", addItemData);
+          console.log("[Frontend] sale.tipPercentage:", sale.tipPercentage);
+
+          const updatedOrder = await ordersService.addItem(
+            orderId,
+            addItemData
+          );
+          currentOrder = updatedOrder;
         }
 
-        const orderId =
-          (currentOrder as any)?._props?.id || (currentOrder as any)?.id;
+        const orderData = currentOrder?._props || currentOrder;
+        console.log("orderData.items:", orderData?.items);
 
-        if (!orderId) {
-          throw new Error("Order ID is missing");
-        }
-
-        const addItemData = {
-          ...(product.barcode
-            ? { barcode: product.barcode }
-            : { productId: product.id }),
-          quantity: 1,
-          taxes: state.taxes.map((tax: any) => ({ taxId: tax.id })),
-        };
-
-        const updatedOrder = await ordersService.addItem(orderId, addItemData);
-        const orderData = updatedOrder._props || updatedOrder;
-        console.log("orderData.items:", orderData.items);
-
-        const backendItems = (orderData.items || [])
+        const backendItems = (orderData?.items || [])
           .map((item: any) => {
             const itemData = item._props || item;
             let product = state.allProducts.find(
@@ -141,9 +173,14 @@ export const useSalesActions = (
               console.warn(
                 "Product not found for cart item:",
                 itemData.productId,
-                state.products
+                state.allProducts
               );
-              return null;
+              // As a last resort, create a minimal product object
+              product = {
+                id: itemData.productId,
+                name: "Unknown Product",
+                price: itemData.unitPrice || 0,
+              };
             }
             return {
               product,
@@ -157,7 +194,7 @@ export const useSalesActions = (
         const newSaleData = {
           ...sale,
           items: backendItems,
-          currentOrder: updatedOrder,
+          currentOrder: currentOrder,
         };
 
         const calculatedSale = calculateTotals(newSaleData);
@@ -291,33 +328,102 @@ export const useSalesActions = (
               finalOrder = await ordersService.getOrder(orderId);
             }
 
-            const backendItems = (finalOrder.items || [])
-              .map((item: any) => {
+            // Log orderData.items before mapping
+            const orderData = finalOrder._props || finalOrder;
+            console.log("orderData.items before mapping:", orderData.items);
+
+            const backendItems = (orderData.items || []).map((item: any) => {
+              console.log("Mapping item:", item);
+              const itemData = item._props || item;
+              console.log("itemData:", itemData);
+              let product = state.allProducts.find(
+                (p: Product) => p.id === itemData.productId
+              );
+              // Fallback: use itemData.product if available
+              if (!product && itemData.product) {
+                product = itemData.product;
+              }
+              if (!product) {
+                console.warn(
+                  "Product not found for cart item:",
+                  itemData.productId,
+                  state.allProducts
+                );
+                // As a last resort, create a minimal product object
+                product = {
+                  id: itemData.productId,
+                  name: "Unknown Product",
+                  price: itemData.unitPrice || 0,
+                };
+              }
+              return {
+                product,
+                quantity: itemData.quantity || 1,
+                subtotal:
+                  itemData.subtotal || product.price * (itemData.quantity || 1),
+              };
+            });
+            // Log backendItems after mapping
+            console.log("backendItems after mapping:", backendItems);
+
+            // Fallback: if backendItems is empty, re-fetch the order
+            let itemsToUse = backendItems;
+            if (backendItems.length === 0 && finalOrder.id) {
+              console.warn(
+                "backendItems is empty, re-fetching order from backend..."
+              );
+              const refetchedOrder = await ordersService.getOrder(
+                finalOrder.id
+              );
+              itemsToUse = (refetchedOrder.items || []).map((item: any) => {
                 const itemData = item._props || item;
-                const product = state.allProducts.find(
+                let product = state.allProducts.find(
                   (p: Product) => p.id === itemData.productId
                 );
-                if (!product) {
-                  return null;
+                if (!product && itemData.product) {
+                  product = itemData.product;
                 }
-                const cartItem = {
+                if (!product) {
+                  product = {
+                    id: itemData.productId,
+                    name: "Unknown Product",
+                    price: itemData.unitPrice || 0,
+                  };
+                }
+                return {
                   product,
-                  quantity: itemData.quantity,
+                  quantity: itemData.quantity || 1,
                   subtotal:
-                    itemData.subtotal || product.price * itemData.quantity,
+                    itemData.subtotal ||
+                    product.price * (itemData.quantity || 1),
                 };
-                return cartItem;
-              })
-              .filter((item: any): item is CartItem => item !== null);
+              });
+              console.log("refetchedItems after mapping:", itemsToUse);
+            }
 
             const newSaleData = {
               ...sale,
-              items: backendItems,
+              items: itemsToUse,
               currentOrder: finalOrder,
             };
 
+            // Debug log input to calculateTotals
+            console.log("calculateTotals input (newSaleData):", newSaleData);
+
             const calculatedSale = calculateTotals(newSaleData);
+
+            // Debug log output of calculateTotals
+            console.log(
+              "calculateTotals output (calculatedSale):",
+              calculatedSale
+            );
+
             setSale(calculatedSale);
+
+            // Debug log updated sale state after a short delay
+            setTimeout(() => {
+              console.log("Updated sale state after removal:", sale);
+            }, 100);
 
             sessionStorage.setItem("shouldRefreshOrders", "true");
           }

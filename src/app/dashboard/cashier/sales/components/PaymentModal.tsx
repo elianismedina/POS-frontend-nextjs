@@ -3,6 +3,8 @@ import { Input } from "@/components/ui/input";
 import { formatPrice } from "@/lib/utils";
 import { Loader2, X, CreditCard as CreditCardIcon } from "lucide-react";
 
+import { BusinessPaymentMethod } from "@/app/services/business-payment-methods";
+
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -11,6 +13,7 @@ interface PaymentModalProps {
   sale: any;
   setSale: (sale: any) => void;
   toast: any;
+  paymentMethods: BusinessPaymentMethod[];
 }
 
 export function PaymentModal({
@@ -21,8 +24,16 @@ export function PaymentModal({
   sale,
   setSale,
   toast,
+  paymentMethods,
 }: PaymentModalProps) {
   if (!isOpen) return null;
+
+  const handleSelectPaymentMethod = (method: BusinessPaymentMethod) => {
+    setSale((prev: any) => ({
+      ...prev,
+      selectedPaymentMethod: method,
+    }));
+  };
 
   const shouldShowAmountTendered = () => {
     const selectedMethod = sale.selectedPaymentMethod;
@@ -79,14 +90,37 @@ export function PaymentModal({
         </div>
 
         <div className="space-y-4">
-          {/* Payment Method Display */}
+          {/* Payment Methods List */}
           <div className="bg-gray-50 p-4 rounded-md">
-            <h4 className="font-medium text-gray-900 mb-2">Payment Method</h4>
-            <div className="flex items-center gap-2">
-              <CreditCardIcon className="h-4 w-4" />
-              <span className="text-sm font-medium">
-                {sale.selectedPaymentMethod?.paymentMethod.name}
-              </span>
+            <h4 className="font-medium text-gray-900 mb-2">Método de Pago</h4>
+            <div className="space-y-2">
+              {paymentMethods && paymentMethods.length > 0 ? (
+                paymentMethods.map((method) => (
+                  <label
+                    key={method.id}
+                    className={`flex items-center gap-2 cursor-pointer p-2 rounded border transition-all ${
+                      sale.selectedPaymentMethod?.id === method.id
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:border-blue-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      checked={sale.selectedPaymentMethod?.id === method.id}
+                      onChange={() => handleSelectPaymentMethod(method)}
+                      className="accent-blue-500"
+                    />
+                    <span className="font-medium text-gray-900 text-sm">
+                      {method.paymentMethod.name}
+                    </span>
+                  </label>
+                ))
+              ) : (
+                <span className="text-gray-500">
+                  No hay métodos de pago disponibles.
+                </span>
+              )}
             </div>
           </div>
 

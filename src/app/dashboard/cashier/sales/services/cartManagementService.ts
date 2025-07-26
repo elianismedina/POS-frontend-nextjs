@@ -56,10 +56,20 @@ export function useCartManagementService(): CartManagementService {
           ? { barcode: product.barcode }
           : { productId: product.id }),
         quantity: 1,
+        tipPercentage: sale.tipPercentage || 0,
       };
+
+      console.log("[Frontend] Sending addItemData:", addItemData);
 
       // Add item to order and get the updated order directly
       const updatedOrder = await ordersService.addItem(orderId, addItemData);
+
+      console.log("[Frontend] Received updatedOrder:", updatedOrder);
+      console.log("[Frontend] updatedOrder.tipAmount:", updatedOrder.tipAmount);
+      console.log(
+        "[Frontend] updatedOrder.tipPercentage:",
+        updatedOrder.tipPercentage
+      );
 
       // Sync local cart state with backend order state
       const backendItems = (updatedOrder.items || [])
@@ -143,7 +153,8 @@ export function useCartManagementService(): CartManagementService {
           const updatedOrder = await ordersService.updateItemQuantity(
             orderId,
             itemData.id,
-            newQuantity
+            newQuantity,
+            { tipPercentage: sale.tipPercentage || 0 }
           );
 
           // Check if the response has items, if not fetch the complete order
@@ -227,7 +238,8 @@ export function useCartManagementService(): CartManagementService {
 
           const updatedOrder = await ordersService.removeItem(
             orderId,
-            itemData.id
+            itemData.id,
+            { tipPercentage: sale.tipPercentage || 0 }
           );
 
           // Check if the response has items, if not fetch the complete order

@@ -246,7 +246,10 @@ export default function SalesPage() {
           );
         // Recalculate summary fields
         const orderWithCustomer = order as any;
-        const orderCustomer = orderData.customer || orderWithCustomer?.customer;
+        const orderCustomer =
+          (orderData as any)?.customer ||
+          (orderWithCustomer as any)?.customer ||
+          null;
         const customer = orderCustomer
           ? {
               id: orderCustomer.id,
@@ -396,7 +399,7 @@ export default function SalesPage() {
 
     // Check if order is already completed
     const orderStatus =
-      sale.currentOrder.status || sale.currentOrder._props?.status;
+      sale.currentOrder?.status || sale.currentOrder?._props?.status;
     if (orderStatus === "COMPLETED" || orderStatus === "PAID") {
       toast({
         title: "Pedido ya completado",
@@ -417,7 +420,8 @@ export default function SalesPage() {
     }
 
     // Validate payment method is selected
-    if (!sale.selectedPaymentMethod) {
+    const validPaymentMethodId = getValidPaymentMethodId();
+    if (!validPaymentMethodId) {
       toast({
         title: "Método de pago requerido",
         description:
@@ -460,78 +464,409 @@ export default function SalesPage() {
         throw new Error("Order ID is missing");
       }
 
-      // Create payment record
-      const paymentMethodId = sale.selectedPaymentMethod?.id || "CASH";
-      console.log("Selected payment method:", sale.selectedPaymentMethod);
-      console.log("Payment method ID being used:", paymentMethodId);
-      const paymentDetails = {
-        orderId: orderId,
-        paymentMethodId: paymentMethodId,
-        amount: sale.total,
-        metadata: {
-          notes: state.completionDetails.notes,
-          completionType: completionDetails.completionType,
-        },
-      };
-      console.log("Creating payment with details:", paymentDetails);
+      // For PICKUP/DELIVERY orders, call completeOrder BEFORE payment to save completion details
+      // For DINE_IN orders, call completeOrder AFTER payment to avoid status conflicts
+      let updatedOrder: any;
+      if (completionDetails.completionType === "DINE_IN") {
+        // For DINE_IN, create payment first, then complete order
+        // Check if order already has a completed payment before attempting to create one
+        try {
+          console.log("Checking for existing payments for order:", orderId);
+          const existingPayments = await paymentsService.getPaymentsByOrder(
+            orderId
+          );
+          console.log("Existing payments found:", existingPayments);
+          const hasCompletedPayment = existingPayments.some(
+            (payment) => payment.status === "COMPLETED"
+          );
+          console.log("Has completed payment:", hasCompletedPayment);
 
-      let createdPayment;
-      try {
-        createdPayment = await paymentsService.createPayment(paymentDetails);
-        console.log("Payment created successfully:", createdPayment);
-      } catch (error) {
-        console.error("Payment creation failed with selected method:", error);
-        // Try with a default payment method if the selected one fails
-        if (paymentMethodId !== "CASH") {
-          console.log("Retrying with CASH payment method...");
-          const fallbackPaymentDetails = {
-            ...paymentDetails,
-            paymentMethodId: "CASH",
+          if (hasCompletedPayment) {
+            console.log(
+              "Order already has a completed payment, skipping payment creation"
+            );
+            // Just complete the order without creating a new payment
+            updatedOrder = await ordersService.completeOrder(
+              orderId,
+              completionDetails
+            );
+          } else {
+            // Create payment record
+            const paymentMethodId = getValidPaymentMethodId();
+            if (!paymentMethodId) {
+              throw new Error("No valid payment method available");
+            }
+            console.log("Selected payment method:", sale.selectedPaymentMethod);
+            console.log("Payment method ID being used:", paymentMethodId);
+            const paymentDetails = {
+              orderId: orderId,
+              paymentMethodId: paymentMethodId,
+              amount: sale.total,
+              metadata: {
+                notes: state.completionDetails.notes,
+                completionType: completionDetails.completionType,
+              },
+            };
+            console.log("Creating payment with details:", paymentDetails);
+
+            let createdPayment;
+            try {
+              createdPayment = await paymentsService.createPayment(
+                paymentDetails
+              );
+              console.log("Payment created successfully:", createdPayment);
+            } catch (error) {
+              console.error(
+                "Payment creation failed with selected method:",
+                error
+              );
+              // Try with a default payment method if the selected one fails
+              const fallbackPaymentMethodId = getFallbackPaymentMethodId();
+              if (
+                paymentMethodId !== fallbackPaymentMethodId &&
+                fallbackPaymentMethodId
+              ) {
+                console.log("Retrying with first available payment method...");
+                const fallbackPaymentDetails = {
+                  ...paymentDetails,
+                  paymentMethodId: fallbackPaymentMethodId,
+                };
+                createdPayment = await paymentsService.createPayment(
+                  fallbackPaymentDetails
+                );
+                console.log(
+                  "Payment created successfully with fallback:",
+                  createdPayment
+                );
+              } else {
+                throw error; // Re-throw if we're already using the first payment method
+              }
+            }
+
+            // Now complete the order for DINE_IN
+            updatedOrder = await ordersService.completeOrder(
+              orderId,
+              completionDetails
+            );
+          }
+        } catch (error) {
+          console.error("Error checking existing payments:", error);
+          // If we can't check existing payments, proceed with normal flow
+          const paymentMethodId =
+            sale.selectedPaymentMethod?.id || state.paymentMethods[0]?.id;
+          console.log("Selected payment method:", sale.selectedPaymentMethod);
+          console.log("Payment method ID being used:", paymentMethodId);
+          const paymentDetails = {
+            orderId: orderId,
+            paymentMethodId: paymentMethodId,
+            amount: sale.total,
+            metadata: {
+              notes: state.completionDetails.notes,
+              completionType: completionDetails.completionType,
+            },
           };
-          createdPayment = await paymentsService.createPayment(
-            fallbackPaymentDetails
+          console.log("Creating payment with details:", paymentDetails);
+
+          let createdPayment;
+          try {
+            createdPayment = await paymentsService.createPayment(
+              paymentDetails
+            );
+            console.log("Payment created successfully:", createdPayment);
+          } catch (error) {
+            console.error(
+              "Payment creation failed with selected method:",
+              error
+            );
+            // Try with a default payment method if the selected one fails
+            const fallbackPaymentMethodId = getFallbackPaymentMethodId();
+            if (
+              paymentMethodId !== fallbackPaymentMethodId &&
+              fallbackPaymentMethodId
+            ) {
+              console.log("Retrying with first available payment method...");
+              const fallbackPaymentDetails = {
+                ...paymentDetails,
+                paymentMethodId: fallbackPaymentMethodId,
+              };
+              createdPayment = await paymentsService.createPayment(
+                fallbackPaymentDetails
+              );
+              console.log(
+                "Payment created successfully with fallback:",
+                createdPayment
+              );
+            } else {
+              throw error; // Re-throw if we're already using the first payment method
+            }
+          }
+
+          // Now complete the order for DINE_IN
+          updatedOrder = await ordersService.completeOrder(
+            orderId,
+            completionDetails
           );
+        }
+      } else {
+        // For PICKUP/DELIVERY, let the payment service handle both payment and status update
+        // Don't call ordersService.completeOrder first as it would set status to READY
+        // Let PaymentService.processPayment handle setting status to RECEIVED
+
+        // Check if order already has a completed payment before attempting to create one
+        try {
+          const existingPayments = await paymentsService.getPaymentsByOrder(
+            orderId
+          );
+          const hasCompletedPayment = existingPayments.some(
+            (payment) => payment?.status === "COMPLETED"
+          );
+
+          if (hasCompletedPayment) {
+            console.log(
+              "Order already has a completed payment, skipping payment creation"
+            );
+            // Order is already completed, just update the sale state
+            updatedOrder = await ordersService.getOrder(orderId);
+            setSale((prev) => ({
+              ...prev,
+              currentOrder: updatedOrder,
+            }));
+          } else {
+            // Create payment record which will handle status update to RECEIVED
+            const paymentMethodId = getValidPaymentMethodId();
+            if (!paymentMethodId) {
+              throw new Error("No valid payment method available");
+            }
+            console.log("Selected payment method:", sale.selectedPaymentMethod);
+            console.log("Payment method ID being used:", paymentMethodId);
+            const paymentDetails = {
+              orderId: orderId,
+              paymentMethodId: paymentMethodId,
+              amount: sale.total,
+              metadata: {
+                notes: state.completionDetails.notes,
+                completionType: completionDetails.completionType,
+              },
+            };
+            console.log("Creating payment with details:", paymentDetails);
+
+            let createdPayment;
+            try {
+              createdPayment = await paymentsService.createPayment(
+                paymentDetails
+              );
+              console.log("Payment created successfully:", createdPayment);
+
+              // For PICKUP/DELIVERY, don't call completeOrder after payment
+              // The PaymentService.processPayment already set the status to RECEIVED
+              // Just fetch the updated order to get the latest status
+              updatedOrder = await ordersService.getOrder(orderId);
+              setSale((prev) => ({
+                ...prev,
+                currentOrder: updatedOrder,
+              }));
+            } catch (error) {
+              console.error(
+                "Payment creation failed with selected method:",
+                error
+              );
+              // Try with a default payment method if the selected one fails
+              const fallbackPaymentMethodId = getFallbackPaymentMethodId();
+              if (
+                paymentMethodId !== fallbackPaymentMethodId &&
+                fallbackPaymentMethodId
+              ) {
+                console.log("Retrying with first available payment method...");
+                const fallbackPaymentDetails = {
+                  ...paymentDetails,
+                  paymentMethodId: fallbackPaymentMethodId,
+                };
+                createdPayment = await paymentsService.createPayment(
+                  fallbackPaymentDetails
+                );
+                console.log(
+                  "Payment created successfully with fallback:",
+                  createdPayment
+                );
+
+                // For PICKUP/DELIVERY, don't call completeOrder after payment
+                // The PaymentService.processPayment already set the status to RECEIVED
+                // Just fetch the updated order to get the latest status
+                updatedOrder = await ordersService.getOrder(orderId);
+                setSale((prev) => ({
+                  ...prev,
+                  currentOrder: updatedOrder,
+                }));
+              } else {
+                throw error; // Re-throw if we're already using the first payment method
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error checking existing payments:", error);
+          // If we can't check existing payments, check the current order status first
           console.log(
-            "Payment created successfully with fallback:",
-            createdPayment
+            "Payment existence check failed, checking current order status"
           );
-        } else {
-          throw error; // Re-throw if we're already using CASH
+
+          // Check if order is already completed before trying to complete it
+          const currentOrderStatus =
+            sale.currentOrder?.status || sale.currentOrder?._props?.status;
+          console.log("Current order status:", currentOrderStatus);
+
+          if (
+            currentOrderStatus === "COMPLETED" ||
+            currentOrderStatus === "PAID"
+          ) {
+            console.log("Order is already completed, skipping completion");
+            // Order is already completed, just update the sale state
+            updatedOrder = await ordersService.getOrder(orderId);
+            setSale((prev) => ({
+              ...prev,
+              currentOrder: updatedOrder,
+            }));
+          } else {
+            // Order is not completed, proceed with completion
+            console.log("Order is not completed, proceeding with completion");
+
+            // Double-check the order status from the backend before attempting completion
+            try {
+              const currentOrderFromBackend = await ordersService.getOrder(
+                orderId
+              );
+              const backendOrderStatus =
+                currentOrderFromBackend?.status ||
+                currentOrderFromBackend?._props?.status;
+              console.log("Backend order status:", backendOrderStatus);
+
+              if (
+                backendOrderStatus === "COMPLETED" ||
+                backendOrderStatus === "PAID"
+              ) {
+                console.log(
+                  "Order is already completed in backend, skipping completion"
+                );
+                updatedOrder = currentOrderFromBackend;
+                setSale((prev) => ({
+                  ...prev,
+                  currentOrder: updatedOrder,
+                }));
+              } else {
+                console.log(
+                  "Order is not completed in backend, proceeding with completion"
+                );
+                updatedOrder = await ordersService.completeOrder(
+                  orderId,
+                  completionDetails
+                );
+
+                setSale((prev) => ({
+                  ...prev,
+                  currentOrder: updatedOrder,
+                }));
+              }
+            } catch (backendError) {
+              console.error("Error fetching order from backend:", backendError);
+              // If we can't fetch from backend, proceed with completion
+              updatedOrder = await ordersService.completeOrder(
+                orderId,
+                completionDetails
+              );
+
+              setSale((prev) => ({
+                ...prev,
+                currentOrder: updatedOrder,
+              }));
+            }
+          }
         }
       }
 
-      // Only call completeOrder for DINE_IN orders
-      // For PICKUP/DELIVERY, the payment service already handles the status transition
-      let updatedOrder;
-      if (completionDetails.completionType === "DINE_IN") {
-        updatedOrder = await ordersService.completeOrder(
-          orderId,
-          completionDetails
-        );
-      } else {
-        // For PICKUP/DELIVERY, just get the order after payment
-        updatedOrder = await ordersService.getOrder(orderId);
+      // Fetch the complete order with items to ensure we have all data for the success screen
+      let completeOrder;
+      try {
+        completeOrder = await ordersService.getOrder(orderId);
+      } catch (error) {
+        console.error("Error fetching complete order:", error);
+        completeOrder = null;
       }
 
-      // Fetch the complete order with items to ensure we have all data for the success screen
-      const completeOrder = await ordersService.getOrder(orderId);
+      // Ensure updatedOrder is assigned if it wasn't assigned in any of the above code paths
+      if (!updatedOrder) {
+        console.warn(
+          "updatedOrder was not assigned, using completeOrder or current order"
+        );
+        updatedOrder = completeOrder || sale.currentOrder;
+      }
 
-      setSale((prev) => ({
-        ...prev,
-        currentOrder: completeOrder,
-      }));
+      if (completeOrder) {
+        setSale((prev) => ({
+          ...prev,
+          currentOrder: completeOrder,
+        }));
 
-      // Show success screen
-      setCompletedOrder(completeOrder);
-      setShowSuccessScreen(true);
+        // Show success screen
+        setCompletedOrder(completeOrder);
+        setShowSuccessScreen(true);
+      }
 
-      toast({
-        title: "Order completed and payment processed",
-        description: `Order status: ${updatedOrder.status}, Payment: ${
-          sale.selectedPaymentMethod?.paymentMethod?.name || "CASH"
-        }`,
-        variant: "default",
+      // Ensure updatedOrder is defined for the toast message
+      const finalOrder = updatedOrder ||
+        completeOrder ||
+        sale.currentOrder || { status: "Unknown" };
+
+      // Additional safety check
+      if (!finalOrder) {
+        console.warn("finalOrder is undefined:", {
+          updatedOrder,
+          completeOrder,
+          currentOrder: sale.currentOrder,
+        });
+        // Create a safe fallback and skip the toast
+        toast({
+          title: "Order completed and payment processed",
+          description: "Payment processed successfully",
+          variant: "default",
+        });
+        updateState({ showCompletionModal: false });
+        return;
+      }
+
+      // Log the finalOrder structure for debugging
+      console.log("finalOrder structure:", {
+        hasStatus: !!finalOrder?.status,
+        hasProps: !!finalOrder?._props,
+        hasPropsStatus: !!finalOrder?._props?.status,
+        finalOrderKeys: Object.keys(finalOrder || {}),
       });
+
+      try {
+        // Get status with multiple fallbacks
+        const orderStatus =
+          finalOrder?.status ||
+          finalOrder?._props?.status ||
+          finalOrder?.order?.status ||
+          "Unknown";
+
+        const paymentMethodName =
+          sale.selectedPaymentMethod?.paymentMethod?.name ||
+          state.paymentMethods?.[0]?.paymentMethod?.name ||
+          "Payment Method";
+
+        toast({
+          title: "Order completed and payment processed",
+          description: `Order status: ${orderStatus}, Payment: ${paymentMethodName}`,
+          variant: "default",
+        });
+      } catch (toastError) {
+        console.error("Error showing toast:", toastError);
+        // Fallback toast without order status
+        toast({
+          title: "Order completed and payment processed",
+          description: "Payment processed successfully",
+          variant: "default",
+        });
+      }
       updateState({ showCompletionModal: false });
     } catch (error: any) {
       console.error("Failed to complete order:", error);
@@ -566,7 +901,8 @@ export default function SalesPage() {
     }
 
     // Validate payment method is selected
-    if (!sale.selectedPaymentMethod) {
+    const validPaymentMethodId = getValidPaymentMethodId();
+    if (!validPaymentMethodId) {
       toast({
         title: "Método de pago requerido",
         description:
@@ -579,7 +915,7 @@ export default function SalesPage() {
     // Check if order is already completed
     if (sale.currentOrder) {
       const orderStatus =
-        sale.currentOrder.status || sale.currentOrder._props?.status;
+        sale.currentOrder?.status || sale.currentOrder?._props?.status;
       if (orderStatus === "COMPLETED" || orderStatus === "PAID") {
         toast({
           title: "Pedido ya completado",
@@ -616,53 +952,280 @@ export default function SalesPage() {
         tipPercentage: sale.tipPercentage,
       };
 
-      const updatedOrder = await ordersService.completeOrder(
-        orderId,
-        completionDetails
-      );
-
-      // Create payment record
-      const paymentMethodId = sale.selectedPaymentMethod?.id || "CASH";
-      const paymentDetails = {
-        orderId: orderId,
-        paymentMethodId: paymentMethodId,
-        amount: sale.total,
-        metadata: {
-          notes: state.completionDetails.notes,
-          completionType: completionDetails.completionType,
-        },
-      };
-      console.log("Creating payment with details:", paymentDetails);
-
-      let createdPayment;
-      try {
-        createdPayment = await paymentsService.createPayment(paymentDetails);
-        console.log("Payment created:", createdPayment);
-      } catch (error) {
-        console.error("Payment creation failed with selected method:", error);
-        // Try with a default payment method if the selected one fails
-        if (paymentMethodId !== "CASH") {
-          console.log("Retrying with CASH payment method...");
-          const fallbackPaymentDetails = {
-            ...paymentDetails,
-            paymentMethodId: "CASH",
-          };
-          createdPayment = await paymentsService.createPayment(
-            fallbackPaymentDetails
+      // For DINE_IN orders, create payment first, then complete order
+      let updatedOrder: any;
+      if (completionDetails.completionType === "DINE_IN") {
+        // Check if order already has a completed payment before attempting to create one
+        try {
+          console.log("Checking for existing payments for order:", orderId);
+          const existingPayments = await paymentsService.getPaymentsByOrder(
+            orderId
           );
+          console.log("Existing payments found:", existingPayments);
+          const hasCompletedPayment = existingPayments.some(
+            (payment) => payment.status === "COMPLETED"
+          );
+          console.log("Has completed payment:", hasCompletedPayment);
+
+          if (hasCompletedPayment) {
+            console.log(
+              "Order already has a completed payment, skipping payment creation"
+            );
+            // Just complete the order without creating a new payment
+            updatedOrder = await ordersService.completeOrder(
+              orderId,
+              completionDetails
+            );
+            setSale((prev) => ({
+              ...prev,
+              currentOrder: updatedOrder,
+            }));
+          } else {
+            // Create payment record first
+            const paymentMethodId =
+              sale.selectedPaymentMethod?.id || state.paymentMethods[0]?.id;
+            const paymentDetails = {
+              orderId: orderId,
+              paymentMethodId: paymentMethodId,
+              amount: sale.total,
+              metadata: {
+                notes: state.completionDetails.notes,
+                completionType: completionDetails.completionType,
+              },
+            };
+            console.log("Creating payment with details:", paymentDetails);
+
+            let createdPayment;
+            try {
+              createdPayment = await paymentsService.createPayment(
+                paymentDetails
+              );
+              console.log("Payment created:", createdPayment);
+            } catch (error) {
+              console.error(
+                "Payment creation failed with selected method:",
+                error
+              );
+              // Try with a default payment method if the selected one fails
+              const fallbackPaymentMethodId = getFallbackPaymentMethodId();
+              if (
+                paymentMethodId !== fallbackPaymentMethodId &&
+                fallbackPaymentMethodId
+              ) {
+                console.log("Retrying with first available payment method...");
+                const fallbackPaymentDetails = {
+                  ...paymentDetails,
+                  paymentMethodId: fallbackPaymentMethodId,
+                };
+                createdPayment = await paymentsService.createPayment(
+                  fallbackPaymentDetails
+                );
+                console.log(
+                  "Payment created successfully with fallback:",
+                  createdPayment
+                );
+              } else {
+                throw error; // Re-throw if we're already using the first payment method
+              }
+            }
+
+            // Now complete the order for DINE_IN
+            updatedOrder = await ordersService.completeOrder(
+              orderId,
+              completionDetails
+            );
+
+            setSale((prev) => ({
+              ...prev,
+              currentOrder: updatedOrder,
+            }));
+          }
+        } catch (error) {
+          console.error("Error checking existing payments:", error);
+          // If we can't check existing payments, check the current order status first
           console.log(
-            "Payment created successfully with fallback:",
-            createdPayment
+            "Payment existence check failed, checking current order status"
           );
-        } else {
-          throw error; // Re-throw if we're already using CASH
+
+          // Check if order is already completed before trying to complete it
+          const currentOrderStatus =
+            sale.currentOrder?.status || sale.currentOrder?._props?.status;
+          console.log("Current order status:", currentOrderStatus);
+
+          if (
+            currentOrderStatus === "COMPLETED" ||
+            currentOrderStatus === "PAID"
+          ) {
+            console.log("Order is already completed, skipping completion");
+            // Order is already completed, just update the sale state
+            setSale((prev) => ({
+              ...prev,
+              currentOrder: sale.currentOrder,
+            }));
+          } else {
+            // Order is not completed, proceed with completion
+            console.log("Order is not completed, proceeding with completion");
+            updatedOrder = await ordersService.completeOrder(
+              orderId,
+              completionDetails
+            );
+
+            setSale((prev) => ({
+              ...prev,
+              currentOrder: updatedOrder,
+            }));
+          }
+        }
+      } else {
+        // For PICKUP/DELIVERY, complete order first to save completion details
+        updatedOrder = await ordersService.completeOrder(
+          orderId,
+          completionDetails
+        );
+
+        // Check if order already has a completed payment before attempting to create one
+        try {
+          const existingPayments = await paymentsService.getPaymentsByOrder(
+            orderId
+          );
+          const hasCompletedPayment = existingPayments.some(
+            (payment) => payment?.status === "COMPLETED"
+          );
+
+          if (hasCompletedPayment) {
+            console.log(
+              "Order already has a completed payment, skipping payment creation"
+            );
+            // Order is already completed, just update the sale state
+            setSale((prev) => ({
+              ...prev,
+              currentOrder: updatedOrder,
+            }));
+          } else {
+            // Then create payment record
+            const paymentMethodId = getValidPaymentMethodId();
+            if (!paymentMethodId) {
+              throw new Error("No valid payment method available");
+            }
+            console.log("Selected payment method:", sale.selectedPaymentMethod);
+            console.log("Payment method ID being used:", paymentMethodId);
+            const paymentDetails = {
+              orderId: orderId,
+              paymentMethodId: paymentMethodId,
+              amount: sale.total,
+              metadata: {
+                notes: state.completionDetails.notes,
+                completionType: completionDetails.completionType,
+              },
+            };
+            console.log("Creating payment with details:", paymentDetails);
+
+            let createdPayment;
+            try {
+              createdPayment = await paymentsService.createPayment(
+                paymentDetails
+              );
+              console.log("Payment created successfully:", createdPayment);
+            } catch (error) {
+              console.error(
+                "Payment creation failed with selected method:",
+                error
+              );
+              // Try with a default payment method if the selected one fails
+              const fallbackPaymentMethodId = getFallbackPaymentMethodId();
+              if (
+                paymentMethodId !== fallbackPaymentMethodId &&
+                fallbackPaymentMethodId
+              ) {
+                console.log("Retrying with first available payment method...");
+                const fallbackPaymentDetails = {
+                  ...paymentDetails,
+                  paymentMethodId: fallbackPaymentMethodId,
+                };
+                createdPayment = await paymentsService.createPayment(
+                  fallbackPaymentDetails
+                );
+                console.log(
+                  "Payment created successfully with fallback:",
+                  createdPayment
+                );
+              } else {
+                throw error; // Re-throw if we're already using the first payment method
+              }
+            }
+
+            setSale((prev) => ({
+              ...prev,
+              currentOrder: updatedOrder,
+            }));
+          }
+        } catch (error) {
+          console.error("Error checking existing payments:", error);
+          // If we can't check existing payments, check the current order status first
+          console.log(
+            "Payment existence check failed, checking current order status"
+          );
+
+          // Check if order is already completed before trying to complete it
+          const currentOrderStatus =
+            sale.currentOrder?.status || sale.currentOrder?._props?.status;
+          console.log("Current order status:", currentOrderStatus);
+
+          if (
+            currentOrderStatus === "COMPLETED" ||
+            currentOrderStatus === "PAID"
+          ) {
+            console.log("Order is already completed, skipping completion");
+            // Order is already completed, just update the sale state
+            setSale((prev) => ({
+              ...prev,
+              currentOrder: sale.currentOrder,
+            }));
+          } else {
+            // Order is not completed, proceed with completion
+            console.log("Order is not completed, proceeding with completion");
+
+            // Double-check the order status from the backend before attempting completion
+            try {
+              const currentOrderFromBackend = await ordersService.getOrder(
+                orderId
+              );
+              const backendOrderStatus =
+                currentOrderFromBackend?.status ||
+                currentOrderFromBackend?._props?.status;
+              console.log("Backend order status:", backendOrderStatus);
+
+              if (
+                backendOrderStatus === "COMPLETED" ||
+                backendOrderStatus === "PAID"
+              ) {
+                console.log(
+                  "Order is already completed in backend, skipping completion"
+                );
+                setSale((prev) => ({
+                  ...prev,
+                  currentOrder: currentOrderFromBackend,
+                }));
+              } else {
+                console.log(
+                  "Order is not completed in backend, proceeding with completion"
+                );
+                setSale((prev) => ({
+                  ...prev,
+                  currentOrder: updatedOrder,
+                }));
+              }
+            } catch (backendError) {
+              console.error("Error fetching order from backend:", backendError);
+              // If we can't fetch from backend, proceed with completion
+              setSale((prev) => ({
+                ...prev,
+                currentOrder: updatedOrder,
+              }));
+            }
+          }
         }
       }
-
-      setSale((prev) => ({
-        ...prev,
-        currentOrder: updatedOrder,
-      }));
 
       // Fetch the complete order with items to ensure we have all data for the success screen
       const completeOrder = await ordersService.getOrder(orderId);
@@ -696,6 +1259,25 @@ export default function SalesPage() {
       // Set processing state back to false
       updateState({ isProcessing: false });
     }
+  };
+
+  // Helper to get a valid payment method ID
+  const getValidPaymentMethodId = () => {
+    if (sale.selectedPaymentMethod?.id) {
+      return sale.selectedPaymentMethod.id;
+    }
+    if (state.paymentMethods && state.paymentMethods.length > 0) {
+      return state.paymentMethods[0].id;
+    }
+    return null;
+  };
+
+  // Helper to get a fallback payment method ID
+  const getFallbackPaymentMethodId = () => {
+    if (state.paymentMethods && state.paymentMethods.length > 0) {
+      return state.paymentMethods[0].id;
+    }
+    return null;
   };
 
   // Helper to open the completion modal and ensure completionType is set

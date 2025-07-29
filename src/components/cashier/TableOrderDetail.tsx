@@ -221,14 +221,25 @@ export function TableOrderDetail({
             <Card>
               <CardContent className="p-8 text-center">
                 <Receipt className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">No hay órdenes en esta mesa</p>
-                <Button
-                  onClick={handleCreateNewOrder}
-                  className="mt-4"
-                  variant="outline"
-                >
-                  Crear Primera Orden
-                </Button>
+                <p className="text-gray-500 mb-2">No hay órdenes en esta mesa</p>
+                <p className="text-sm text-gray-400 mb-4">
+                  Para agregar órdenes, ve a la página de ventas y selecciona esta mesa
+                </p>
+                <div className="flex gap-2 justify-center">
+                  <Button
+                    onClick={handleCreateNewOrder}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Ir a Ventas
+                  </Button>
+                  <Button
+                    onClick={() => router.push('/dashboard/cashier/sales')}
+                    variant="outline"
+                  >
+                    Ver Todas las Ventas
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ) : (

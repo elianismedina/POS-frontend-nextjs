@@ -30,6 +30,8 @@ export interface TableOrder {
   closedAt?: string;
   orders?: TableOrderItem[];
   physicalTableId: string;
+  completionType?: string;
+  customerName?: string;
 }
 
 export interface CreateTableOrderDto {

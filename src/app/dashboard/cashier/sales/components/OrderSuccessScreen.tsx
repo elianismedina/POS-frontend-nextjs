@@ -30,6 +30,10 @@ export function OrderSuccessScreen({
     ) {
       return "¡Pedido Recibido!";
     } else if (status === "PAID") {
+      // For PICKUP/DELIVERY orders that are paid but not completed
+      if (completionType === "PICKUP" || completionType === "DELIVERY") {
+        return "¡Pago Procesado!";
+      }
       return "¡Pago Procesado!";
     } else {
       return "¡Pedido Procesado!";
@@ -47,6 +51,12 @@ export function OrderSuccessScreen({
     } else if (status === "RECEIVED" && completionType === "DELIVERY") {
       return "El pedido está listo para preparación. Se entregará al cliente.";
     } else if (status === "PAID") {
+      // For PICKUP/DELIVERY orders that are paid but not completed
+      if (completionType === "PICKUP") {
+        return "El pago se ha procesado exitosamente. El pedido está en preparación para recoger.";
+      } else if (completionType === "DELIVERY") {
+        return "El pago se ha procesado exitosamente. El pedido está en preparación para entrega.";
+      }
       return "El pago se ha procesado exitosamente";
     } else {
       return "El pedido se ha procesado exitosamente";

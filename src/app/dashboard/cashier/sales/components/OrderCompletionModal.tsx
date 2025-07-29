@@ -33,6 +33,34 @@ export function OrderCompletionModal({
 }: OrderCompletionModalProps) {
   if (!isOpen) return null;
 
+  // Determine the completion type based on table order
+  const getCompletionType = () => {
+    if (currentTableOrder) {
+      return "DINE_IN";
+    }
+    return completionDetails?.completionType || "PICKUP";
+  };
+
+  // Ensure all values are properly initialized to prevent controlled/uncontrolled input warnings
+  const safeCompletionDetails = {
+    completionType:
+      completionDetails?.completionType ||
+      (currentTableOrder ? "DINE_IN" : "PICKUP"),
+    deliveryAddress: completionDetails?.deliveryAddress || "",
+    estimatedTime: completionDetails?.estimatedTime || "",
+    notes: completionDetails?.notes || "",
+  };
+
+  // Update completion details if table order changes
+  React.useEffect(() => {
+    if (currentTableOrder && completionDetails?.completionType !== "DINE_IN") {
+      setCompletionDetails({
+        ...completionDetails,
+        completionType: "DINE_IN",
+      });
+    }
+  }, [currentTableOrder, setCompletionDetails]);
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-96 max-h-[90vh] overflow-y-auto">
@@ -56,16 +84,17 @@ export function OrderCompletionModal({
                 Completion Type
               </label>
               <select
-                value={completionDetails.completionType}
-                onChange={(e) =>
-                  setCompletionDetails((prev: any) => ({
-                    ...prev,
+                value={completionDetails?.completionType || "PICKUP"}
+                onChange={(e) => {
+                  const newDetails = {
+                    ...completionDetails,
                     completionType: e.target.value as
                       | "PICKUP"
                       | "DELIVERY"
                       | "DINE_IN",
-                  }))
-                }
+                  };
+                  setCompletionDetails(newDetails);
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="PICKUP">Pickup</option>
@@ -89,25 +118,27 @@ export function OrderCompletionModal({
           )}
 
           {/* Delivery Address - only show for delivery */}
-          {completionDetails.completionType === "DELIVERY" && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Delivery Address *
-              </label>
-              <textarea
-                value={completionDetails.deliveryAddress}
-                onChange={(e) =>
-                  setCompletionDetails((prev: any) => ({
-                    ...prev,
-                    deliveryAddress: e.target.value,
-                  }))
-                }
-                placeholder="Enter delivery address..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows={3}
-              />
-            </div>
-          )}
+          {!currentTableOrder &&
+            completionDetails?.completionType === "DELIVERY" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Delivery Address *
+                </label>
+                <textarea
+                  value={completionDetails?.deliveryAddress || ""}
+                  onChange={(e) => {
+                    const updatedDetails = {
+                      ...completionDetails,
+                      deliveryAddress: e.target.value,
+                    };
+                    setCompletionDetails(updatedDetails);
+                  }}
+                  placeholder="Enter delivery address..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={3}
+                />
+              </div>
+            )}
 
           {/* Estimated Time */}
           <div>
@@ -116,13 +147,14 @@ export function OrderCompletionModal({
             </label>
             <input
               type="text"
-              value={completionDetails.estimatedTime}
-              onChange={(e) =>
-                setCompletionDetails((prev: any) => ({
-                  ...prev,
+              value={completionDetails?.estimatedTime || ""}
+              onChange={(e) => {
+                const updatedDetails = {
+                  ...completionDetails,
                   estimatedTime: e.target.value,
-                }))
-              }
+                };
+                setCompletionDetails(updatedDetails);
+              }}
               placeholder="e.g., 30 minutes, 1 hour"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
@@ -134,13 +166,14 @@ export function OrderCompletionModal({
               Additional Notes (optional)
             </label>
             <textarea
-              value={completionDetails.notes}
-              onChange={(e) =>
-                setCompletionDetails((prev: any) => ({
-                  ...prev,
+              value={completionDetails?.notes || ""}
+              onChange={(e) => {
+                const updatedDetails = {
+                  ...completionDetails,
                   notes: e.target.value,
-                }))
-              }
+                };
+                setCompletionDetails(updatedDetails);
+              }}
               placeholder="Any special instructions or notes..."
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               rows={3}
@@ -152,7 +185,23 @@ export function OrderCompletionModal({
             <h4 className="font-medium text-gray-900 mb-2">Order Summary</h4>
             <div className="text-sm text-gray-600 space-y-1">
               <div>Items: {sale.items.length}</div>
-              <div>Total: {formatPrice(sale.total || 0)}</div>
+              <div>Subtotal: {formatPrice(sale.subtotal || 0)}</div>
+              <div>Tax: {formatPrice(sale.tax || 0)}</div>
+              {sale.tipAmount > 0 && (
+                <div>
+                  Tip ({(sale.tipPercentage * 100).toFixed(0)}%):{" "}
+                  {formatPrice(sale.tipAmount)}
+                </div>
+              )}
+              <div className="font-bold text-lg">
+                Total:{" "}
+                {formatPrice(
+                  (sale.subtotal || 0) +
+                    (sale.tax || 0) -
+                    (sale.discount || 0) +
+                    (sale.tipAmount || 0)
+                )}
+              </div>
               <div>Customer: {sale.customer?.name || "No customer"}</div>
               <div>
                 Payment: {sale.selectedPaymentMethod?.paymentMethod.name}
@@ -171,7 +220,9 @@ export function OrderCompletionModal({
               Cancel
             </Button>
             <Button
-              onClick={onComplete}
+              onClick={() => {
+                onComplete();
+              }}
               disabled={isProcessing}
               className="flex-1"
             >

@@ -38,8 +38,29 @@ export default function TableDistributionChart({
   const cancelledTables = tableOrders.filter(
     (table) => table.status === "cancelled"
   );
-  const availableTables = availablePhysicalTables.length;
-  const totalTables = tableOrders.length + availableTables;
+
+  // Get physical table IDs that have active table orders
+  const activePhysicalTableIds = new Set(
+    activeTables.map((table) => table.physicalTableId)
+  );
+
+  // Available tables = physical tables that don't have active table orders
+  const availableTables = availablePhysicalTables.filter(
+    (table) => !activePhysicalTableIds.has(table.id)
+  );
+
+  // Total tables = all physical tables (active + available)
+  const totalTables = availablePhysicalTables.length;
+
+  // Debug logging
+  console.log("=== TABLE DISTRIBUTION CHART DEBUG ===");
+  console.log("tableOrders:", tableOrders);
+  console.log("availablePhysicalTables:", availablePhysicalTables);
+  console.log("activeTables:", activeTables);
+  console.log("activePhysicalTableIds:", Array.from(activePhysicalTableIds));
+  console.log("availableTables:", availableTables);
+  console.log("totalTables:", totalTables);
+  console.log("=== END DEBUG ===");
 
   // Data for bar chart
   const barChartData = [
@@ -60,7 +81,7 @@ export default function TableDistributionChart({
     },
     {
       name: "Disponibles",
-      value: availableTables,
+      value: availableTables.length,
       color: COLORS.available,
     },
   ];
@@ -84,7 +105,7 @@ export default function TableDistributionChart({
     },
     {
       name: "Disponibles",
-      value: availableTables,
+      value: availableTables.length,
       color: COLORS.available,
     },
   ];
@@ -111,10 +132,19 @@ export default function TableDistributionChart({
     },
   ];
 
+  console.log("=== REVENUE CALCULATIONS DEBUG ===");
+  console.log("activeTables:", activeTables);
+  console.log("closedTables:", closedTables);
+  console.log("cancelledTables:", cancelledTables);
+  console.log("revenueByStatus:", revenueByStatus);
+  console.log("=== END REVENUE DEBUG ===");
+
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("es-ES", {
+    return new Intl.NumberFormat("es-CO", {
       style: "currency",
-      currency: "USD",
+      currency: "COP",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(value);
   };
 
@@ -174,7 +204,7 @@ export default function TableDistributionChart({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              {availableTables}
+              {availableTables.length}
             </div>
             <p className="text-xs text-gray-500">Libres para usar</p>
           </CardContent>
@@ -210,10 +240,18 @@ export default function TableDistributionChart({
               <BarChart data={barChartData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip content={<CustomTooltip />} />
+                <YAxis width={60} tick={{ fontSize: 12 }} />
+                <Tooltip
+                  content={<CustomTooltip />}
+                  contentStyle={{
+                    backgroundColor: "white",
+                    border: "1px solid #ccc",
+                    borderRadius: "8px",
+                    padding: "8px",
+                  }}
+                />
                 <Legend />
-                <Bar dataKey="value" fill="#8884d8">
+                <Bar dataKey="value" fill="#8884d8" radius={[4, 4, 0, 0]}>
                   {barChartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
@@ -236,8 +274,8 @@ export default function TableDistributionChart({
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) =>
-                    `${name} ${((percent || 0) * 100).toFixed(0)}%`
+                  label={({ name, percent, value }) =>
+                    `${name}: ${value} (${((percent || 0) * 100).toFixed(0)}%)`
                   }
                   outerRadius={80}
                   fill="#8884d8"
@@ -247,7 +285,15 @@ export default function TableDistributionChart({
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip
+                  formatter={(value: number, name: string) => [value, name]}
+                  contentStyle={{
+                    backgroundColor: "white",
+                    border: "1px solid #ccc",
+                    borderRadius: "8px",
+                    padding: "8px",
+                  }}
+                />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
@@ -265,15 +311,26 @@ export default function TableDistributionChart({
             <BarChart data={revenueByStatus}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
-              <YAxis tickFormatter={(value) => formatCurrency(value)} />
+              <YAxis
+                tickFormatter={(value) => formatCurrency(value)}
+                width={100}
+                tick={{ fontSize: 12 }}
+              />
               <Tooltip
                 formatter={(value: number) => [
                   formatCurrency(value),
                   "Ingresos",
                 ]}
+                labelStyle={{ fontWeight: "bold" }}
+                contentStyle={{
+                  backgroundColor: "white",
+                  border: "1px solid #ccc",
+                  borderRadius: "8px",
+                  padding: "8px",
+                }}
               />
               <Legend />
-              <Bar dataKey="revenue" fill="#8884d8">
+              <Bar dataKey="revenue" fill="#8884d8" radius={[4, 4, 0, 0]}>
                 {revenueByStatus.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}

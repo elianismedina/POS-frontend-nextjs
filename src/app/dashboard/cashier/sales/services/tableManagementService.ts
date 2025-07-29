@@ -1,6 +1,6 @@
 import { TableOrdersService } from "@/services/table-orders";
 import { PhysicalTablesService } from "@/services/physical-tables";
-import { ordersService } from "@/app/services/orders";
+import { ordersService, UpdateOrderRequest } from "@/app/services/orders";
 import { useToast } from "@/components/ui/use-toast";
 
 export interface TableManagementService {
@@ -17,9 +17,9 @@ export interface TableManagementService {
     user: any
   ) => Promise<any>;
   clearTableOrder: (currentTableOrder: any, sale: any) => Promise<void>;
-  assignTableToExistingOrder: (tableOrder: any, sale: any) => Promise<void>;
+  assignTableToExistingOrder: (tableOrder: any, sale: any) => Promise<any>;
   selectExistingTable: (tableOrder: any, sale: any) => Promise<void>;
-  refreshTableData: (currentTableOrder: any) => Promise<void>;
+  refreshTableData: (currentTableOrder: any) => Promise<any>;
 }
 
 export function useTableManagementService(): TableManagementService {
@@ -120,7 +120,6 @@ export function useTableManagementService(): TableManagementService {
         throw new Error("Business or branch information not available");
       }
 
-      // Create a table order for the selected physical table
       const tableOrderData = {
         physicalTableId: physicalTable.id,
         tableNumber: physicalTable.tableNumber,
@@ -265,6 +264,11 @@ export function useTableManagementService(): TableManagementService {
 
   const assignTableToExistingOrder = async (tableOrder: any, sale: any) => {
     try {
+      console.log("=== ASSIGN TABLE TO EXISTING ORDER DEBUG ===");
+      console.log("tableOrder:", tableOrder);
+      console.log("tableOrder.id:", tableOrder.id);
+      console.log("sale.currentOrder:", sale.currentOrder);
+
       if (!sale.currentOrder) {
         toast({
           title: "Error",
@@ -278,6 +282,8 @@ export function useTableManagementService(): TableManagementService {
         (sale.currentOrder as any)?._props?.id ||
         (sale.currentOrder as any)?.id;
 
+      console.log("orderId:", orderId);
+
       if (!orderId) {
         toast({
           title: "Error",
@@ -287,14 +293,23 @@ export function useTableManagementService(): TableManagementService {
         return;
       }
 
-      // Update the order with the table order ID
-      const updatedOrder = await ordersService.updateOrder(orderId, {
+      const updateData: UpdateOrderRequest = {
         tableOrderId: tableOrder.id,
         customerName: sale.customerName || undefined,
-      });
+        completionType: "DINE_IN",
+      };
+
+      console.log("updateData being sent:", updateData);
+
+      // Update the order with the table order ID and set completion type to DINE_IN
+      const updatedOrder = await ordersService.updateOrder(orderId, updateData);
+
+      console.log("updatedOrder:", updatedOrder);
+      console.log("=== END ASSIGN TABLE DEBUG ===");
 
       return updatedOrder;
     } catch (error: any) {
+      console.error("Error in assignTableToExistingOrder:", error);
       toast({
         title: "Error",
         description: "No se pudo asignar la mesa a la orden",

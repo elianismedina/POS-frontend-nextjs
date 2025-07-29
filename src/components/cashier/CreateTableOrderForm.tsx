@@ -11,6 +11,7 @@ import {
   TableOrdersService,
   CreateTableOrderDto,
 } from "@/services/table-orders";
+import { useRouter } from "next/navigation";
 
 interface CreateTableOrderFormProps {
   businessId: string;
@@ -38,6 +39,7 @@ export function CreateTableOrderForm({
   });
 
   const { toast } = useToast();
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,6 +52,8 @@ export function CreateTableOrderForm({
         description: `La mesa ${tableOrder.tableNumber} ha sido creada.`,
       });
       onSuccess?.(tableOrder);
+      // Navigate to sales page with the table order ID
+      router.push(`/dashboard/cashier/sales?tableOrderId=${tableOrder.id}`);
     } catch (error) {
       console.error("Error creating table order:", error);
       toast({

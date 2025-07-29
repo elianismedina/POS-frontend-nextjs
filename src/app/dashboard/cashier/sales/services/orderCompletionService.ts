@@ -149,8 +149,11 @@ export function useOrderCompletionService(): OrderCompletionService {
       const updatedOrderStatus =
         (updatedOrder as any)._props?.status || updatedOrder.status;
 
-      // Only complete the order if it's not already completed
-      if (updatedOrderStatus !== "COMPLETED") {
+      // Only complete the order if it's DINE_IN and not already completed
+      if (
+        updatedOrderStatus !== "COMPLETED" &&
+        completionDetails.completionType === "DINE_IN"
+      ) {
         // Then complete the order with user-specified details (this sets status to COMPLETED)
         const completeOrderData: CompleteOrderRequest = {
           completionType: completionDetails.completionType as
@@ -165,6 +168,25 @@ export function useOrderCompletionService(): OrderCompletionService {
         };
 
         await ordersService.completeOrder(orderId, completeOrderData);
+      } else if (
+        completionDetails.completionType === "PICKUP" ||
+        completionDetails.completionType === "DELIVERY"
+      ) {
+        // For PICKUP/DELIVERY, only save completion details, don't complete the order
+        // The payment process will handle the status transition to RECEIVED
+        const completionData: CompleteOrderRequest = {
+          completionType: completionDetails.completionType as
+            | "PICKUP"
+            | "DELIVERY"
+            | "DINE_IN",
+          deliveryAddress: completionDetails.deliveryAddress || undefined,
+          estimatedTime: completionDetails.estimatedTime || undefined,
+          notes:
+            completionDetails.notes ||
+            (sale.customer ? `Customer: ${sale.customer.name}` : ""),
+        };
+
+        await ordersService.updateCompletionDetails(orderId, completionData);
       }
 
       // Get the final updated order with COMPLETED status
@@ -182,7 +204,10 @@ export function useOrderCompletionService(): OrderCompletionService {
       setCompletedOrderDetails({
         orderId: orderId,
         total: sale.total || 0,
-        paymentMethod: sale.selectedPaymentMethod!.paymentMethod.name,
+        paymentMethod:
+          sale.selectedPaymentMethod?.paymentMethod?.name ||
+          sale.selectedPaymentMethod?.name ||
+          "Payment Method",
         customerName: sale.customer?.name,
       });
 

@@ -97,6 +97,14 @@ export interface CreateOrderRequest {
   item?: AddItemRequest; // Add optional item for creating order with first item
 }
 
+export interface UpdateOrderRequest {
+  customerId?: string;
+  notes?: string;
+  tableOrderId?: string | null;
+  customerName?: string;
+  completionType?: "PICKUP" | "DELIVERY" | "DINE_IN";
+}
+
 export interface AddItemRequest {
   barcode?: string;
   productId?: string;
@@ -197,10 +205,7 @@ class OrdersService {
     return response.data;
   }
 
-  async updateOrder(
-    orderId: string,
-    data: Partial<CreateOrderRequest>
-  ): Promise<Order> {
+  async updateOrder(orderId: string, data: UpdateOrderRequest): Promise<Order> {
     const response = await api.patch(`/orders/${orderId}`, data);
     return response.data;
   }
@@ -228,6 +233,23 @@ class OrdersService {
     data: CompleteOrderRequest
   ): Promise<Order> {
     const response = await api.post(`/orders/${orderId}/complete`, data);
+    return response.data;
+  }
+
+  async updateCompletionDetails(
+    orderId: string,
+    data: CompleteOrderRequest
+  ): Promise<Order> {
+    console.log("=== ORDERS SERVICE DEBUG ===");
+    console.log("Order ID:", orderId);
+    console.log("Data being sent:", data);
+    console.log("completionType in data:", data.completionType);
+    console.log("=== END ORDERS SERVICE DEBUG ===");
+
+    const response = await api.patch(
+      `/orders/${orderId}/completion-details`,
+      data
+    );
     return response.data;
   }
 

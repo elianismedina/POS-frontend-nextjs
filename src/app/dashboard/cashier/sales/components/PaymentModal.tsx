@@ -29,6 +29,16 @@ export function PaymentModal({
 }: PaymentModalProps) {
   if (!isOpen) return null;
 
+  // Helper function to calculate total including tip
+  const calculateTotalWithTip = () => {
+    return (
+      (sale.subtotal || 0) +
+      (sale.tax || 0) -
+      (sale.discount || 0) +
+      (sale.tipAmount || 0)
+    );
+  };
+
   const handleSelectPaymentMethod = (method: BusinessPaymentMethod) => {
     setSale((prev: any) => ({
       ...prev,
@@ -62,7 +72,8 @@ export function PaymentModal({
         selectedMethod.paymentMethod.name.toLowerCase().includes("dinero"));
 
     if (isCashLikePayment) {
-      if (sale.amountTendered < sale.total) {
+      const totalWithTip = calculateTotalWithTip();
+      if (sale.amountTendered < totalWithTip) {
         toast({
           title: "Insufficient amount",
           description: "Amount tendered must be greater than or equal to total",
@@ -132,8 +143,14 @@ export function PaymentModal({
               <div>Items: {sale.items.length}</div>
               <div>Subtotal: {formatPrice(sale.subtotal || 0)}</div>
               <div>Tax: {formatPrice(sale.tax || 0)}</div>
+              {sale.tipAmount > 0 && (
+                <div>
+                  Tip ({(sale.tipPercentage * 100).toFixed(0)}%):{" "}
+                  {formatPrice(sale.tipAmount)}
+                </div>
+              )}
               <div className="font-bold text-lg">
-                Total: {formatPrice(sale.total || 0)}
+                Total: {formatPrice(calculateTotalWithTip())}
               </div>
               <div>Customer: {sale.customer?.name || "No customer"}</div>
             </div>
@@ -169,7 +186,7 @@ export function PaymentModal({
                       {formatPrice(
                         Math.max(
                           0,
-                          (sale.amountTendered || 0) - (sale.total || 0)
+                          (sale.amountTendered || 0) - calculateTotalWithTip()
                         )
                       )}
                     </span>

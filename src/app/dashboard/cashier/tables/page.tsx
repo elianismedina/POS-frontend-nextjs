@@ -39,6 +39,7 @@ export default function TablesPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showCharts, setShowCharts] = useState(false);
   const [showLayout, setShowLayout] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "by-table">("list");
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -99,6 +100,17 @@ export default function TablesPage() {
 
   // Calculate summary data
   const activeTables = tableOrders.filter((table) => table.status === "active");
+
+  // Get physical table IDs that have active table orders
+  const activePhysicalTableIds = new Set(
+    activeTables.map((table) => table.physicalTableId)
+  );
+
+  // Available tables = physical tables that don't have active table orders
+  const availableTables = availablePhysicalTables.filter(
+    (table) => !activePhysicalTableIds.has(table.id)
+  );
+
   const totalSales = activeTables.reduce(
     (sum, table) => sum + (table.finalAmount || 0),
     0
@@ -223,6 +235,31 @@ export default function TablesPage() {
           </Button>
           <Button
             variant="outline"
+            onClick={() => {
+              setViewMode(viewMode === "list" ? "by-table" : "list");
+              setShowCharts(false);
+              setShowLayout(false);
+            }}
+            className={
+              viewMode === "by-table"
+                ? "bg-purple-50 text-purple-700 border-purple-300"
+                : ""
+            }
+          >
+            {viewMode === "by-table" ? (
+              <>
+                <List className="h-4 w-4 mr-2" />
+                Ver Lista
+              </>
+            ) : (
+              <>
+                <Grid3X3 className="h-4 w-4 mr-2" />
+                Por Mesa
+              </>
+            )}
+          </Button>
+          <Button
+            variant="outline"
             onClick={handleRefresh}
             disabled={isRefreshing}
           >
@@ -335,11 +372,30 @@ export default function TablesPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">
+              Mesas Disponibles
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{availableTables.length}</div>
+            <p className="text-xs text-gray-500">Libres para usar</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
               Total Ventas
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalSales.toFixed(2)}</div>
+            <div className="text-2xl font-bold">
+              {new Intl.NumberFormat("es-CO", {
+                style: "currency",
+                currency: "COP",
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+              }).format(totalSales)}
+            </div>
             <p className="text-xs text-gray-500">En mesas activas</p>
           </CardContent>
         </Card>
@@ -353,18 +409,6 @@ export default function TablesPage() {
           <CardContent>
             <div className="text-2xl font-bold">{totalCustomers}</div>
             <p className="text-xs text-gray-500">En mesas activas</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
-              Órdenes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalOrders}</div>
-            <p className="text-xs text-gray-500">Órdenes activas</p>
           </CardContent>
         </Card>
       </div>
@@ -392,6 +436,7 @@ export default function TablesPage() {
             businessId={businessId}
             branchId={branchId}
             onTableSelect={handleTableSelect}
+            viewMode={viewMode}
           />
         </div>
       )}

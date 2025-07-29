@@ -33,6 +33,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
+import { useTableManagementService } from "./services/tableManagementService";
+import { TableOrdersService } from "@/services/table-orders";
 
 export default function SalesPage() {
   const { isAuthenticated, user, isLoading: authLoading } = useAuth();
@@ -41,6 +43,7 @@ export default function SalesPage() {
   const { sale, setSale, updateSale, state, setState, updateState } =
     useSalesState();
   const actions = useSalesActions(sale, setSale, state, updateState, user);
+  const tableManagementService = useTableManagementService();
 
   // Add success screen state
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
@@ -211,6 +214,7 @@ export default function SalesPage() {
 
   const searchParams = useSearchParams();
   const orderIdParam = searchParams.get("orderId");
+  const tableOrderIdParam = searchParams.get("tableOrderId");
 
   // Load existing order if orderId is present in URL and allProducts are loaded
   useEffect(() => {
@@ -295,6 +299,47 @@ export default function SalesPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderIdParam, state.allProducts]);
+
+  // Load table order if tableOrderId is present in URL
+  useEffect(() => {
+    const loadTableOrder = async () => {
+      if (!tableOrderIdParam) return;
+
+      try {
+        const tableOrder = await TableOrdersService.getTableOrder(
+          tableOrderIdParam
+        );
+
+        // Find the physical table for this table order
+        const physicalTable = state.availablePhysicalTables.find(
+          (table) => table.id === tableOrder.physicalTableId
+        );
+
+        if (physicalTable) {
+          // Update state to select this table
+          updateState({
+            selectedPhysicalTable: physicalTable,
+            currentTableOrder: tableOrder,
+            completionDetails: {
+              ...state.completionDetails,
+              completionType: "DINE_IN",
+            },
+          });
+        }
+      } catch (error) {
+        console.error("Error loading table order:", error);
+        toast({
+          title: "Error",
+          description: "No se pudo cargar la mesa seleccionada",
+          variant: "destructive",
+        });
+      }
+    };
+
+    if (tableOrderIdParam && state.availablePhysicalTables.length > 0) {
+      loadTableOrder();
+    }
+  }, [tableOrderIdParam, state.availablePhysicalTables]);
 
   // Table selection modal state
   const [showTableModal, setShowTableModal] = useState(false);
@@ -436,11 +481,16 @@ export default function SalesPage() {
       ? "DINE_IN"
       : state.completionDetails.completionType;
 
-    if (!completionType) {
+    if (
+      !completionType ||
+      (completionType !== "DINE_IN" &&
+        completionType !== "PICKUP" &&
+        completionType !== "DELIVERY")
+    ) {
       toast({
         title: "Tipo de finalización requerido",
         description:
-          "Por favor selecciona PICKUP o DELIVERY antes de completar el pedido.",
+          "Por favor selecciona PICKUP, DELIVERY o DINE_IN antes de completar el pedido.",
         variant: "destructive",
       });
       return;
@@ -459,12 +509,23 @@ export default function SalesPage() {
         tipPercentage: sale.tipPercentage,
       };
 
+      // Debug logging
+      console.log("=== COMPLETION DETAILS DEBUG ===");
+      console.log("state.selectedPhysicalTable:", state.selectedPhysicalTable);
+      console.log(
+        "state.completionDetails.completionType:",
+        state.completionDetails.completionType
+      );
+      console.log("completionType (determined):", completionType);
+      console.log("final completionDetails:", completionDetails);
+      console.log("=== END DEBUG ===");
+
       const orderId = sale.currentOrder.id || sale.currentOrder._props?.id;
       if (!orderId) {
         throw new Error("Order ID is missing");
       }
 
-      // For PICKUP/DELIVERY orders, call completeOrder BEFORE payment to save completion details
+      // For PICKUP/DELIVERY orders, save completion details and process payment
       // For DINE_IN orders, call completeOrder AFTER payment to avoid status conflicts
       let updatedOrder: any;
       if (completionDetails.completionType === "DINE_IN") {
@@ -608,9 +669,9 @@ export default function SalesPage() {
           );
         }
       } else {
-        // For PICKUP/DELIVERY, let the payment service handle both payment and status update
-        // Don't call ordersService.completeOrder first as it would set status to READY
-        // Let PaymentService.processPayment handle setting status to RECEIVED
+        // For PICKUP/DELIVERY, save completion details FIRST, then process payment
+        // This ensures the PaymentService can see the completionType when determining status
+        // DO NOT call completeOrder for PICKUP/DELIVERY - let the payment process handle status
 
         // Check if order already has a completed payment before attempting to create one
         try {
@@ -632,7 +693,21 @@ export default function SalesPage() {
               currentOrder: updatedOrder,
             }));
           } else {
-            // Create payment record which will handle status update to RECEIVED
+            // FIRST: Save completion details so PaymentService can see the completionType
+            console.log("Saving completion details before payment...");
+            console.log("Order ID:", orderId);
+            console.log("Completion details being sent:", completionDetails);
+            console.log(
+              "completionType being sent:",
+              completionDetails.completionType
+            );
+            updatedOrder = await ordersService.updateCompletionDetails(
+              orderId,
+              completionDetails
+            );
+            console.log("Completion details saved:", updatedOrder);
+
+            // THEN: Create payment record which will handle status update to RECEIVED
             const paymentMethodId = getValidPaymentMethodId();
             if (!paymentMethodId) {
               throw new Error("No valid payment method available");
@@ -657,9 +732,7 @@ export default function SalesPage() {
               );
               console.log("Payment created successfully:", createdPayment);
 
-              // For PICKUP/DELIVERY, don't call completeOrder after payment
-              // The PaymentService.processPayment already set the status to RECEIVED
-              // Just fetch the updated order to get the latest status
+              // Update the sale state with the final order
               updatedOrder = await ordersService.getOrder(orderId);
               setSale((prev) => ({
                 ...prev,
@@ -689,9 +762,7 @@ export default function SalesPage() {
                   createdPayment
                 );
 
-                // For PICKUP/DELIVERY, don't call completeOrder after payment
-                // The PaymentService.processPayment already set the status to RECEIVED
-                // Just fetch the updated order to get the latest status
+                // Update the sale state with the final order
                 updatedOrder = await ordersService.getOrder(orderId);
                 setSale((prev) => ({
                   ...prev,
@@ -755,7 +826,8 @@ export default function SalesPage() {
                 console.log(
                   "Order is not completed in backend, proceeding with completion"
                 );
-                updatedOrder = await ordersService.completeOrder(
+                // For PICKUP/DELIVERY, only save completion details, don't complete the order
+                updatedOrder = await ordersService.updateCompletionDetails(
                   orderId,
                   completionDetails
                 );
@@ -768,7 +840,7 @@ export default function SalesPage() {
             } catch (backendError) {
               console.error("Error fetching order from backend:", backendError);
               // If we can't fetch from backend, proceed with completion
-              updatedOrder = await ordersService.completeOrder(
+              updatedOrder = await ordersService.updateCompletionDetails(
                 orderId,
                 completionDetails
               );
@@ -850,6 +922,9 @@ export default function SalesPage() {
 
         const paymentMethodName =
           sale.selectedPaymentMethod?.paymentMethod?.name ||
+          state.paymentMethods?.find(
+            (pm) => pm.id === sale.selectedPaymentMethod?.id
+          )?.paymentMethod?.name ||
           state.paymentMethods?.[0]?.paymentMethod?.name ||
           "Payment Method";
 
@@ -941,10 +1016,11 @@ export default function SalesPage() {
       if (!orderId) throw new Error("Order ID is missing");
 
       // Use the current completion type and details
+      // Prioritize the explicitly set completion type over table selection
       const completionDetails = {
-        completionType: state.selectedPhysicalTable
-          ? "DINE_IN"
-          : state.completionDetails.completionType || "PICKUP",
+        completionType:
+          state.completionDetails.completionType ||
+          (state.selectedPhysicalTable ? "DINE_IN" : "PICKUP"),
         deliveryAddress: state.completionDetails.deliveryAddress,
         estimatedTime: state.completionDetails.estimatedTime,
         notes: state.completionDetails.notes,
@@ -954,6 +1030,19 @@ export default function SalesPage() {
 
       // For DINE_IN orders, create payment first, then complete order
       let updatedOrder: any;
+
+      console.log("=== PAYMENT PROCESSING DEBUG ===");
+      console.log("state.selectedPhysicalTable:", state.selectedPhysicalTable);
+      console.log(
+        "state.completionDetails.completionType:",
+        state.completionDetails.completionType
+      );
+      console.log(
+        "completionDetails.completionType:",
+        completionDetails.completionType
+      );
+      console.log("=== END DEBUG ===");
+
       if (completionDetails.completionType === "DINE_IN") {
         // Check if order already has a completed payment before attempting to create one
         try {
@@ -982,8 +1071,12 @@ export default function SalesPage() {
             }));
           } else {
             // Create payment record first
-            const paymentMethodId =
-              sale.selectedPaymentMethod?.id || state.paymentMethods[0]?.id;
+            const paymentMethodId = getValidPaymentMethodId();
+            if (!paymentMethodId) {
+              throw new Error("No valid payment method available");
+            }
+            console.log("Selected payment method:", sale.selectedPaymentMethod);
+            console.log("Payment method ID being used:", paymentMethodId);
             const paymentDetails = {
               orderId: orderId,
               paymentMethodId: paymentMethodId,
@@ -1077,8 +1170,8 @@ export default function SalesPage() {
           }
         }
       } else {
-        // For PICKUP/DELIVERY, complete order first to save completion details
-        updatedOrder = await ordersService.completeOrder(
+        // For PICKUP/DELIVERY, update completion details without completing the order
+        updatedOrder = await ordersService.updateCompletionDetails(
           orderId,
           completionDetails
         );
@@ -1263,12 +1356,22 @@ export default function SalesPage() {
 
   // Helper to get a valid payment method ID
   const getValidPaymentMethodId = () => {
+    // First check if user has explicitly selected a payment method
     if (sale.selectedPaymentMethod?.id) {
+      console.log("Using selected payment method:", sale.selectedPaymentMethod);
       return sale.selectedPaymentMethod.id;
     }
+
+    // If no payment method is selected, check if we have payment methods available
     if (state.paymentMethods && state.paymentMethods.length > 0) {
+      console.log(
+        "No payment method selected, using first available:",
+        state.paymentMethods[0]
+      );
       return state.paymentMethods[0].id;
     }
+
+    console.log("No payment methods available");
     return null;
   };
 
@@ -1285,6 +1388,7 @@ export default function SalesPage() {
     const defaultCompletionType = state.selectedPhysicalTable
       ? "DINE_IN"
       : "PICKUP";
+
     updateState({
       showCompletionModal: true,
       completionDetails: {
@@ -1426,7 +1530,34 @@ export default function SalesPage() {
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => updateState({ selectedPhysicalTable: null })}
+              onClick={async () => {
+                try {
+                  // Clear the table order if there's a current table order
+                  if (state.currentTableOrder) {
+                    await tableManagementService.clearTableOrder(
+                      state.currentTableOrder,
+                      sale
+                    );
+                  }
+
+                  updateState({
+                    selectedPhysicalTable: null,
+                    currentTableOrder: null,
+                    completionDetails: {
+                      ...state.completionDetails,
+                      completionType: "PICKUP",
+                    },
+                  });
+                } catch (error) {
+                  console.error("Error removing table:", error);
+                  toast({
+                    title: "Error",
+                    description:
+                      "No se pudo quitar la mesa. Inténtalo de nuevo.",
+                    variant: "destructive",
+                  });
+                }
+              }}
             >
               Quitar Mesa
             </Button>
@@ -1478,9 +1609,34 @@ export default function SalesPage() {
                           : "outline"
                       }
                       className="w-full justify-start"
-                      onClick={() => {
-                        updateState({ selectedPhysicalTable: table });
-                        setShowTableModal(false);
+                      onClick={async () => {
+                        try {
+                          // Create or get existing table order for the selected physical table
+                          const tableOrder =
+                            await tableManagementService.selectPhysicalTable(
+                              table,
+                              user,
+                              sale
+                            );
+
+                          updateState({
+                            selectedPhysicalTable: table,
+                            currentTableOrder: tableOrder,
+                            completionDetails: {
+                              ...state.completionDetails,
+                              completionType: "DINE_IN",
+                            },
+                          });
+                          setShowTableModal(false);
+                        } catch (error) {
+                          console.error("Error selecting table:", error);
+                          toast({
+                            title: "Error",
+                            description:
+                              "No se pudo seleccionar la mesa. Inténtalo de nuevo.",
+                            variant: "destructive",
+                          });
+                        }
                       }}
                     >
                       Mesa {table.tableNumber}{" "}
@@ -1567,10 +1723,10 @@ export default function SalesPage() {
         isProcessing={state.isProcessing}
         sale={sale}
         completionDetails={state.completionDetails}
-        setCompletionDetails={(details) =>
-          updateState({ completionDetails: details })
-        }
-        currentTableOrder={state.selectedPhysicalTable}
+        setCompletionDetails={(details) => {
+          updateState({ completionDetails: details });
+        }}
+        currentTableOrder={state.currentTableOrder}
       />
       <PaymentModal
         isOpen={state.showPaymentModal}

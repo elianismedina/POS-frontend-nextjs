@@ -206,6 +206,11 @@ class OrdersService {
   }
 
   async updateOrder(orderId: string, data: UpdateOrderRequest): Promise<Order> {
+    console.log("=== UPDATE ORDER DEBUG ===");
+    console.log("Order ID:", orderId);
+    console.log("Data being sent:", data);
+    console.log("=== END UPDATE ORDER DEBUG ===");
+    
     const response = await api.patch(`/orders/${orderId}`, data);
     return response.data;
   }

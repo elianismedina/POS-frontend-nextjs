@@ -63,6 +63,21 @@ export default function TablesPage() {
       setIsRefreshing(true);
       // Use only active table orders
       const orders = await TableOrdersService.getActiveTableOrders();
+      console.log("=== TABLES PAGE DEBUG ===");
+      console.log("Loaded table orders:", orders);
+      console.log("Number of table orders:", orders.length);
+      orders.forEach((tableOrder, index) => {
+        console.log(`Table order ${index + 1}:`, {
+          id: tableOrder.id,
+          tableNumber: tableOrder.tableNumber,
+          ordersCount: tableOrder.orders?.length || 0,
+          orders: tableOrder.orders?.map((o) => ({
+            id: o.id,
+            status: o.status,
+          })),
+        });
+      });
+      console.log("=== END TABLES PAGE DEBUG ===");
       setTableOrders(orders);
     } catch (error) {
       toast({
@@ -76,7 +91,7 @@ export default function TablesPage() {
     }
   };
 
-  // Auto-refresh every 30 seconds
+  // Auto-refresh every 30 seconds and listen for table order cleared events
   useEffect(() => {
     loadTableOrders();
     loadAvailablePhysicalTables();
@@ -86,7 +101,54 @@ export default function TablesPage() {
       loadAvailablePhysicalTables();
     }, 30000); // 30 seconds
 
-    return () => clearInterval(interval);
+    // Listen for table order events
+    const handleTableOrderCleared = () => {
+      console.log("Table order cleared event received, refreshing data");
+      loadTableOrders();
+      loadAvailablePhysicalTables();
+    };
+
+    const handleTableOrderAssigned = () => {
+      console.log("Table order assigned event received, refreshing data");
+      loadTableOrders();
+      loadAvailablePhysicalTables();
+    };
+
+    const handleTableOrderCreated = () => {
+      console.log("Table order created event received, refreshing data");
+      loadTableOrders();
+      loadAvailablePhysicalTables();
+    };
+
+    const handleTableSelected = () => {
+      console.log("Table selected event received, refreshing data");
+      loadTableOrders();
+      loadAvailablePhysicalTables();
+    };
+
+    const handleTableChanged = () => {
+      console.log("Table changed event received, refreshing data");
+      loadTableOrders();
+      loadAvailablePhysicalTables();
+    };
+
+    window.addEventListener("tableOrderCleared", handleTableOrderCleared);
+    window.addEventListener("tableOrderAssigned", handleTableOrderAssigned);
+    window.addEventListener("tableOrderCreated", handleTableOrderCreated);
+    window.addEventListener("tableSelected", handleTableSelected);
+    window.addEventListener("tableChanged", handleTableChanged);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("tableOrderCleared", handleTableOrderCleared);
+      window.removeEventListener(
+        "tableOrderAssigned",
+        handleTableOrderAssigned
+      );
+      window.removeEventListener("tableOrderCreated", handleTableOrderCreated);
+      window.removeEventListener("tableSelected", handleTableSelected);
+      window.removeEventListener("tableChanged", handleTableChanged);
+    };
   }, [businessId, branchId]);
 
   // Manual refresh

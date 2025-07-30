@@ -90,7 +90,14 @@ export class TableOrdersService {
   }
 
   static async closeTableOrder(id: string): Promise<TableOrder> {
+    console.log("=== CLOSE TABLE ORDER DEBUG ===");
+    console.log("Closing table order with ID:", id);
+
     const response = await api.put(`/table-orders/${id}/close`);
+
+    console.log("Close table order response:", response.data);
+    console.log("=== END CLOSE TABLE ORDER DEBUG ===");
+
     return response.data;
   }
 

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
-import { TableOrder } from "@/services/table-orders";
+import { TableOrder, TableOrdersService } from "@/services/table-orders";
 import { ordersService, Order } from "@/app/services/orders";
 import { formatPrice } from "@/lib/utils";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -18,6 +18,7 @@ import {
   User,
   Plus,
   ShoppingCart,
+  Lock,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -86,6 +87,67 @@ export function TableOrderDetail({
   const handleViewOrder = (orderId: string) => {
     // Navigate to sales page with order context
     router.push(`/dashboard/cashier/sales?orderId=${orderId}`);
+  };
+
+  // Check if table can be closed (all orders must be COMPLETED)
+  const canCloseTable = (): boolean => {
+    if (orders.length === 0) return true; // Empty table can be closed
+    return orders.every((order) => {
+      const orderData = (order as any)._props || order;
+      return orderData.status === "COMPLETED";
+    });
+  };
+
+  // Get the reason why table cannot be closed
+  const getCloseTableReason = (): string => {
+    if (orders.length === 0) return "";
+
+    const nonCompletedOrders = orders.filter((order) => {
+      const orderData = (order as any)._props || order;
+      return orderData.status !== "COMPLETED";
+    });
+
+    if (nonCompletedOrders.length === 0) return "";
+
+    const statusCounts = nonCompletedOrders.reduce((acc, order) => {
+      const orderData = (order as any)._props || order;
+      acc[orderData.status] = (acc[orderData.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const statusList = Object.entries(statusCounts)
+      .map(([status, count]) => `${count} ${status}`)
+      .join(", ");
+
+    return `Órdenes pendientes: ${statusList}`;
+  };
+
+  const handleCloseTable = async () => {
+    try {
+      await TableOrdersService.closeTableOrder(tableOrder.id);
+      toast({
+        title: "Mesa cerrada",
+        description: `La mesa ${tableOrder.tableNumber} ha sido cerrada.`,
+      });
+      onClose();
+      onRefresh();
+    } catch (error: any) {
+      console.error("Error closing table order:", error);
+
+      // Extract error message from backend response
+      let errorMessage = "No se pudo cerrar la mesa. Inténtalo de nuevo.";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      toast({
+        title: "Error al cerrar mesa",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -200,6 +262,18 @@ export function TableOrderDetail({
             <Plus className="h-4 w-4" />
             Nueva Orden
           </Button>
+          <Button
+            variant={canCloseTable() ? "outline" : "secondary"}
+            onClick={handleCloseTable}
+            disabled={!canCloseTable()}
+            title={canCloseTable() ? "Cerrar mesa" : getCloseTableReason()}
+            className={`flex items-center gap-2 ${
+              !canCloseTable() ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+          >
+            <Lock className="h-4 w-4" />
+            {canCloseTable() ? "Cerrar Mesa" : "No Cerrar"}
+          </Button>
         </div>
 
         {/* Orders List */}
@@ -221,9 +295,12 @@ export function TableOrderDetail({
             <Card>
               <CardContent className="p-8 text-center">
                 <Receipt className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500 mb-2">No hay órdenes en esta mesa</p>
+                <p className="text-gray-500 mb-2">
+                  No hay órdenes en esta mesa
+                </p>
                 <p className="text-sm text-gray-400 mb-4">
-                  Para agregar órdenes, ve a la página de ventas y selecciona esta mesa
+                  Para agregar órdenes, ve a la página de ventas y selecciona
+                  esta mesa
                 </p>
                 <div className="flex gap-2 justify-center">
                   <Button
@@ -234,7 +311,7 @@ export function TableOrderDetail({
                     Ir a Ventas
                   </Button>
                   <Button
-                    onClick={() => router.push('/dashboard/cashier/sales')}
+                    onClick={() => router.push("/dashboard/cashier/sales")}
                     variant="outline"
                   >
                     Ver Todas las Ventas
@@ -272,7 +349,14 @@ export function TableOrderDetail({
                             )}
                           </div>
                         </div>
-                        {getStatusBadge(orderData.status)}
+                        <div className="flex flex-col items-end gap-1">
+                          {getStatusBadge(orderData.status)}
+                          {orderData.status !== "COMPLETED" && (
+                            <Badge variant="destructive" className="text-xs">
+                              Bloquea cierre
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent className="pt-0">

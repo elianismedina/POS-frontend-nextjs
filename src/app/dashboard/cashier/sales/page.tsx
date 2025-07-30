@@ -278,13 +278,89 @@ export default function SalesPage() {
 
         const calculatedSale = actions.calculateTotals(newSale);
         setSale(calculatedSale);
-        updateState({
-          isLoading: false,
-          completionDetails: {
-            ...state.completionDetails,
-            completionType: orderData.completionType || "PICKUP",
-          },
-        });
+
+        // Check if the order is associated with a table
+        const orderTableOrderId = orderData.tableOrderId;
+        console.log("Order data:", orderData);
+        console.log("Order table order ID:", orderTableOrderId);
+        if (orderTableOrderId) {
+          console.log(
+            "Order is associated with table order:",
+            orderTableOrderId
+          );
+          // Load the table order information
+          try {
+            const tableOrder = await TableOrdersService.getTableOrder(
+              orderTableOrderId
+            );
+            console.log("Loaded table order for existing order:", tableOrder);
+
+            // Find the physical table for this table order
+            const physicalTable = state.availablePhysicalTables.find(
+              (table) => table.id === tableOrder.physicalTableId
+            );
+
+            if (physicalTable) {
+              updateState({
+                isLoading: false,
+                selectedPhysicalTable: physicalTable,
+                currentTableOrder: tableOrder,
+                completionDetails: {
+                  ...state.completionDetails,
+                  completionType: "DINE_IN",
+                },
+              });
+              console.log(
+                "Table loaded for existing order:",
+                physicalTable.tableNumber
+              );
+            } else {
+              // Create fallback physical table if not found
+              const fallbackPhysicalTable = {
+                id: tableOrder.physicalTableId,
+                tableNumber: tableOrder.tableNumber || "N/A",
+                tableName: tableOrder.tableName,
+                capacity: 0,
+                location: "",
+                isActive: true,
+              } as any;
+
+              updateState({
+                isLoading: false,
+                selectedPhysicalTable: fallbackPhysicalTable,
+                currentTableOrder: tableOrder,
+                completionDetails: {
+                  ...state.completionDetails,
+                  completionType: "DINE_IN",
+                },
+              });
+              console.log(
+                "Using fallback table for existing order:",
+                fallbackPhysicalTable.tableNumber
+              );
+            }
+          } catch (error) {
+            console.error(
+              "Error loading table order for existing order:",
+              error
+            );
+            updateState({
+              isLoading: false,
+              completionDetails: {
+                ...state.completionDetails,
+                completionType: orderData.completionType || "PICKUP",
+              },
+            });
+          }
+        } else {
+          updateState({
+            isLoading: false,
+            completionDetails: {
+              ...state.completionDetails,
+              completionType: orderData.completionType || "PICKUP",
+            },
+          });
+        }
       } catch (error) {
         updateState({ isLoading: false });
         toast({
@@ -300,46 +376,172 @@ export default function SalesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderIdParam, state.allProducts]);
 
+  // Load table order function
+  const loadTableOrder = async () => {
+    if (!tableOrderIdParam) return;
+
+    try {
+      console.log("Loading table order with ID:", tableOrderIdParam);
+      const tableOrder = await TableOrdersService.getTableOrder(
+        tableOrderIdParam
+      );
+      console.log("Loaded table order:", tableOrder);
+
+      // Find the physical table for this table order
+      const physicalTable = state.availablePhysicalTables.find(
+        (table) => table.id === tableOrder.physicalTableId
+      );
+
+      console.log("Available physical tables:", state.availablePhysicalTables);
+      console.log("Found physical table:", physicalTable);
+
+      if (physicalTable) {
+        // Update state to select this table
+        updateState({
+          selectedPhysicalTable: physicalTable,
+          currentTableOrder: tableOrder,
+          completionDetails: {
+            ...state.completionDetails,
+            completionType: "DINE_IN",
+          },
+        });
+        console.log("Table order loaded successfully");
+      } else {
+        // If physical table not found, try to create a minimal physical table object
+        console.warn(
+          "Physical table not found for table order:",
+          tableOrder.physicalTableId
+        );
+        const fallbackPhysicalTable = {
+          id: tableOrder.physicalTableId,
+          tableNumber: tableOrder.tableNumber || "N/A",
+          tableName: tableOrder.tableName,
+          capacity: 0,
+          location: "",
+          isActive: true,
+        } as any; // Use any to avoid TypeScript issues with missing properties
+        updateState({
+          selectedPhysicalTable: fallbackPhysicalTable,
+          currentTableOrder: tableOrder,
+          completionDetails: {
+            ...state.completionDetails,
+            completionType: "DINE_IN",
+          },
+        });
+        console.log("Using fallback physical table:", fallbackPhysicalTable);
+      }
+    } catch (error) {
+      console.error("Error loading table order:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo cargar la mesa seleccionada",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Load table order if tableOrderId is present in URL
   useEffect(() => {
-    const loadTableOrder = async () => {
-      if (!tableOrderIdParam) return;
-
-      try {
-        const tableOrder = await TableOrdersService.getTableOrder(
-          tableOrderIdParam
-        );
-
-        // Find the physical table for this table order
-        const physicalTable = state.availablePhysicalTables.find(
-          (table) => table.id === tableOrder.physicalTableId
-        );
-
-        if (physicalTable) {
-          // Update state to select this table
-          updateState({
-            selectedPhysicalTable: physicalTable,
-            currentTableOrder: tableOrder,
-            completionDetails: {
-              ...state.completionDetails,
-              completionType: "DINE_IN",
-            },
-          });
-        }
-      } catch (error) {
-        console.error("Error loading table order:", error);
-        toast({
-          title: "Error",
-          description: "No se pudo cargar la mesa seleccionada",
-          variant: "destructive",
-        });
-      }
-    };
-
     if (tableOrderIdParam && state.availablePhysicalTables.length > 0) {
       loadTableOrder();
+    } else if (
+      tableOrderIdParam &&
+      state.availablePhysicalTables.length === 0
+    ) {
+      console.log("Table order ID exists but no physical tables loaded yet");
     }
   }, [tableOrderIdParam, state.availablePhysicalTables]);
+
+  // Additional effect to handle table order loading when physical tables become available
+  useEffect(() => {
+    if (
+      tableOrderIdParam &&
+      state.availablePhysicalTables.length > 0 &&
+      !state.currentTableOrder
+    ) {
+      console.log("Physical tables loaded, now loading table order");
+      loadTableOrder();
+    }
+  }, [
+    tableOrderIdParam,
+    state.availablePhysicalTables.length,
+    state.currentTableOrder,
+  ]);
+
+  // Handle loading table for existing order when physical tables become available
+  useEffect(() => {
+    if (
+      sale.currentOrder?.tableOrderId &&
+      state.availablePhysicalTables.length > 0 &&
+      !state.selectedPhysicalTable &&
+      !state.currentTableOrder
+    ) {
+      console.log(
+        "Physical tables loaded, now loading table for existing order"
+      );
+      const loadTableForExistingOrder = async () => {
+        try {
+          const tableOrderId = sale.currentOrder?.tableOrderId;
+          if (!tableOrderId) return;
+
+          const tableOrder = await TableOrdersService.getTableOrder(
+            tableOrderId
+          );
+          console.log("Loaded table order for existing order:", tableOrder);
+
+          const physicalTable = state.availablePhysicalTables.find(
+            (table) => table.id === tableOrder.physicalTableId
+          );
+
+          if (physicalTable) {
+            updateState({
+              selectedPhysicalTable: physicalTable,
+              currentTableOrder: tableOrder,
+              completionDetails: {
+                ...state.completionDetails,
+                completionType: "DINE_IN",
+              },
+            });
+            console.log(
+              "Table loaded for existing order:",
+              physicalTable.tableNumber
+            );
+          } else {
+            const fallbackPhysicalTable = {
+              id: tableOrder.physicalTableId,
+              tableNumber: tableOrder.tableNumber || "N/A",
+              tableName: tableOrder.tableName,
+              capacity: 0,
+              location: "",
+              isActive: true,
+            } as any;
+
+            updateState({
+              selectedPhysicalTable: fallbackPhysicalTable,
+              currentTableOrder: tableOrder,
+              completionDetails: {
+                ...state.completionDetails,
+                completionType: "DINE_IN",
+              },
+            });
+            console.log(
+              "Using fallback table for existing order:",
+              fallbackPhysicalTable.tableNumber
+            );
+          }
+        } catch (error) {
+          console.error("Error loading table order for existing order:", error);
+        }
+      };
+
+      loadTableForExistingOrder();
+    }
+  }, [
+    sale.currentOrder?.tableOrderId,
+    state.availablePhysicalTables.length,
+    state.selectedPhysicalTable,
+    state.currentTableOrder,
+  ]);
 
   // Table selection modal state
   const [showTableModal, setShowTableModal] = useState(false);
@@ -1516,50 +1718,162 @@ export default function SalesPage() {
       {/* Table selection UI */}
       {!isOrderFinalized && (
         <div className="bg-white border-b px-6 py-1 flex items-center gap-4">
-          <Button onClick={() => setShowTableModal(true)} variant="outline">
-            {state.selectedPhysicalTable
-              ? `Mesa: ${state.selectedPhysicalTable.tableNumber}`
-              : "Seleccionar Mesa"}
-          </Button>
-          {state.selectedPhysicalTable && (
-            <Badge variant="secondary">
-              Mesa {state.selectedPhysicalTable.tableNumber}
-            </Badge>
-          )}
-          {state.selectedPhysicalTable && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={async () => {
-                try {
-                  // Clear the table order if there's a current table order
-                  if (state.currentTableOrder) {
-                    await tableManagementService.clearTableOrder(
-                      state.currentTableOrder,
-                      sale
-                    );
-                  }
+          {(() => {
+            console.log(
+              "Table selection UI - selectedPhysicalTable:",
+              state.selectedPhysicalTable
+            );
+            console.log(
+              "Table selection UI - currentTableOrder:",
+              state.currentTableOrder
+            );
+            console.log(
+              "Table selection UI - sale.currentOrder:",
+              sale.currentOrder
+            );
+            return (
+              state.selectedPhysicalTable ||
+              state.currentTableOrder ||
+              sale.currentOrder?.tableOrderId
+            );
+          })() ? (
+            <>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="text-sm">
+                  Mesa{" "}
+                  {(() => {
+                    const tableNumber =
+                      state.selectedPhysicalTable?.tableNumber ||
+                      state.currentTableOrder?.tableNumber ||
+                      sale.currentOrder?.tableOrderId ||
+                      "N/A";
+                    console.log("Table number for badge:", tableNumber);
+                    return tableNumber;
+                  })()}
+                </Badge>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowTableModal(true)}
+                >
+                  Cambiar Mesa
+                </Button>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={async () => {
+                  console.log("=== REMOVE TABLE BUTTON CLICKED ===");
+                  console.log(
+                    "Button clicked - starting table removal process"
+                  );
 
-                  updateState({
-                    selectedPhysicalTable: null,
-                    currentTableOrder: null,
-                    completionDetails: {
-                      ...state.completionDetails,
-                      completionType: "PICKUP",
-                    },
-                  });
-                } catch (error) {
-                  console.error("Error removing table:", error);
-                  toast({
-                    title: "Error",
-                    description:
-                      "No se pudo quitar la mesa. Inténtalo de nuevo.",
-                    variant: "destructive",
-                  });
-                }
-              }}
-            >
-              Quitar Mesa
+                  try {
+                    console.log(
+                      "state.currentTableOrder:",
+                      state.currentTableOrder
+                    );
+                    console.log("sale.currentOrder:", sale.currentOrder);
+
+                    // Clear the table order if there's a current table order
+                    if (
+                      state.currentTableOrder ||
+                      sale.currentOrder?.tableOrderId
+                    ) {
+                      console.log(
+                        "Calling tableManagementService.clearTableOrder"
+                      );
+                      const updatedOrder =
+                        await tableManagementService.clearTableOrder(
+                          state.currentTableOrder,
+                          sale
+                        );
+                      console.log(
+                        "tableManagementService.clearTableOrder completed"
+                      );
+                      console.log("Updated order from backend:", updatedOrder);
+
+                      // Update the sale state with the updated order from backend
+                      if (updatedOrder) {
+                        console.log(
+                          "About to update sale state with:",
+                          updatedOrder
+                        );
+                        console.log(
+                          "Updated order tableOrderId:",
+                          updatedOrder.tableOrderId
+                        );
+                        console.log(
+                          "Updated order _props tableOrderId:",
+                          updatedOrder._props?.tableOrderId
+                        );
+
+                        // Force refresh the order data to ensure we have the latest state
+                        try {
+                          const freshOrder = await ordersService.getOrder(
+                            updatedOrder.id
+                          );
+                          console.log("Fresh order from backend:", freshOrder);
+                          console.log(
+                            "Fresh order tableOrderId:",
+                            freshOrder.tableOrderId
+                          );
+
+                          setSale((prev) => ({
+                            ...prev,
+                            currentOrder: freshOrder,
+                          }));
+                          console.log(
+                            "Sale state updated with fresh order data"
+                          );
+                        } catch (error) {
+                          console.error("Error fetching fresh order:", error);
+                          // Fallback to using the updated order
+                          setSale((prev) => ({
+                            ...prev,
+                            currentOrder: updatedOrder,
+                          }));
+                          console.log(
+                            "Sale state updated with fallback order data"
+                          );
+                        }
+                      }
+                    } else {
+                      console.log("No table order to clear");
+                    }
+
+                    // Update local state to clear table selection
+                    console.log(
+                      "Updating local state to clear table selection"
+                    );
+                    updateState({
+                      selectedPhysicalTable: null,
+                      currentTableOrder: null,
+                      completionDetails: {
+                        ...state.completionDetails,
+                        completionType: "PICKUP",
+                      },
+                    });
+
+                    console.log("Table removed from local state");
+                    console.log("=== REMOVE TABLE BUTTON COMPLETED ===");
+                  } catch (error) {
+                    console.error("Error removing table:", error);
+                    toast({
+                      title: "Error",
+                      description:
+                        "No se pudo quitar la mesa. Inténtalo de nuevo.",
+                      variant: "destructive",
+                    });
+                  }
+                }}
+              >
+                Quitar Mesa
+              </Button>
+            </>
+          ) : (
+            <Button onClick={() => setShowTableModal(true)} variant="outline">
+              Seleccionar Mesa
             </Button>
           )}
         </div>
@@ -1628,6 +1942,51 @@ export default function SalesPage() {
                             },
                           });
                           setShowTableModal(false);
+
+                          // Check if this is a table change (existing order with different table)
+                          const isTableChange =
+                            sale.currentOrder &&
+                            (sale.currentOrder.tableOrderId ||
+                              sale.currentOrder._props?.tableOrderId) &&
+                            (sale.currentOrder.tableOrderId !==
+                              tableOrder?.id ||
+                              sale.currentOrder._props?.tableOrderId !==
+                                tableOrder?.id);
+
+                          // Trigger a custom event to notify other pages to refresh
+                          if (typeof window !== "undefined") {
+                            if (isTableChange && sale.currentOrder) {
+                              // Dispatch table change event
+                              window.dispatchEvent(
+                                new CustomEvent("tableChanged", {
+                                  detail: {
+                                    oldTableOrderId:
+                                      sale.currentOrder.tableOrderId ||
+                                      sale.currentOrder._props?.tableOrderId,
+                                    newTableOrderId: tableOrder?.id,
+                                    physicalTableId: table.id,
+                                    tableNumber: table.tableNumber,
+                                    orderId:
+                                      sale.currentOrder.id ||
+                                      sale.currentOrder._props?.id,
+                                  },
+                                })
+                              );
+                              console.log("Dispatched tableChanged event");
+                            } else {
+                              // Dispatch table selected event
+                              window.dispatchEvent(
+                                new CustomEvent("tableSelected", {
+                                  detail: {
+                                    tableOrderId: tableOrder?.id,
+                                    physicalTableId: table.id,
+                                    tableNumber: table.tableNumber,
+                                  },
+                                })
+                              );
+                              console.log("Dispatched tableSelected event");
+                            }
+                          }
                         } catch (error) {
                           console.error("Error selecting table:", error);
                           toast({

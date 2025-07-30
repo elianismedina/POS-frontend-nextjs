@@ -35,9 +35,9 @@ export function TableOrdersList({
   const [tableOrders, setTableOrders] = useState<TableOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<
-    "all" | "active" | "closed" | "cancelled"
-  >("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "closed">(
+    "all"
+  );
   const [currentViewMode, setCurrentViewMode] = useState(viewMode);
   const { toast } = useToast();
 
@@ -76,28 +76,20 @@ export function TableOrdersList({
         description: `La mesa ${tableOrder.tableNumber} ha sido cerrada.`,
       });
       loadTableOrders();
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Error closing table order:", error);
+
+      // Extract error message from backend response
+      let errorMessage = "No se pudo cerrar la mesa. Inténtalo de nuevo.";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       toast({
         title: "Error al cerrar mesa",
-        description: "No se pudo cerrar la mesa. Inténtalo de nuevo.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleCancelTable = async (tableOrder: TableOrder) => {
-    try {
-      await TableOrdersService.cancelTableOrder(tableOrder.id);
-      toast({
-        title: "Mesa cancelada",
-        description: `La mesa ${tableOrder.tableNumber} ha sido cancelada.`,
-      });
-      loadTableOrders();
-    } catch (error) {
-      console.error("Error cancelling table order:", error);
-      toast({
-        title: "Error al cancelar mesa",
-        description: "No se pudo cancelar la mesa. Inténtalo de nuevo.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -109,11 +101,40 @@ export function TableOrdersList({
         return <Badge variant="default">Activa</Badge>;
       case "closed":
         return <Badge variant="secondary">Cerrada</Badge>;
-      case "cancelled":
-        return <Badge variant="destructive">Cancelada</Badge>;
+
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
+  };
+
+  // Check if a table can be closed (all orders must be COMPLETED)
+  const canCloseTable = (tableOrder: TableOrder): boolean => {
+    const orders = tableOrder.orders || [];
+    if (orders.length === 0) return true; // Empty table can be closed
+
+    return orders.every((order) => order.status === "COMPLETED");
+  };
+
+  // Get the reason why a table cannot be closed
+  const getCloseTableReason = (tableOrder: TableOrder): string => {
+    const orders = tableOrder.orders || [];
+    if (orders.length === 0) return "";
+
+    const nonCompletedOrders = orders.filter(
+      (order) => order.status !== "COMPLETED"
+    );
+    if (nonCompletedOrders.length === 0) return "";
+
+    const statusCounts = nonCompletedOrders.reduce((acc, order) => {
+      acc[order.status] = (acc[order.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const statusList = Object.entries(statusCounts)
+      .map(([status, count]) => `${count} ${status}`)
+      .join(", ");
+
+    return `Órdenes pendientes: ${statusList}`;
   };
 
   // Filter tables based on search term and status
@@ -155,9 +176,6 @@ export function TableOrdersList({
   const closedTables = sortTablesByActivity(
     filteredTables.filter((table) => table.status === "closed")
   );
-  const cancelledTables = sortTablesByActivity(
-    filteredTables.filter((table) => table.status === "cancelled")
-  );
 
   // Group table orders by physical table
   const groupTableOrdersByPhysicalTable = (orders: TableOrder[]) => {
@@ -189,8 +207,6 @@ export function TableOrdersList({
       ),
       activeOrders: orders.filter((order) => order.status === "active").length,
       closedOrders: orders.filter((order) => order.status === "closed").length,
-      cancelledOrders: orders.filter((order) => order.status === "cancelled")
-        .length,
     }));
   };
 
@@ -234,15 +250,30 @@ export function TableOrdersList({
       <div className="space-y-6">
         <div className="text-center py-12">
           <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-            <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            <svg
+              className="w-12 h-12 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+              />
             </svg>
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No hay mesas activas</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            No hay mesas activas
+          </h3>
           <p className="text-gray-500 mb-6">
-            No se han encontrado órdenes de mesa activas. Crea una nueva mesa para comenzar.
+            No se han encontrado órdenes de mesa activas. Crea una nueva mesa
+            para comenzar.
           </p>
-          <Button onClick={() => window.location.href = '/dashboard/cashier/tables'}>
+          <Button
+            onClick={() => (window.location.href = "/dashboard/cashier/tables")}
+          >
             Crear Nueva Mesa
           </Button>
         </div>
@@ -493,18 +524,25 @@ export function TableOrdersList({
                       </Button>
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant={
+                          canCloseTable(tableOrder) ? "outline" : "secondary"
+                        }
                         onClick={() => handleCloseTable(tableOrder)}
+                        disabled={!canCloseTable(tableOrder)}
+                        title={
+                          canCloseTable(tableOrder)
+                            ? "Cerrar mesa"
+                            : getCloseTableReason(tableOrder)
+                        }
+                        className={
+                          !canCloseTable(tableOrder)
+                            ? "opacity-50 cursor-not-allowed"
+                            : ""
+                        }
                       >
-                        Cerrar
+                        {canCloseTable(tableOrder) ? "Cerrar" : "No Cerrar"}
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleCancelTable(tableOrder)}
-                      >
-                        Cancelar
-                      </Button>
+                      {/* Cancel button removed - cashiers should not be able to cancel tables */}
                     </div>
                   </div>
                 </CardContent>
@@ -550,11 +588,6 @@ export function TableOrdersList({
                       {tableGroup.closedOrders > 0 && (
                         <Badge variant="secondary" className="text-xs">
                           {tableGroup.closedOrders} Cerrada
-                        </Badge>
-                      )}
-                      {tableGroup.cancelledOrders > 0 && (
-                        <Badge variant="destructive" className="text-xs">
-                          {tableGroup.cancelledOrders} Cancelada
                         </Badge>
                       )}
                     </div>
@@ -657,11 +690,6 @@ export function TableOrdersList({
                         {tableGroup.closedOrders > 0 && (
                           <Badge variant="secondary" className="text-xs">
                             {tableGroup.closedOrders} Cerrada
-                          </Badge>
-                        )}
-                        {tableGroup.cancelledOrders > 0 && (
-                          <Badge variant="destructive" className="text-xs">
-                            {tableGroup.cancelledOrders} Cancelada
                           </Badge>
                         )}
                       </div>
@@ -774,79 +802,6 @@ export function TableOrdersList({
                 />
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Cancelled Tables */}
-      {cancelledTables.length > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold mb-4">
-            Mesas Canceladas ({cancelledTables.length})
-          </h3>
-          <div className="border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Mesa</TableHead>
-                  <TableHead>Órdenes</TableHead>
-                  <TableHead>Clientes</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Cancelada</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {cancelledTables.map((tableOrder) => (
-                  <TableRow key={tableOrder.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">
-                          {tableOrder.tableNumber}
-                        </div>
-                        {tableOrder.tableName && (
-                          <div className="text-sm text-gray-500">
-                            {tableOrder.tableName}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        {tableOrder.orders ? tableOrder.orders.length : 0}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        {tableOrder.numberOfCustomers}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium">
-                        {formatPrice(
-                          tableOrder.finalAmount || tableOrder.totalAmount
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm text-gray-600">
-                        {new Date(tableOrder.closedAt!).toLocaleDateString()}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => onTableSelect?.(tableOrder)}
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        Ver
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
           </div>
         </div>
       )}

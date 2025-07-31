@@ -50,7 +50,21 @@ export default function OrdersPage() {
           return;
         }
 
-        const ordersData = await ordersService.getOrders({ businessId });
+        const ordersData = await ordersService.getOrders({
+          businessId,
+          cashierId: user?.id, // Filter orders created by the current waiter
+        });
+        console.log("Orders fetched:", ordersData);
+        console.log("Orders count:", ordersData.length);
+        ordersData.forEach((order, index) => {
+          console.log(`Order ${index + 1}:`, {
+            id: order.id,
+            items: order.items,
+            itemsCount: order.items?.length || 0,
+            total: order.total,
+            status: order.status,
+          });
+        });
         setOrders(ordersData);
       } catch (error) {
         console.error("Error fetching orders:", error);
@@ -94,7 +108,10 @@ export default function OrdersPage() {
       }
 
       if (businessId) {
-        const updatedOrders = await ordersService.getOrders({ businessId });
+        const updatedOrders = await ordersService.getOrders({
+          businessId,
+          cashierId: user?.id, // Filter orders created by the current waiter
+        });
         setOrders(updatedOrders);
       }
     } catch (error) {
@@ -180,7 +197,7 @@ export default function OrdersPage() {
           <div className="flex-1">
             <h1 className="text-lg font-semibold">Mis Pedidos</h1>
             <p className="text-sm text-gray-600">
-              {filteredOrders.length} pedidos encontrados
+              {filteredOrders.length} pedidos creados por mí
             </p>
           </div>
         </div>

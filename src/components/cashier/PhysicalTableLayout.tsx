@@ -59,19 +59,26 @@ export default function PhysicalTableLayout({
       .map((order) => order.physicalTableId!)
   );
 
+  // Count table orders per physical table
+  const tableOrderCounts = new Map<string, number>();
+  tableOrders.forEach((order) => {
+    if (order.physicalTableId) {
+      const count = tableOrderCounts.get(order.physicalTableId) || 0;
+      tableOrderCounts.set(order.physicalTableId, count + 1);
+    }
+  });
+
   // Combine all physical tables (available + occupied)
   const allPhysicalTables: TableWithStatus[] = [
-    // Only include available physical tables that are not occupied
-    ...availablePhysicalTables
-      .filter((table) => !occupiedTableIds.has(table.id))
-      .map((table) => ({
-        id: table.id,
-        tableNumber: table.tableNumber,
-        tableName: table.tableName || "Mesa",
-        capacity: table.capacity || 0,
-        location: table.location || "",
-        status: "available" as const,
-      })),
+    // Include all physical tables that are available (have capacity for more orders)
+    ...availablePhysicalTables.map((table) => ({
+      id: table.id,
+      tableNumber: table.tableNumber,
+      tableName: table.tableName || "Mesa",
+      capacity: table.capacity || 0,
+      location: table.location || "",
+      status: "available" as const,
+    })),
     // Include all occupied tables
     ...tableOrders
       .filter((order) => order.physicalTableId)
@@ -237,6 +244,26 @@ export default function PhysicalTableLayout({
                               </span>
                             </div>
                           )}
+                        {/* Show capacity information for occupied tables */}
+                        {(() => {
+                          const currentOrders =
+                            tableOrderCounts.get(table.id) || 0;
+                          const physicalTable = availablePhysicalTables.find(
+                            (pt) => pt.id === table.id
+                          );
+                          if (physicalTable && physicalTable.capacity > 0) {
+                            return (
+                              <div className="flex items-center gap-1 text-white text-xs">
+                                <Users className="h-3 w-3" />
+                                <span>
+                                  {currentOrders}/{physicalTable.capacity}{" "}
+                                  capacidad
+                                </span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                     )}
 
@@ -255,6 +282,25 @@ export default function PhysicalTableLayout({
                             <span>{table.location}</span>
                           </div>
                         )}
+                        {/* Show current usage for tables that have some orders but still have capacity */}
+                        {(() => {
+                          const currentOrders =
+                            tableOrderCounts.get(table.id) || 0;
+                          if (
+                            currentOrders > 0 &&
+                            table.capacity > currentOrders
+                          ) {
+                            return (
+                              <div className="flex items-center gap-1 text-white text-xs">
+                                <Clock className="h-3 w-3" />
+                                <span>
+                                  {currentOrders}/{table.capacity} órdenes
+                                </span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                     )}
 
@@ -279,7 +325,7 @@ export default function PhysicalTableLayout({
       </Card>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">
@@ -319,6 +365,31 @@ export default function PhysicalTableLayout({
               {uniqueTables.filter((t) => t.status === "available").length}
             </div>
             <p className="text-xs text-gray-500">Libres</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Capacidad Total
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600">
+              {(() => {
+                const totalCapacity = uniqueTables.reduce((sum, table) => {
+                  const physicalTable = availablePhysicalTables.find(
+                    (pt) => pt.id === table.id
+                  );
+                  return sum + (physicalTable?.capacity || 0);
+                }, 0);
+                const usedCapacity = Array.from(
+                  tableOrderCounts.values()
+                ).reduce((sum, count) => sum + count, 0);
+                return `${usedCapacity}/${totalCapacity}`;
+              })()}
+            </div>
+            <p className="text-xs text-gray-500">Órdenes/Capacidad</p>
           </CardContent>
         </Card>
       </div>

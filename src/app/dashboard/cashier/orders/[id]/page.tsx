@@ -21,6 +21,7 @@ import {
   X,
   AlertTriangle,
 } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -68,6 +69,7 @@ export default function OrderDetailsPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
   const [shiftLoading, setShiftLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -131,6 +133,10 @@ export default function OrderDetailsPage() {
       // Refresh order data
       const updatedOrder = await ordersService.getOrder(orderId);
       setOrder(updatedOrder);
+      toast({
+        title: "Order Completed",
+        description: `Order #${orderIdDisplay} has been completed.`,
+      });
     } catch (error) {
       console.error("Error completing order:", error);
       setError("Failed to complete order");
@@ -140,23 +146,48 @@ export default function OrderDetailsPage() {
   };
 
   const handleCancelOrder = async () => {
-    if (!order) return;
-
-    // Check if cashier has active shift for pending orders
-    if (isPendingOrderRequiringShift() && !activeShift) {
-      setError("You need an active shift to cancel pending orders");
+    if (!confirm("Are you sure you want to cancel this order?")) {
       return;
     }
 
-    setActionLoading(true);
     try {
-      await ordersService.cancelOrder(order.id || order._props?.id || "");
-      // Refresh order data
+      setActionLoading(true);
+      await ordersService.cancelOrder(orderId);
       const updatedOrder = await ordersService.getOrder(orderId);
       setOrder(updatedOrder);
+      toast({
+        title: "Order Cancelled",
+        description: `Order #${orderIdDisplay} has been cancelled.`,
+      });
     } catch (error) {
       console.error("Error canceling order:", error);
-      setError("Failed to cancel order");
+      toast({
+        title: "Error",
+        description: "Failed to cancel order. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleConfirmOrder = async () => {
+    try {
+      setActionLoading(true);
+      await ordersService.updateOrderStatus(orderId, "CONFIRMED");
+      const updatedOrder = await ordersService.getOrder(orderId);
+      setOrder(updatedOrder);
+      toast({
+        title: "Order Confirmed",
+        description: `Order #${orderIdDisplay} has been confirmed.`,
+      });
+    } catch (error) {
+      console.error("Error confirming order:", error);
+      toast({
+        title: "Error",
+        description: "Failed to confirm order. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setActionLoading(false);
     }
@@ -287,6 +318,16 @@ export default function OrderDetailsPage() {
             {/* Action Buttons */}
             {(orderStatus === "PENDING" || orderStatus === "CONFIRMED") && (
               <div className="flex gap-2">
+                {orderStatus === "PENDING" && (
+                  <Button
+                    onClick={handleConfirmOrder}
+                    disabled={actionLoading || !canModifyOrder()}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Confirm Order
+                  </Button>
+                )}
                 <Button
                   onClick={handleCompleteOrder}
                   disabled={actionLoading || !canModifyOrder()}

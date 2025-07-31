@@ -19,10 +19,16 @@ import {
   X,
 } from "lucide-react";
 import { productsService } from "@/app/services/products";
-import { CustomersService } from "@/app/services/customers";
+import { CustomersService, Customer } from "@/app/services/customers";
 import { ordersService } from "@/app/services/orders";
-import { PhysicalTablesService } from "@/services/physical-tables";
+import {
+  PhysicalTablesService,
+  PhysicalTable,
+} from "@/services/physical-tables";
 import { useToast } from "@/components/ui/use-toast";
+import { CustomerModal } from "@/components/waiter/CustomerModal";
+import { TableSelectionModal } from "@/components/waiter/TableSelectionModal";
+import { TableOrdersService } from "@/services/table-orders";
 
 interface Product {
   id: string;
@@ -30,13 +36,6 @@ interface Product {
   price: number;
   description?: string;
   categoryName?: string;
-}
-
-interface Customer {
-  id: string;
-  name: string;
-  email: string;
-  phone?: string;
 }
 
 interface CartItem {
@@ -61,6 +60,11 @@ export default function NewOrderPage() {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState("");
+  const [showTableModal, setShowTableModal] = useState(false);
+  const [tableSearchTerm, setTableSearchTerm] = useState("");
+  const [isLoadingTables, setIsLoadingTables] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -166,64 +170,163 @@ export default function NewOrderPage() {
   };
 
   const getTotal = () => {
-    return cart.reduce((sum, item) => sum + item.subtotal, 0);
+    return cart.reduce((total, item) => total + item.subtotal, 0);
+  };
+
+  const handleSelectCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setShowCustomerModal(false);
+    setCustomerSearchTerm("");
+  };
+
+  const handleSelectTable = (table: PhysicalTable) => {
+    setSelectedTable(table);
+    setShowTableModal(false);
+    setTableSearchTerm("");
   };
 
   const createOrder = async () => {
     if (cart.length === 0) {
       toast({
-        title: "Carrito vacío",
-        description: "Agrega productos al carrito antes de crear el pedido",
+        title: "Error",
+        description: "El carrito está vacío",
         variant: "destructive",
       });
       return;
     }
 
-    setIsCreatingOrder(true);
     try {
-      // Get business ID from user
-      let businessId: string | undefined;
-      if (user?.business?.[0]?.id) {
-        businessId = user.business[0].id;
-      } else if (user?.branch?.business?.id) {
-        businessId = user.branch.business.id;
-      }
+      setIsCreatingOrder(true);
 
+      const businessId = user?.business?.[0]?.id || user?.branch?.business?.id;
       if (!businessId) {
-        throw new Error("No business ID found");
+        toast({
+          title: "Error",
+          description: "No se pudo obtener el ID del negocio",
+          variant: "destructive",
+        });
+        return;
       }
 
+      // Create table order if a physical table is selected
+      let tableOrderId: string | null = null;
+      if (selectedTable) {
+        try {
+          // Check if there's already an active table order for this physical table
+          const existingTableOrder =
+            await TableOrdersService.getActiveTableOrderByPhysicalTableId(
+              selectedTable.id
+            );
+
+          if (existingTableOrder) {
+            // Use existing table order
+            tableOrderId = existingTableOrder.id;
+            console.log("Using existing table order:", existingTableOrder.id);
+          } else {
+            // Create new table order
+            const tableOrderData = {
+              physicalTableId: selectedTable.id,
+              tableNumber: selectedTable.tableNumber,
+              notes: "",
+              numberOfCustomers: 1, // Default to 1 customer
+              businessId,
+              branchId: user?.branch?.id || "",
+            };
+
+            console.log("Creating new table order with data:", tableOrderData);
+            const newTableOrder = await TableOrdersService.createTableOrder(
+              tableOrderData
+            );
+            tableOrderId = newTableOrder.id;
+            console.log("Created new table order:", newTableOrder.id);
+          }
+        } catch (error) {
+          console.error("Error creating/finding table order:", error);
+          toast({
+            title: "Error",
+            description: "Error al crear la mesa. Inténtalo de nuevo.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      // Create empty order first
       const orderData = {
         businessId,
         cashierId: user?.id || "",
         customerId: selectedCustomer?.id,
-        tableOrderId: selectedTable?.id,
-        items: cart.map((item) => ({
-          productId: item.product.id,
-          quantity: item.quantity,
-          unitPrice: item.product.price,
-          subtotal: item.subtotal,
-        })),
-        total: getTotal(),
-        totalAmount: getTotal(),
-        taxAmount: 0,
-        tipAmount: 0,
-        tipPercentage: 0,
-        finalAmount: getTotal(),
-        status: "PENDING" as const,
-        completionType: selectedTable ? "DINE_IN" : "PICKUP",
+        customerName: selectedCustomer?.name,
+        tableOrderId,
         notes: "",
       };
 
-      const newOrder = await ordersService.createOrder(orderData);
+      console.log("=== FRONTEND DEBUG ===");
+      console.log("user object:", user);
+      console.log("user.id:", user?.id);
+      console.log("user.role:", user?.role);
+      console.log("Creating order with data:", orderData);
+      console.log("=== END FRONTEND DEBUG ===");
+
+      const order = await ordersService.createOrder(orderData);
+      console.log("Order created:", order);
+      console.log("Order ID:", order.id);
+      console.log("Order structure:", JSON.stringify(order, null, 2));
+      console.log("Order type:", typeof order);
+      console.log("Order keys:", Object.keys(order));
+      console.log("Order has id property:", "id" in order);
+      console.log("Order id value:", order?.id);
+      console.log("Order id type:", typeof order?.id);
+
+      // Check if order has a valid ID
+      if (!order || !order.id) {
+        console.error("Order created but missing ID:", order);
+        toast({
+          title: "Error",
+          description:
+            "La orden se creó pero no se pudo obtener el ID. Inténtalo de nuevo.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Add all cart items to the order
+      console.log("Adding items to order:", order.id, cart);
+      for (const item of cart) {
+        try {
+          console.log("Adding item to order:", order.id, item);
+          const updatedOrder = await ordersService.addItem(order.id, {
+            productId: item.product.id,
+            quantity: item.quantity,
+          });
+          console.log("Order after adding item:", updatedOrder);
+          console.log("Items in updated order:", updatedOrder.items);
+        } catch (error) {
+          console.error("Error adding item to order:", error);
+          toast({
+            title: "Error",
+            description: `Error al agregar ${item.product.name} a la orden`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      // Get the final order with all items
+      try {
+        const finalOrder = await ordersService.getOrder(order.id);
+        console.log("Final order with all items:", finalOrder);
+        console.log("Final order items:", finalOrder.items);
+      } catch (error) {
+        console.error("Error getting final order:", error);
+      }
 
       toast({
-        title: "Pedido creado",
-        description: `Pedido #${newOrder.id} creado exitosamente`,
-        variant: "default",
+        title: "Orden creada",
+        description: `Orden #${order.id} creada exitosamente`,
       });
 
-      // Reset form
+      // Clear cart and selected items
       setCart([]);
       setSelectedCustomer(null);
       setSelectedTable(null);
@@ -234,7 +337,7 @@ export default function NewOrderPage() {
       console.error("Error creating order:", error);
       toast({
         title: "Error",
-        description: "Error al crear el pedido",
+        description: "Error al crear la orden. Inténtalo de nuevo.",
         variant: "destructive",
       });
     } finally {
@@ -299,7 +402,7 @@ export default function NewOrderPage() {
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => router.push("/dashboard/waiter/customers")}
+                  onClick={() => setShowCustomerModal(true)}
                 >
                   <User className="h-4 w-4 mr-2" />
                   Seleccionar Cliente
@@ -340,7 +443,7 @@ export default function NewOrderPage() {
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => router.push("/dashboard/waiter/tables")}
+                  onClick={() => setShowTableModal(true)}
                 >
                   <Table className="h-4 w-4 mr-2" />
                   Seleccionar Mesa
@@ -489,6 +592,25 @@ export default function NewOrderPage() {
           </div>
         )}
       </div>
+
+      <CustomerModal
+        isOpen={showCustomerModal}
+        onClose={() => setShowCustomerModal(false)}
+        onSelectCustomer={handleSelectCustomer}
+        customers={customers}
+        customerSearchTerm={customerSearchTerm}
+        setCustomerSearchTerm={setCustomerSearchTerm}
+        businessId={user?.business?.[0]?.id || user?.branch?.business?.id || ""}
+      />
+      <TableSelectionModal
+        isOpen={showTableModal}
+        onClose={() => setShowTableModal(false)}
+        onSelectTable={handleSelectTable}
+        tables={tables}
+        searchTerm={tableSearchTerm}
+        setSearchTerm={setTableSearchTerm}
+        isLoading={isLoadingTables}
+      />
     </div>
   );
 }

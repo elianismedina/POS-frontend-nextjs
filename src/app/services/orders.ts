@@ -210,7 +210,7 @@ class OrdersService {
     console.log("Order ID:", orderId);
     console.log("Data being sent:", data);
     console.log("=== END UPDATE ORDER DEBUG ===");
-    
+
     const response = await api.patch(`/orders/${orderId}`, data);
     return response.data;
   }
@@ -230,6 +230,18 @@ class OrdersService {
 
   async confirmOrder(orderId: string, notes?: string): Promise<Order> {
     const response = await api.post(`/orders/${orderId}/confirm`, { notes });
+    return response.data;
+  }
+
+  async updateOrderStatus(
+    orderId: string,
+    status: string,
+    notes?: string
+  ): Promise<Order> {
+    const response = await api.patch(`/orders/${orderId}/status`, {
+      status,
+      notes,
+    });
     return response.data;
   }
 

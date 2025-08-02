@@ -58,7 +58,9 @@ export default function WaiterLayout({
         <div className="bg-white border-b px-4 py-3 flex items-center justify-between">
           <Logo width={40} height={40} />
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600 hidden sm:inline">Mesero</span>
+            <span className="text-sm text-gray-600 hidden sm:inline">
+              Mesero
+            </span>
             {user?.name && (
               <span className="text-sm font-medium text-gray-900 hidden sm:inline">
                 {user.name}
@@ -73,6 +75,7 @@ export default function WaiterLayout({
               title="Cerrar Sesión"
             >
               <LogOut className="h-4 w-4" />
+              <span className="ml-1 text-xs">Salir</span>
             </Button>
           </div>
         </div>

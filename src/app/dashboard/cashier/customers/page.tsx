@@ -59,10 +59,25 @@ export default function CashierCustomersPage() {
       setError(null);
 
       const response = await CustomersService.getCustomers();
-      setCustomers(response);
-      setAllCustomers(response);
+
+      // Handle both paginated and non-paginated responses
+      let customersArray: Customer[] = [];
+      if (response && "data" in response && "meta" in response) {
+        // Paginated response
+        customersArray = Array.isArray(response.data) ? response.data : [];
+      } else if (response && Array.isArray(response)) {
+        // Non-paginated response (fallback)
+        customersArray = response;
+      } else {
+        // Fallback for unexpected response
+        console.warn("Unexpected customers response format:", response);
+        customersArray = [];
+      }
+
+      setCustomers(customersArray);
+      setAllCustomers(customersArray);
       setTotalPages(1);
-      setTotalCustomers(response.length);
+      setTotalCustomers(customersArray.length);
     } catch (error: any) {
       console.error("Error fetching customers:", error);
       const errorMessage =
@@ -92,9 +107,9 @@ export default function CashierCustomersPage() {
       (customer) =>
         customer.name.toLowerCase().includes(term) ||
         customer.email.toLowerCase().includes(term) ||
-        customer.phone.includes(term) ||
-        customer.documentNumber.includes(term) ||
-        customer.address.toLowerCase().includes(term)
+        (customer.phone && customer.phone.includes(term)) ||
+        (customer.documentNumber && customer.documentNumber.includes(term)) ||
+        (customer.address && customer.address.toLowerCase().includes(term))
     );
     setCustomers(filtered);
   };

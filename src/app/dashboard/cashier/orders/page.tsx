@@ -204,8 +204,17 @@ export default function CashierOrdersPage() {
           cashierId: user.id, // Filter by current cashier
         });
 
-        setOrders(response);
-        setFilteredOrders(response);
+        let ordersArray: Order[] = [];
+        if (response && "data" in response && "meta" in response) {
+          ordersArray = Array.isArray(response.data) ? response.data : [];
+        } else if (response && Array.isArray(response)) {
+          ordersArray = response;
+        } else {
+          console.warn("Unexpected orders response format:", response);
+          ordersArray = [];
+        }
+        setOrders(ordersArray);
+        setFilteredOrders(ordersArray);
         setLastRefresh(new Date());
       } catch (error) {
         console.error("Error fetching orders:", error);

@@ -250,9 +250,29 @@ export default function AdminDashboard() {
           );
           console.log("Selected period:", selectedPeriod);
 
-          const ordersData = await ordersService.getOrders({
+          const ordersResponse = await ordersService.getOrders({
             businessId: user.business[0].id,
           });
+
+          // Handle both paginated and non-paginated responses
+          let ordersData: Order[] = [];
+          if (
+            ordersResponse &&
+            "data" in ordersResponse &&
+            "meta" in ordersResponse
+          ) {
+            // Paginated response
+            ordersData = Array.isArray(ordersResponse.data)
+              ? ordersResponse.data
+              : [];
+          } else if (ordersResponse && Array.isArray(ordersResponse)) {
+            // Non-paginated response (fallback)
+            ordersData = ordersResponse;
+          } else {
+            // Fallback for unexpected response
+            console.warn("Unexpected orders response format:", ordersResponse);
+            ordersData = [];
+          }
 
           console.log("Orders data received:", ordersData);
 

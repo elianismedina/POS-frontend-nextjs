@@ -44,9 +44,7 @@ export default function TablesPage() {
 
         // Get business ID from user
         let businessId: string | undefined;
-        if (user?.business?.id) {
-          businessId = user.business.id;
-        } else if (user?.business?.[0]?.id) {
+        if (user?.business?.[0]?.id) {
           businessId = user.business[0].id;
         } else if (user?.branch?.business?.id) {
           businessId = user.branch.business.id;
@@ -114,9 +112,7 @@ export default function TablesPage() {
       setIsRefreshing(true);
 
       let businessId: string | undefined;
-      if (user?.business?.id) {
-        businessId = user.business.id;
-      } else if (user?.business?.[0]?.id) {
+      if (user?.business?.[0]?.id) {
         businessId = user.business[0].id;
       } else if (user?.branch?.business?.id) {
         businessId = user.branch.business.id;

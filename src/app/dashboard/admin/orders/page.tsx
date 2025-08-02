@@ -175,12 +175,26 @@ export default function AdminOrdersPage() {
           businessId: user.business[0].id,
           // No cashierId filter for admin - shows all orders in the business
         });
-        console.log("Orders response:", response);
-        console.log("Orders count:", response.length);
-        console.log("First order sample:", response[0]);
+        // Handle both paginated and non-paginated responses
+        let ordersArray: Order[] = [];
+        if (response && "data" in response && "meta" in response) {
+          // Paginated response
+          ordersArray = Array.isArray(response.data) ? response.data : [];
+        } else if (response && Array.isArray(response)) {
+          // Non-paginated response (fallback)
+          ordersArray = response;
+        } else {
+          // Fallback for unexpected response
+          console.warn("Unexpected orders response format:", response);
+          ordersArray = [];
+        }
 
-        setOrders(response);
-        setFilteredOrders(response);
+        console.log("Orders response:", response);
+        console.log("Orders count:", ordersArray.length);
+        console.log("First order sample:", ordersArray[0]);
+
+        setOrders(ordersArray);
+        setFilteredOrders(ordersArray);
         setLastRefresh(new Date());
       } catch (error) {
         console.error("Error fetching orders:", error);

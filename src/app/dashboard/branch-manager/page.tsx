@@ -28,8 +28,8 @@ interface BranchData {
   id: string;
   name: string;
   address: string;
-  phone: string;
-  email: string;
+  phone?: string;
+  email?: string;
   isActive: boolean;
 }
 

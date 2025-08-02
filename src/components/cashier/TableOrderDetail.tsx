@@ -59,8 +59,16 @@ export function TableOrderDetail({
         throw new Error("No business ID found");
       }
 
-      // Get all orders for this table order
-      const allOrders = await ordersService.getOrders({ businessId });
+      const allOrdersResponse = await ordersService.getOrders({ businessId });
+      let allOrders: Order[] = [];
+      if (allOrdersResponse && "data" in allOrdersResponse && "meta" in allOrdersResponse) {
+        allOrders = Array.isArray(allOrdersResponse.data) ? allOrdersResponse.data : [];
+      } else if (allOrdersResponse && Array.isArray(allOrdersResponse)) {
+        allOrders = allOrdersResponse;
+      } else {
+        console.warn("Unexpected orders response format:", allOrdersResponse);
+        allOrders = [];
+      }
 
       const tableOrders = allOrders.filter((order: any) => {
         const orderData = order._props || order;

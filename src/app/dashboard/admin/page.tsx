@@ -252,6 +252,7 @@ export default function AdminDashboard() {
 
           const ordersResponse = await ordersService.getOrders({
             businessId: user.business[0].id,
+            // Don't send page/limit to get all orders without pagination
           });
 
           // Handle both paginated and non-paginated responses

@@ -173,8 +173,7 @@ export default function AdminOrdersPage() {
         // For admins, we'll get all orders for the business (no cashier filter)
         const response = await ordersService.getOrders({
           businessId: user.business[0].id,
-          page: 1,
-          limit: 1000, // Use a high limit to get all orders
+          // Don't send page/limit to get all orders without pagination
           // No cashierId filter for admin - shows all orders in the business
         });
         // Handle both paginated and non-paginated responses

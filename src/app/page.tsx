@@ -87,24 +87,37 @@ export default function Home() {
     setIsLoading(true);
 
     try {
+      console.log("🔍 [Login] Starting login request...");
       const response = await api.post("/auth/signin", {
         email: email.trim(),
         password,
       });
 
+      console.log("🔍 [Login] Signin response received:", {
+        hasAccessToken: !!response.data.accessToken,
+        hasRefreshToken: !!response.data.refreshToken,
+        role: response.data.role
+      });
+
       // Only call login if the API call was successful
+      console.log("🔍 [Login] Calling AuthContext login...");
       await login(response.data.accessToken, response.data.refreshToken);
+      console.log("✅ [Login] AuthContext login completed");
 
       setIsSuccess(true);
 
       // Add a small delay before redirect to show success message
       setTimeout(() => {
+        console.log("🔍 [Login] Starting redirect...");
         setLoginAttemptInProgress(false);
         if (response.data.role === "admin") {
+          console.log("🔍 [Login] Redirecting to admin dashboard");
           router.replace("/dashboard/admin");
         } else if (response.data.role === "cashier") {
+          console.log("🔍 [Login] Redirecting to cashier dashboard");
           router.replace("/dashboard/cashier");
         } else if (response.data.role === "waiter") {
+          console.log("🔍 [Login] Redirecting to waiter dashboard");
           router.replace("/dashboard/waiter");
         }
       }, 1500);

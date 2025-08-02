@@ -128,6 +128,27 @@ export interface GetOrdersRequest {
   businessId: string;
   cashierId?: string;
   status?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface PaginatedOrdersResponse {
+  data: Order[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface OrderStatusCounts {
+  total: number;
+  pending: number;
+  confirmed: number;
+  preparing: number;
+  ready: number;
+  completed: number;
 }
 
 class OrdersService {
@@ -148,7 +169,9 @@ class OrdersService {
     return response.data;
   }
 
-  async getOrders(params: GetOrdersRequest): Promise<Order[]> {
+  async getOrders(
+    params: GetOrdersRequest
+  ): Promise<Order[] | PaginatedOrdersResponse> {
     const queryParams = new URLSearchParams();
     queryParams.append("businessId", params.businessId);
     if (params.cashierId) {
@@ -156,6 +179,12 @@ class OrdersService {
     }
     if (params.status) {
       queryParams.append("status", params.status);
+    }
+    if (params.page) {
+      queryParams.append("page", params.page.toString());
+    }
+    if (params.limit) {
+      queryParams.append("limit", params.limit.toString());
     }
 
     const response = await api.get(`/orders?${queryParams.toString()}`);
@@ -292,6 +321,22 @@ class OrdersService {
       console.error("Payment processing failed:", error);
       throw error;
     }
+  }
+
+  async getOrderStatusCounts(params: {
+    businessId: string;
+    cashierId?: string;
+  }): Promise<OrderStatusCounts> {
+    const queryParams = new URLSearchParams();
+    queryParams.append("businessId", params.businessId);
+    if (params.cashierId) {
+      queryParams.append("cashierId", params.cashierId);
+    }
+
+    const response = await api.get(
+      `/orders/status-counts?${queryParams.toString()}`
+    );
+    return response.data;
   }
 }
 

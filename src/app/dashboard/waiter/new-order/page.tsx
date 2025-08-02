@@ -269,23 +269,19 @@ export default function NewOrderPage() {
 
       if (selectedTable) {
         try {
-          // Get branch ID from user object
+          // Get branch ID from user object - use the same approach as cashiers
           let branchId = "";
           console.log("DEBUG: user object:", user);
           console.log("DEBUG: user.branch:", user?.branch);
           console.log("DEBUG: user.business:", user?.business);
           console.log("DEBUG: user.role:", user?.role);
 
-          if (user?.business && user.business.length > 0) {
-            branchId = user?.branch?.id || "";
-            console.log("DEBUG: Using user.branch.id:", branchId);
-          } else if (user?.branch?.business?.id) {
+          // For waiters, we need to get the branch ID from the user's branch
+          if (user?.branch?.id) {
             branchId = user.branch.id;
-            console.log("DEBUG: Using user.branch.id (branch case):", branchId);
-          }
-
-          // If no branch ID found, try to get it from user branches API
-          if (!branchId) {
+            console.log("DEBUG: Using user.branch.id:", branchId);
+          } else {
+            // Try to get it from user branches API as fallback
             console.log(
               "DEBUG: No branch ID found in user object, trying userBranchesService..."
             );
@@ -314,7 +310,7 @@ export default function NewOrderPage() {
             return;
           }
 
-          // Always create a new table order for waiters when a physical table is selected
+          // Create a new table order for waiters when a physical table is selected
           const tableOrderData = {
             physicalTableId: selectedTable.id,
             tableNumber: selectedTable.tableNumber,
@@ -387,11 +383,27 @@ export default function NewOrderPage() {
         cashierId: user?.id || "",
         customerId: selectedCustomer?.id,
         customerName: selectedCustomer?.name,
-        tableOrderId,
+        tableOrderId: tableOrderId || undefined, // Convert null to undefined if needed
         notes: orderNotes.trim() || "", // Include the order notes
       };
 
+      console.log("DEBUG: Order data being sent to backend:", orderData);
+      console.log("DEBUG: orderData.tableOrderId:", orderData.tableOrderId);
+      console.log(
+        "DEBUG: orderData.tableOrderId type:",
+        typeof orderData.tableOrderId
+      );
+      console.log("DEBUG: tableOrderId before orderData:", tableOrderId);
+      console.log(
+        "DEBUG: tableOrderId type before orderData:",
+        typeof tableOrderId
+      );
+
       const order = await ordersService.createOrder(orderData);
+
+      console.log("DEBUG: Order created successfully:", order);
+      console.log("DEBUG: Order tableOrderId:", order.tableOrderId);
+      console.log("DEBUG: Order tableOrderId type:", typeof order.tableOrderId);
 
       // Check if order has a valid ID
       if (!order || !order.id) {

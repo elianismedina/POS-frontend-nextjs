@@ -19,8 +19,14 @@ import {
   X,
   FileText,
 } from "lucide-react";
-import { ordersService, Order } from "@/app/services/orders";
+import {
+  ordersService,
+  Order,
+  PaginatedOrdersResponse,
+  OrderStatusCounts,
+} from "@/app/services/orders";
 import { useToast } from "@/components/ui/use-toast";
+import { Pagination } from "@/components/ui/pagination";
 
 export default function OrdersPage() {
   const { user } = useAuth();
@@ -31,6 +37,18 @@ export default function OrdersPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [paginationMeta, setPaginationMeta] = useState<{
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  } | null>(null);
+  const [statusCounts, setStatusCounts] = useState<OrderStatusCounts | null>(
+    null
+  );
 
   const getBusinessId = () => {
     if (user?.business && user.business.length > 0) {
@@ -53,24 +71,86 @@ export default function OrdersPage() {
           return;
         }
 
-        const orders = await ordersService.getOrders({
-          businessId,
-          cashierId: user?.id,
-        });
+        // Fetch orders and status counts in parallel
+        const [ordersResponse, statusCountsResponse] = await Promise.all([
+          ordersService.getOrders({
+            businessId,
+            cashierId: user?.id,
+            page: currentPage,
+            limit: 10, // Show 10 orders per page
+          }),
+          ordersService.getOrderStatusCounts({
+            businessId,
+            cashierId: user?.id,
+          }),
+        ]);
+
+        // Handle both paginated and non-paginated responses
+        if (
+          ordersResponse &&
+          "data" in ordersResponse &&
+          "meta" in ordersResponse
+        ) {
+          // Paginated response
+          const paginatedResponse = ordersResponse as PaginatedOrdersResponse;
+          setOrders(
+            Array.isArray(paginatedResponse.data) ? paginatedResponse.data : []
+          );
+          setPaginationMeta(paginatedResponse.meta);
+          setTotalPages(paginatedResponse.meta.totalPages);
+          setTotalOrders(paginatedResponse.meta.total);
+        } else if (ordersResponse && Array.isArray(ordersResponse)) {
+          // Non-paginated response (fallback)
+          const ordersArray = ordersResponse as Order[];
+          setOrders(ordersArray);
+          setPaginationMeta(null);
+          setTotalPages(1);
+          setTotalOrders(ordersArray.length);
+        } else {
+          // Fallback for unexpected response
+          console.warn("Unexpected orders response format:", ordersResponse);
+          setOrders([]);
+          setPaginationMeta(null);
+          setTotalPages(1);
+          setTotalOrders(0);
+        }
+
+        // Set status counts
+        setStatusCounts(statusCountsResponse);
 
         console.log("=== ORDERS DEBUG ===");
-        console.log("Total orders fetched:", orders.length);
+        console.log(
+          "Response type:",
+          ordersResponse && "data" in ordersResponse ? "paginated" : "array"
+        );
+        console.log("Full response:", ordersResponse);
+
+        // Safely get orders array for logging
+        const ordersToLog =
+          ordersResponse && "data" in ordersResponse
+            ? Array.isArray(ordersResponse.data)
+              ? ordersResponse.data
+              : []
+            : Array.isArray(ordersResponse)
+            ? ordersResponse
+            : [];
+
+        console.log("Total orders fetched:", ordersToLog.length);
         console.log(
           "Orders with tableOrderId:",
-          orders.filter((o) => o.tableOrderId).length
+          ordersToLog.filter((o: Order) => o.tableOrderId).length
         );
         console.log(
           "Orders with tableOrder object:",
-          orders.filter((o) => o.tableOrder).length
+          ordersToLog.filter((o: Order) => o.tableOrder).length
         );
+        if (ordersResponse && "meta" in ordersResponse) {
+          console.log("Pagination meta:", ordersResponse.meta);
+          console.log("Total pages:", ordersResponse.meta.totalPages);
+        }
 
         // Log first few orders to see their structure
-        orders.slice(0, 3).forEach((order, index) => {
+        ordersToLog.slice(0, 3).forEach((order: Order, index: number) => {
           console.log(`Order ${index + 1}:`, {
             id: order.id,
             tableOrderId: order.tableOrderId,
@@ -81,8 +161,6 @@ export default function OrdersPage() {
               : null,
           });
         });
-
-        setOrders(orders);
       } catch (error: any) {
         console.error("Error fetching orders:", error);
 
@@ -127,7 +205,16 @@ export default function OrdersPage() {
     if (user) {
       fetchOrders();
     }
-  }, [user, toast]);
+  }, [user, toast, currentPage]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleStatusFilterChange = (status: string) => {
+    setSelectedStatus(status);
+    setCurrentPage(1); // Reset to first page when filter changes
+  };
 
   const filteredOrders = orders.filter((order) => {
     if (selectedStatus === "all") return true;
@@ -154,11 +241,52 @@ export default function OrdersPage() {
       }
 
       if (businessId) {
-        const updatedOrders = await ordersService.getOrders({
-          businessId,
-          cashierId: user?.id, // Filter orders created by the current waiter
-        });
-        setOrders(updatedOrders);
+        // Refresh both orders and status counts
+        const [ordersResponse, statusCountsResponse] = await Promise.all([
+          ordersService.getOrders({
+            businessId,
+            cashierId: user?.id, // Filter orders created by the current waiter
+            page: currentPage,
+            limit: 10,
+          }),
+          ordersService.getOrderStatusCounts({
+            businessId,
+            cashierId: user?.id,
+          }),
+        ]);
+
+        // Handle both paginated and non-paginated responses
+        if (
+          ordersResponse &&
+          "data" in ordersResponse &&
+          "meta" in ordersResponse
+        ) {
+          // Paginated response
+          const paginatedResponse = ordersResponse as PaginatedOrdersResponse;
+          setOrders(
+            Array.isArray(paginatedResponse.data) ? paginatedResponse.data : []
+          );
+          setPaginationMeta(paginatedResponse.meta);
+          setTotalPages(paginatedResponse.meta.totalPages);
+          setTotalOrders(paginatedResponse.meta.total);
+        } else if (ordersResponse && Array.isArray(ordersResponse)) {
+          // Non-paginated response (fallback)
+          const ordersArray = ordersResponse as Order[];
+          setOrders(ordersArray);
+          setPaginationMeta(null);
+          setTotalPages(1);
+          setTotalOrders(ordersArray.length);
+        } else {
+          // Fallback for unexpected response
+          console.warn("Unexpected orders response format:", ordersResponse);
+          setOrders([]);
+          setPaginationMeta(null);
+          setTotalPages(1);
+          setTotalOrders(0);
+        }
+
+        // Update status counts
+        setStatusCounts(statusCountsResponse);
       }
     } catch (error: any) {
       console.error("Error confirming order:", error);
@@ -254,33 +382,51 @@ export default function OrdersPage() {
   };
 
   const filterOptions = [
-    { value: "all", label: "Todos", count: orders.length },
+    {
+      value: "all",
+      label: "Todos",
+      count: statusCounts?.total || paginationMeta?.total || orders.length,
+    },
     {
       value: "PENDING",
       label: "Pendientes",
-      count: orders.filter((o) => o.status === "PENDING").length,
+      count:
+        statusCounts?.pending ||
+        orders.filter((o) => o.status === "PENDING").length,
     },
     {
       value: "CONFIRMED",
       label: "Confirmados",
-      count: orders.filter((o) => o.status === "CONFIRMED").length,
+      count:
+        statusCounts?.confirmed ||
+        orders.filter((o) => o.status === "CONFIRMED").length,
     },
     {
       value: "PREPARING",
       label: "Preparando",
-      count: orders.filter((o) => o.status === "PREPARING").length,
+      count:
+        statusCounts?.preparing ||
+        orders.filter((o) => o.status === "PREPARING").length,
     },
     {
       value: "READY",
       label: "Listos",
-      count: orders.filter((o) => o.status === "READY").length,
+      count:
+        statusCounts?.ready ||
+        orders.filter((o) => o.status === "READY").length,
     },
     {
       value: "COMPLETED",
       label: "Completados",
-      count: orders.filter((o) => o.status === "COMPLETED").length,
+      count:
+        statusCounts?.completed ||
+        orders.filter((o) => o.status === "COMPLETED").length,
     },
   ];
+
+  // Only show approximate note if we don't have status counts from backend
+  const showApproximateNote =
+    !statusCounts && paginationMeta && paginationMeta.totalPages > 1;
 
   if (isLoading) {
     return (
@@ -304,7 +450,8 @@ export default function OrdersPage() {
           <div className="flex-1">
             <h1 className="text-lg font-semibold">Mis Pedidos</h1>
             <p className="text-sm text-gray-600">
-              {filteredOrders.length} pedidos creados por mí
+              {paginationMeta ? paginationMeta.total : filteredOrders.length}{" "}
+              pedidos creados por mí
             </p>
           </div>
           {/* Mobile Filter Toggle */}
@@ -339,6 +486,12 @@ export default function OrdersPage() {
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
+                {showApproximateNote && (
+                  <div className="text-xs text-gray-500">
+                    * Los conteos por estado son aproximados (solo de la página
+                    actual)
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-2">
                   {filterOptions.map((option) => (
                     <Button
@@ -348,7 +501,7 @@ export default function OrdersPage() {
                       }
                       size="sm"
                       onClick={() => {
-                        setSelectedStatus(option.value);
+                        handleStatusFilterChange(option.value);
                         setShowFilters(false);
                       }}
                       className="h-12 text-sm justify-between"
@@ -368,6 +521,12 @@ export default function OrdersPage() {
         {/* Desktop Filter Bar */}
         <Card className="hidden md:block">
           <CardContent className="p-4">
+            {showApproximateNote && (
+              <div className="text-xs text-gray-500 mb-3">
+                * Los conteos por estado son aproximados (solo de la página
+                actual)
+              </div>
+            )}
             <div className="flex gap-2 overflow-x-auto pb-2">
               {filterOptions.map((option) => (
                 <Button
@@ -376,7 +535,7 @@ export default function OrdersPage() {
                     selectedStatus === option.value ? "default" : "outline"
                   }
                   size="sm"
-                  onClick={() => setSelectedStatus(option.value)}
+                  onClick={() => handleStatusFilterChange(option.value)}
                   className="flex items-center gap-2 whitespace-nowrap min-w-fit"
                 >
                   <span>{option.label}</span>
@@ -401,7 +560,7 @@ export default function OrdersPage() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setSelectedStatus("all")}
+                onClick={() => handleStatusFilterChange("all")}
                 className="ml-auto text-blue-600"
               >
                 Limpiar
@@ -565,6 +724,41 @@ export default function OrdersPage() {
             ))
           )}
         </div>
+
+        {/* Pagination Debug */}
+        <div className="text-xs text-gray-500 mb-4">
+          Debug: totalPages={totalPages}, currentPage={currentPage},
+          totalOrders={totalOrders}
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+            <div className="text-sm text-gray-600 text-center sm:text-left">
+              {paginationMeta ? (
+                <>
+                  Mostrando{" "}
+                  {paginationMeta.page * paginationMeta.limit -
+                    paginationMeta.limit +
+                    1}{" "}
+                  a{" "}
+                  {Math.min(
+                    paginationMeta.page * paginationMeta.limit,
+                    paginationMeta.total
+                  )}{" "}
+                  de {paginationMeta.total} pedidos
+                </>
+              ) : (
+                <>Mostrando {filteredOrders.length} pedidos</>
+              )}
+            </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -83,13 +83,33 @@ export default function WaiterDashboard() {
           cashierId: user?.id,
         });
 
-        const [orders, tables] = await Promise.all([
+        const [ordersResponse, tables] = await Promise.all([
           ordersService.getOrders({
             businessId,
             cashierId: user?.id, // Filter by the current waiter's ID
           }),
           PhysicalTablesService.getAvailablePhysicalTables(),
         ]);
+
+        // Handle both paginated and non-paginated responses
+        let orders: any[] = [];
+        if (
+          ordersResponse &&
+          "data" in ordersResponse &&
+          "meta" in ordersResponse
+        ) {
+          // Paginated response
+          orders = Array.isArray(ordersResponse.data)
+            ? ordersResponse.data
+            : [];
+        } else if (ordersResponse && Array.isArray(ordersResponse)) {
+          // Non-paginated response (fallback)
+          orders = ordersResponse;
+        } else {
+          // Fallback for unexpected response
+          console.warn("Unexpected orders response format:", ordersResponse);
+          orders = [];
+        }
 
         console.log("=== ORDERS DEBUG ===");
         console.log("Total orders fetched:", orders.length);

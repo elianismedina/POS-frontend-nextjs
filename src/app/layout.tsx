@@ -1,7 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { League_Spartan } from "next/font/google";
-import { ThemeProvider } from "@/components/theme-provider";
+import { EnhancedThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/lib/auth/AuthContext";
 
@@ -9,11 +9,12 @@ const leagueSpartan = League_Spartan({
   subsets: ["latin"],
   weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
   variable: "--font-league-spartan",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
   title: "POS System",
-  description: "Point of Sale System",
+  description: "Point of Sale System with consistent theming",
 };
 
 export default function RootLayout({
@@ -23,8 +24,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning className="h-full">
-      <body className={`${leagueSpartan.className} h-full`}>
-        <ThemeProvider
+      <body
+        className={`${leagueSpartan.className} ${leagueSpartan.variable} h-full antialiased`}
+      >
+        <EnhancedThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
@@ -34,7 +37,7 @@ export default function RootLayout({
             {children}
             <Toaster />
           </AuthProvider>
-        </ThemeProvider>
+        </EnhancedThemeProvider>
       </body>
     </html>
   );

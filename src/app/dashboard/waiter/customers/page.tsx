@@ -156,11 +156,11 @@ export default function WaiterCustomersPage() {
     const term = searchTerm.toLowerCase();
     const filtered = allCustomers.filter(
       (customer) =>
-        customer.name.toLowerCase().includes(term) ||
-        customer.email.toLowerCase().includes(term) ||
-        customer.phone.includes(term) ||
-        customer.documentNumber.includes(term) ||
-        customer.address.toLowerCase().includes(term)
+        (customer.name?.toLowerCase() || "").includes(term) ||
+        (customer.email?.toLowerCase() || "").includes(term) ||
+        (customer.phone || "").includes(term) ||
+        (customer.documentNumber || "").includes(term) ||
+        (customer.address?.toLowerCase() || "").includes(term)
     );
     setCustomers(filtered);
   };
@@ -195,9 +195,7 @@ export default function WaiterCustomersPage() {
   };
 
   const getBusinessId = () => {
-    if (user?.business?.id) {
-      return user.business.id;
-    } else if (user?.business?.[0]?.id) {
+    if (user?.business?.[0]?.id) {
       return user.business[0].id;
     } else if (user?.branch?.business?.id) {
       return user.branch.business.id;
@@ -465,44 +463,47 @@ const CustomerCard = ({
     className="hover:shadow-md transition-shadow cursor-pointer"
     onClick={() => onSelect(customer)}
   >
-    <CardContent className="p-4">
-      <div className="flex justify-between items-start mb-3">
+    <CardContent className="p-3">
+      <div className="flex justify-between items-start mb-2">
         <div className="flex-1">
-          <h3 className="font-semibold text-lg text-gray-900">
+          <h3 className="font-semibold text-base text-gray-900">
             {customer.name}
           </h3>
           <div className="flex items-center space-x-2 mt-1">
-            <Badge variant={customer.isActive ? "default" : "secondary"}>
+            <Badge
+              variant={customer.isActive ? "default" : "secondary"}
+              className="text-xs"
+            >
               {customer.isActive ? "Activo" : "Inactivo"}
             </Badge>
           </div>
         </div>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" className="text-xs px-2 py-1">
           Seleccionar
         </Button>
       </div>
 
-      <div className="space-y-2">
-        <div className="flex items-center text-sm text-gray-600">
-          <Mail className="h-4 w-4 mr-2" />
+      <div className="space-y-1">
+        <div className="flex items-center text-xs text-gray-600">
+          <Mail className="h-3 w-3 mr-1.5" />
           {customer.email}
         </div>
-        <div className="flex items-center text-sm text-gray-600">
-          <Phone className="h-4 w-4 mr-2" />
+        <div className="flex items-center text-xs text-gray-600">
+          <Phone className="h-3 w-3 mr-1.5" />
           {customer.phone}
         </div>
-        <div className="flex items-center text-sm text-gray-600">
-          <FileText className="h-4 w-4 mr-2" />
+        <div className="flex items-center text-xs text-gray-600">
+          <FileText className="h-3 w-3 mr-1.5" />
           {customer.documentNumber}
         </div>
         {customer.address && (
-          <div className="flex items-start text-sm text-gray-600">
-            <MapPin className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
-            <span className="line-clamp-2">{customer.address}</span>
+          <div className="flex items-start text-xs text-gray-600">
+            <MapPin className="h-3 w-3 mr-1.5 mt-0.5 flex-shrink-0" />
+            <span className="line-clamp-1">{customer.address}</span>
           </div>
         )}
-        <div className="flex items-center text-sm text-gray-600">
-          <Calendar className="h-4 w-4 mr-2" />
+        <div className="flex items-center text-xs text-gray-600">
+          <Calendar className="h-3 w-3 mr-1.5" />
           {new Date(customer.createdAt).toLocaleDateString()}
         </div>
       </div>

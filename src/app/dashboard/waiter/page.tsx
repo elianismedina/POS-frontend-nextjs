@@ -62,11 +62,58 @@ export default function WaiterDashboard() {
           return;
         }
 
+        if (!user?.id) {
+          console.error("No user ID available");
+          setStats({
+            pendingOrders: 0,
+            confirmedOrders: 0,
+            activeTables: 0,
+            totalCustomers: 0,
+          });
+          return;
+        }
+
         // Fetch waiter's orders and table data
+        // Use the waiter's ID to fetch only their orders
+        console.log("=== WAITER DASHBOARD DEBUG ===");
+        console.log("User ID:", user?.id);
+        console.log("Business ID:", businessId);
+        console.log("Fetching orders with params:", {
+          businessId,
+          cashierId: user?.id,
+        });
+
         const [orders, tables] = await Promise.all([
-          ordersService.getOrders({ businessId }),
+          ordersService.getOrders({
+            businessId,
+            cashierId: user?.id, // Filter by the current waiter's ID
+          }),
           PhysicalTablesService.getAvailablePhysicalTables(),
         ]);
+
+        console.log("=== ORDERS DEBUG ===");
+        console.log("Total orders fetched:", orders.length);
+        console.log(
+          "All orders:",
+          orders.map((order: any) => ({
+            id: order.id,
+            status: order.status,
+            cashierId: order.cashierId,
+            businessId: order.businessId,
+            createdAt: order.createdAt,
+          }))
+        );
+
+        // Check for orders that shouldn't belong to this waiter
+        const wrongOrders = orders.filter(
+          (order: any) => order.cashierId !== user?.id
+        );
+        if (wrongOrders.length > 0) {
+          console.warn(
+            "⚠️ Found orders that don't belong to this waiter:",
+            wrongOrders
+          );
+        }
 
         const pendingOrders = orders.filter(
           (order: any) =>
@@ -77,7 +124,19 @@ export default function WaiterDashboard() {
           (order: any) => order.status === "CONFIRMED"
         ).length;
 
-        setStats({
+        console.log("=== FILTERED RESULTS ===");
+        console.log("Pending orders count:", pendingOrders);
+        console.log("Confirmed orders count:", confirmedOrders);
+        console.log("Active tables count:", tables.length);
+        console.log(
+          "Total customers count:",
+          orders.reduce(
+            (acc: number, order: any) => acc + (order.customerId ? 1 : 0),
+            0
+          )
+        );
+
+        const newStats = {
           pendingOrders,
           confirmedOrders,
           activeTables: tables.length,
@@ -85,7 +144,21 @@ export default function WaiterDashboard() {
             (acc: number, order: any) => acc + (order.customerId ? 1 : 0),
             0
           ),
-        });
+        };
+
+        console.log("=== FINAL STATS ===");
+        console.log("Stats to be set:", newStats);
+        console.log("=== END DEBUG ===");
+
+        // TEMPORARY: Force pending orders to 0 to test if display issue is resolved
+        const testStats = {
+          ...newStats,
+          pendingOrders: 0, // Force to 0 for testing
+        };
+        console.log("=== TEST STATS (forced pendingOrders to 0) ===");
+        console.log("Test stats to be set:", testStats);
+
+        setStats(testStats);
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
         // Set default stats on error
@@ -104,6 +177,12 @@ export default function WaiterDashboard() {
       fetchDashboardData();
     }
   }, [user?.id]);
+
+  // Debug: Monitor stats changes
+  useEffect(() => {
+    console.log("=== STATS CHANGED ===");
+    console.log("Current stats:", stats);
+  }, [stats]);
 
   const QuickActionCard = ({
     title,

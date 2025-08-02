@@ -14,49 +14,39 @@ import {
   CheckCircle,
   AlertCircle,
   Plus,
+  RefreshCw,
+  Eye,
+  DollarSign,
+  FileText,
 } from "lucide-react";
-import { PhysicalTablesService } from "@/services/physical-tables";
-import { ordersService } from "@/app/services/orders";
+import {
+  PhysicalTablesService,
+  PhysicalTable,
+} from "@/services/physical-tables";
+import { TableOrdersService, TableOrder } from "@/services/table-orders";
 import { useToast } from "@/components/ui/use-toast";
-
-interface TableData {
-  id: string;
-  tableNumber: string;
-  tableName?: string;
-  isOccupied: boolean;
-  currentOrder?: {
-    id: string;
-    status: string;
-    total: number;
-    customer?: {
-      name: string;
-    };
-    items: Array<{
-      product: {
-        name: string;
-      };
-      quantity: number;
-    }>;
-  };
-}
 
 export default function TablesPage() {
   const { user } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  const [tables, setTables] = useState<TableData[]>([]);
+  const [tableOrders, setTableOrders] = useState<TableOrder[]>([]);
+  const [availablePhysicalTables, setAvailablePhysicalTables] = useState<
+    PhysicalTable[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
-    const fetchTables = async () => {
+    const fetchData = async () => {
       try {
         setIsLoading(true);
-        const tablesData =
-          await PhysicalTablesService.getAvailablePhysicalTables();
 
         // Get business ID from user
         let businessId: string | undefined;
-        if (user?.business?.[0]?.id) {
+        if (user?.business?.id) {
+          businessId = user.business.id;
+        } else if (user?.business?.[0]?.id) {
           businessId = user.business[0].id;
         } else if (user?.branch?.business?.id) {
           businessId = user.branch.business.id;
@@ -64,71 +54,49 @@ export default function TablesPage() {
 
         if (!businessId) {
           console.error("No business ID found for user:", user);
-          setTables(
-            tablesData.map((table) => ({
-              ...table,
-              isOccupied: false,
-              currentOrder: undefined,
-            }))
-          );
+          toast({
+            title: "Error",
+            description: "No se encontró el ID del negocio",
+            variant: "destructive",
+          });
           return;
         }
 
-        // Fetch orders for each table to check occupancy
-        const tablesWithOrders = await Promise.all(
-          tablesData.map(async (table) => {
-            try {
-              const orders = await ordersService.getOrders({
-                businessId,
-              });
+        // Fetch active table orders and available physical tables
+        const [activeTableOrders, physicalTables] = await Promise.all([
+          TableOrdersService.getActiveTableOrders(),
+          PhysicalTablesService.getAvailablePhysicalTables(),
+        ]);
 
-              const activeOrder = orders.find(
-                (order) =>
-                  order.status === "PENDING" ||
-                  order.status === "CONFIRMED" ||
-                  order.status === "PREPARING"
-              );
+        console.log("=== WAITER TABLES DEBUG ===");
+        console.log("Active table orders:", activeTableOrders);
+        console.log("Physical tables:", physicalTables);
+        console.log("=== END WAITER TABLES DEBUG ===");
 
-              return {
-                id: table.id,
-                tableNumber: table.tableNumber,
-                tableName: table.tableName,
-                isOccupied: !!activeOrder,
-                currentOrder: activeOrder
-                  ? {
-                      id: activeOrder.id,
-                      status: activeOrder.status,
-                      total: activeOrder.total,
-                      customer: activeOrder.customer,
-                      items: activeOrder.items.map((item) => ({
-                        product: { name: item.productName },
-                        quantity: item.quantity,
-                      })),
-                    }
-                  : undefined,
-              };
-            } catch (error) {
-              console.error(
-                `Error fetching orders for table ${table.id}:`,
-                error
-              );
-              return {
-                id: table.id,
-                tableNumber: table.tableNumber,
-                tableName: table.tableName,
-                isOccupied: false,
-                currentOrder: undefined,
-              };
-            }
-          })
-        );
+        setTableOrders(activeTableOrders);
+        setAvailablePhysicalTables(physicalTables);
+      } catch (error: any) {
+        console.error("Error fetching data:", error);
 
-        setTables(tablesWithOrders);
-      } catch (error) {
-        console.error("Error fetching tables:", error);
+        let errorMessage = "Error al cargar las mesas";
+
+        if (error.response?.data?.message) {
+          switch (error.response.data.message) {
+            case "No business found for this user":
+              errorMessage = "No se encontró un negocio asociado a su cuenta.";
+              break;
+            case "Unauthorized":
+              errorMessage =
+                "No tiene permisos para acceder a esta información.";
+              break;
+            default:
+              errorMessage = error.response.data.message;
+          }
+        }
+
         toast({
-          title: "Error",
-          description: "Error al cargar las mesas",
+          title: "Error al cargar mesas",
+          description: errorMessage,
           variant: "destructive",
         });
       } finally {
@@ -137,39 +105,122 @@ export default function TablesPage() {
     };
 
     if (user) {
-      fetchTables();
+      fetchData();
     }
   }, [user, toast]);
 
-  const getTableStatusColor = (table: TableData) => {
-    if (!table.isOccupied) return "bg-green-100 text-green-800";
-    if (table.currentOrder?.status === "PENDING")
-      return "bg-yellow-100 text-yellow-800";
-    if (table.currentOrder?.status === "CONFIRMED")
-      return "bg-blue-100 text-blue-800";
-    if (table.currentOrder?.status === "PREPARING")
-      return "bg-orange-100 text-orange-800";
+  const handleRefresh = async () => {
+    try {
+      setIsRefreshing(true);
+
+      let businessId: string | undefined;
+      if (user?.business?.id) {
+        businessId = user.business.id;
+      } else if (user?.business?.[0]?.id) {
+        businessId = user.business[0].id;
+      } else if (user?.branch?.business?.id) {
+        businessId = user.branch.business.id;
+      }
+
+      const [activeTableOrders, physicalTables] = await Promise.all([
+        TableOrdersService.getActiveTableOrders(),
+        PhysicalTablesService.getAvailablePhysicalTables(),
+      ]);
+
+      setTableOrders(activeTableOrders);
+      setAvailablePhysicalTables(physicalTables);
+
+      toast({
+        title: "Mesas actualizadas",
+        description: "La información de las mesas ha sido actualizada.",
+      });
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+      toast({
+        title: "Error",
+        description: "Error al actualizar las mesas",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const getTableStatusColor = (tableOrder: TableOrder) => {
+    if (tableOrder.status === "active") return "bg-green-100 text-green-800";
+    if (tableOrder.status === "closed") return "bg-gray-100 text-gray-800";
     return "bg-red-100 text-red-800";
   };
 
-  const getTableStatusText = (table: TableData) => {
-    if (!table.isOccupied) return "Disponible";
-    if (table.currentOrder?.status === "PENDING") return "Pendiente";
-    if (table.currentOrder?.status === "CONFIRMED") return "Confirmado";
-    if (table.currentOrder?.status === "PREPARING") return "Preparando";
-    return "Ocupada";
+  const getTableStatusText = (tableOrder: TableOrder) => {
+    if (tableOrder.status === "active") return "Activa";
+    if (tableOrder.status === "closed") return "Cerrada";
+    return "Cancelada";
   };
 
-  const getTableStatusIcon = (table: TableData) => {
-    if (!table.isOccupied) return <CheckCircle className="h-4 w-4" />;
-    if (table.currentOrder?.status === "PENDING")
-      return <Clock className="h-4 w-4" />;
-    if (table.currentOrder?.status === "CONFIRMED")
+  const getTableStatusIcon = (tableOrder: TableOrder) => {
+    if (tableOrder.status === "active")
       return <CheckCircle className="h-4 w-4" />;
-    if (table.currentOrder?.status === "PREPARING")
-      return <Clock className="h-4 w-4" />;
+    if (tableOrder.status === "closed") return <Clock className="h-4 w-4" />;
     return <AlertCircle className="h-4 w-4" />;
   };
+
+  const getOrderStatusColor = (status: string) => {
+    switch (status) {
+      case "PENDING":
+        return "bg-yellow-100 text-yellow-800";
+      case "CONFIRMED":
+        return "bg-blue-100 text-blue-800";
+      case "PREPARING":
+        return "bg-orange-100 text-orange-800";
+      case "READY":
+        return "bg-green-100 text-green-800";
+      case "COMPLETED":
+        return "bg-gray-100 text-gray-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getOrderStatusText = (status: string) => {
+    switch (status) {
+      case "PENDING":
+        return "Pendiente";
+      case "CONFIRMED":
+        return "Confirmado";
+      case "PREPARING":
+        return "Preparando";
+      case "READY":
+        return "Listo";
+      case "COMPLETED":
+        return "Completado";
+      default:
+        return status;
+    }
+  };
+
+  // Calculate summary data
+  const activeTables = tableOrders.filter((table) => table.status === "active");
+  const totalSales = activeTables.reduce(
+    (sum, table) => sum + (table.finalAmount || 0),
+    0
+  );
+  const totalCustomers = activeTables.reduce(
+    (sum, table) => sum + table.numberOfCustomers,
+    0
+  );
+  const totalOrders = activeTables.reduce(
+    (sum, table) => sum + (table.orders?.length || 0),
+    0
+  );
+
+  // Get physical table IDs that have active table orders
+  const activePhysicalTableIds = new Set(
+    activeTables.map((table) => table.physicalTableId)
+  );
+  const availableTables = availablePhysicalTables.filter(
+    (table) => !activePhysicalTableIds.has(table.id)
+  );
 
   if (isLoading) {
     return (
@@ -193,30 +244,43 @@ export default function TablesPage() {
           <div className="flex-1">
             <h1 className="text-lg font-semibold">Gestión de Mesas</h1>
             <p className="text-sm text-gray-600">
-              {tables.filter((t) => !t.isOccupied).length} mesas disponibles
+              Administra las mesas y órdenes de mesa
             </p>
           </div>
-          <Button
-            size="sm"
-            onClick={() => router.push("/dashboard/waiter/new-order")}
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Nuevo Pedido
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+            >
+              <RefreshCw
+                className={`h-4 w-4 mr-1 ${isRefreshing ? "animate-spin" : ""}`}
+              />
+              Actualizar
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => router.push("/dashboard/waiter/new-order")}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Nuevo Pedido
+            </Button>
+          </div>
         </div>
       </div>
 
       <div className="p-4 space-y-4">
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-gray-600 mb-1">Total Mesas</p>
-                  <p className="text-2xl font-bold">{tables.length}</p>
+                  <p className="text-xs text-gray-600 mb-1">Mesas Activas</p>
+                  <p className="text-2xl font-bold">{activeTables.length}</p>
                 </div>
-                <div className="p-2 rounded-lg bg-blue-100 text-blue-600">
+                <div className="p-2 rounded-lg bg-green-100 text-green-600">
                   <Table className="h-4 w-4" />
                 </div>
               </div>
@@ -228,51 +292,220 @@ export default function TablesPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-gray-600 mb-1">Disponibles</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {availableTables.length}
+                  </p>
+                </div>
+                <div className="p-2 rounded-lg bg-blue-100 text-blue-600">
+                  <CheckCircle className="h-4 w-4" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-600 mb-1">Total Ventas</p>
                   <p className="text-2xl font-bold text-green-600">
-                    {tables.filter((t) => !t.isOccupied).length}
+                    ${totalSales.toLocaleString()}
                   </p>
                 </div>
                 <div className="p-2 rounded-lg bg-green-100 text-green-600">
-                  <CheckCircle className="h-4 w-4" />
+                  <DollarSign className="h-4 w-4" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-600 mb-1">Clientes</p>
+                  <p className="text-2xl font-bold">{totalCustomers}</p>
+                </div>
+                <div className="p-2 rounded-lg bg-purple-100 text-purple-600">
+                  <Users className="h-4 w-4" />
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Tables Grid */}
+        {/* Active Table Orders */}
         <div>
-          <h2 className="text-lg font-semibold mb-3">Estado de Mesas</h2>
-          <div className="grid grid-cols-2 gap-3">
-            {tables.map((table) => (
-              <Card
-                key={table.id}
-                className={`cursor-pointer hover:shadow-md transition-shadow ${
-                  table.isOccupied ? "border-orange-200" : "border-green-200"
-                }`}
-                onClick={() => {
-                  if (table.isOccupied && table.currentOrder) {
-                    router.push(
-                      `/dashboard/waiter/orders/${table.currentOrder.id}`
-                    );
-                  } else {
-                    router.push("/dashboard/waiter/new-order");
-                  }
-                }}
-              >
-                <CardContent className="p-4">
-                  <div className="space-y-3">
-                    {/* Table Header */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Badge className={getTableStatusColor(table)}>
+          <h2 className="text-lg font-semibold mb-3">Mesas Activas</h2>
+          {activeTables.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No hay mesas activas
+                </h3>
+                <p className="text-gray-600">
+                  No hay mesas con órdenes activas en este momento.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {activeTables.map((tableOrder) => (
+                <Card
+                  key={tableOrder.id}
+                  className="hover:shadow-md transition-shadow"
+                >
+                  <CardContent className="p-4">
+                    <div className="space-y-3">
+                      {/* Table Header */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge className={getTableStatusColor(tableOrder)}>
+                            <div className="flex items-center gap-1">
+                              {getTableStatusIcon(tableOrder)}
+                              {getTableStatusText(tableOrder)}
+                            </div>
+                          </Badge>
+                          <span className="text-sm text-gray-500">
+                            #{tableOrder.id?.slice(-8) || "N/A"}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-lg font-bold">
+                            Mesa {tableOrder.tableNumber}
+                          </p>
+                          {tableOrder.tableName && (
+                            <p className="text-xs text-gray-600">
+                              {tableOrder.tableName}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Table Info */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm">
+                        <div className="flex items-center gap-1">
+                          <Users className="h-4 w-4 text-gray-500" />
+                          <span>{tableOrder.numberOfCustomers} clientes</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <DollarSign className="h-4 w-4 text-gray-500" />
+                          <span>
+                            ${(tableOrder.finalAmount || 0).toLocaleString()}
+                          </span>
+                        </div>
+                        {tableOrder.notes && (
+                          <div className="flex items-start gap-1">
+                            <FileText className="h-4 w-4 text-gray-500 mt-0.5" />
+                            <span className="text-xs text-gray-600 line-clamp-1">
+                              {tableOrder.notes}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Orders List */}
+                      {tableOrder.orders && tableOrder.orders.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-gray-700">
+                            Pedidos:
+                          </p>
+                          <div className="space-y-2">
+                            {tableOrder.orders.map((order) => (
+                              <div
+                                key={order.id}
+                                className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Badge
+                                    className={getOrderStatusColor(
+                                      order.status
+                                    )}
+                                  >
+                                    {getOrderStatusText(order.status)}
+                                  </Badge>
+                                  <span className="text-sm text-gray-600">
+                                    #{order.id?.slice(-8) || "N/A"}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium">
+                                    ${(order.finalAmount || 0).toLocaleString()}
+                                  </span>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      router.push(
+                                        `/dashboard/waiter/orders/${order.id}`
+                                      )
+                                    }
+                                  >
+                                    <Eye className="h-3 w-3 mr-1" />
+                                    Ver
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Actions */}
+                      <div className="flex gap-2 pt-2 border-t">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() =>
+                            router.push("/dashboard/waiter/new-order")
+                          }
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Agregar Pedido
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="flex-1"
+                          onClick={() =>
+                            router.push(`/dashboard/waiter/orders`)
+                          }
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          Ver Todos
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Available Tables */}
+        {availableTables.length > 0 && (
+          <div>
+            <h2 className="text-lg font-semibold mb-3">Mesas Disponibles</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {availableTables.map((table) => (
+                <Card
+                  key={table.id}
+                  className="cursor-pointer hover:shadow-md transition-shadow border-green-200"
+                  onClick={() => router.push("/dashboard/waiter/new-order")}
+                >
+                  <CardContent className="p-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Badge className="bg-green-100 text-green-800">
                           <div className="flex items-center gap-1">
-                            {getTableStatusIcon(table)}
-                            {getTableStatusText(table)}
+                            <CheckCircle className="h-4 w-4" />
+                            Disponible
                           </div>
                         </Badge>
                       </div>
-                      <div className="text-right">
+                      <div className="text-center">
                         <p className="text-lg font-bold">
                           Mesa {table.tableNumber}
                         </p>
@@ -281,87 +514,28 @@ export default function TablesPage() {
                             {table.tableName}
                           </p>
                         )}
-                      </div>
-                    </div>
-
-                    {/* Order Info */}
-                    {table.isOccupied && table.currentOrder && (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Pedido:</span>
-                          <span className="font-medium">
-                            #{table.currentOrder.id.slice(-8)}
-                          </span>
-                        </div>
-
-                        {table.currentOrder.customer && (
-                          <div className="flex items-center gap-1 text-sm">
-                            <Users className="h-3 w-3 text-gray-500" />
-                            <span className="text-gray-600">
-                              {table.currentOrder.customer.name}
-                            </span>
-                          </div>
+                        {table.capacity > 0 && (
+                          <p className="text-xs text-gray-500">
+                            Capacidad: {table.capacity}
+                          </p>
                         )}
-
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Total:</span>
-                          <span className="font-bold">
-                            ${table.currentOrder.total.toLocaleString()}
-                          </span>
-                        </div>
-
-                        {/* Items Preview */}
-                        <div className="space-y-1">
-                          {table.currentOrder.items
-                            .slice(0, 2)
-                            .map((item, index) => (
-                              <div
-                                key={index}
-                                className="flex justify-between text-xs"
-                              >
-                                <span className="text-gray-600">
-                                  {item.quantity}x {item.product.name}
-                                </span>
-                              </div>
-                            ))}
-                          {table.currentOrder.items.length > 2 && (
-                            <p className="text-xs text-gray-500">
-                              +{table.currentOrder.items.length - 2} más items
-                            </p>
-                          )}
-                        </div>
                       </div>
-                    )}
-
-                    {/* Action Button */}
-                    <Button
-                      variant={table.isOccupied ? "outline" : "default"}
-                      size="sm"
-                      className="w-full"
-                    >
-                      {table.isOccupied ? "Ver Pedido" : "Nuevo Pedido"}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        onClick={() =>
+                          router.push("/dashboard/waiter/new-order")
+                        }
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Nuevo Pedido
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
-        </div>
-
-        {/* Empty State */}
-        {tables.length === 0 && (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No hay mesas configuradas
-              </h3>
-              <p className="text-gray-600">
-                Contacta al administrador para configurar las mesas del
-                establecimiento.
-              </p>
-            </CardContent>
-          </Card>
         )}
       </div>
     </div>

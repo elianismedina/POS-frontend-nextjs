@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import {
   ArrowLeft,
   Plus,
@@ -17,6 +18,7 @@ import {
   ShoppingCart,
   CheckCircle,
   X,
+  FileText,
 } from "lucide-react";
 import { productsService } from "@/app/services/products";
 import { CustomersService, Customer } from "@/app/services/customers";
@@ -66,6 +68,7 @@ export default function NewOrderPage() {
   const [showTableModal, setShowTableModal] = useState(false);
   const [tableSearchTerm, setTableSearchTerm] = useState("");
   const [isLoadingTables, setIsLoadingTables] = useState(false);
+  const [orderNotes, setOrderNotes] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -75,17 +78,17 @@ export default function NewOrderPage() {
         // Get business ID from user
         let businessId: string | undefined;
         console.log("DEBUG: user.business:", user?.business);
-        console.log("DEBUG: user.business?.id:", user?.business?.id);
+        console.log(
+          "DEBUG: user.business array length:",
+          user?.business?.length
+        );
         console.log("DEBUG: user.business?.[0]?.id:", user?.business?.[0]?.id);
         console.log(
           "DEBUG: user.branch?.business?.id:",
           user?.branch?.business?.id
         );
 
-        if (user?.business?.id) {
-          businessId = user.business.id;
-          console.log("DEBUG: Using user.business.id:", businessId);
-        } else if (user?.business?.[0]?.id) {
+        if (user?.business && user.business.length > 0) {
           businessId = user.business[0].id;
           console.log("DEBUG: Using user.business[0].id:", businessId);
         } else if (user?.branch?.business?.id) {
@@ -251,10 +254,7 @@ export default function NewOrderPage() {
     try {
       setIsCreatingOrder(true);
 
-      const businessId =
-        user?.business?.id ||
-        user?.business?.[0]?.id ||
-        user?.branch?.business?.id;
+      const businessId = user?.business?.[0]?.id || user?.branch?.business?.id;
       if (!businessId) {
         toast({
           title: "Error",
@@ -269,86 +269,69 @@ export default function NewOrderPage() {
 
       if (selectedTable) {
         try {
-          // Check if there's already an active table order for this physical table
-          const existingTableOrder =
-            await TableOrdersService.getActiveTableOrderByPhysicalTableId(
-              selectedTable.id
-            );
+          // Get branch ID from user object
+          let branchId = "";
+          console.log("DEBUG: user object:", user);
+          console.log("DEBUG: user.branch:", user?.branch);
+          console.log("DEBUG: user.business:", user?.business);
+          console.log("DEBUG: user.role:", user?.role);
 
-          if (existingTableOrder) {
-            // Use existing table order
-            tableOrderId = existingTableOrder.id;
-            console.log("Using existing table order:", existingTableOrder.id);
-          } else {
-            // Create new table order
-            // Get branch ID from user object (same approach as cashier)
-            let branchId = "";
-            console.log("DEBUG: user.branch:", user?.branch);
-            console.log("DEBUG: user.business:", user?.business);
-
-            if (user?.business?.id) {
-              branchId = user?.branch?.id || "";
-              console.log("DEBUG: Using user.branch.id:", branchId);
-            } else if (user?.business?.[0]?.id) {
-              branchId = user?.branch?.id || "";
-              console.log(
-                "DEBUG: Using user.branch.id (array case):",
-                branchId
-              );
-            } else if (user?.branch?.business?.id) {
-              branchId = user.branch.id;
-              console.log(
-                "DEBUG: Using user.branch.id (branch case):",
-                branchId
-              );
-            }
-
-            // If no branch ID found, try to get it from user branches API
-            if (!branchId) {
-              console.log(
-                "DEBUG: No branch ID found in user object, trying userBranchesService..."
-              );
-              try {
-                const userBranches = await userBranchesService.getUserBranches(
-                  user?.id || ""
-                );
-                console.log("DEBUG: User branches from API:", userBranches);
-                const activeUserBranch = userBranches.find((ub) => ub.isActive);
-                console.log("DEBUG: Active user branch:", activeUserBranch);
-                branchId = activeUserBranch?.branchId || "";
-                console.log("DEBUG: Branch ID from API:", branchId);
-              } catch (error) {
-                console.error("Error fetching user branches:", error);
-              }
-            }
-
-            // If still no branch ID found, show error
-            if (!branchId) {
-              toast({
-                title: "Error",
-                description:
-                  "No se pudo obtener el ID de la sucursal. Contacta al administrador.",
-                variant: "destructive",
-              });
-              return;
-            }
-
-            const tableOrderData = {
-              physicalTableId: selectedTable.id,
-              tableNumber: selectedTable.tableNumber,
-              notes: "",
-              numberOfCustomers: 1, // Default to 1 customer
-              businessId,
-              branchId,
-            };
-
-            const newTableOrder = await TableOrdersService.createTableOrder(
-              tableOrderData
-            );
-            tableOrderId = newTableOrder.id;
+          if (user?.business && user.business.length > 0) {
+            branchId = user?.branch?.id || "";
+            console.log("DEBUG: Using user.branch.id:", branchId);
+          } else if (user?.branch?.business?.id) {
+            branchId = user.branch.id;
+            console.log("DEBUG: Using user.branch.id (branch case):", branchId);
           }
+
+          // If no branch ID found, try to get it from user branches API
+          if (!branchId) {
+            console.log(
+              "DEBUG: No branch ID found in user object, trying userBranchesService..."
+            );
+            try {
+              const userBranches = await userBranchesService.getUserBranches(
+                user?.id || ""
+              );
+              console.log("DEBUG: User branches from API:", userBranches);
+              const activeUserBranch = userBranches.find((ub) => ub.isActive);
+              console.log("DEBUG: Active user branch:", activeUserBranch);
+              branchId = activeUserBranch?.branchId || "";
+              console.log("DEBUG: Branch ID from API:", branchId);
+            } catch (error) {
+              console.error("Error fetching user branches:", error);
+            }
+          }
+
+          // If still no branch ID found, show error
+          if (!branchId) {
+            toast({
+              title: "Error",
+              description:
+                "No se pudo obtener el ID de la sucursal. Contacta al administrador.",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          // Always create a new table order for waiters when a physical table is selected
+          const tableOrderData = {
+            physicalTableId: selectedTable.id,
+            tableNumber: selectedTable.tableNumber,
+            notes: orderNotes.trim() || "", // Include order notes in table order
+            numberOfCustomers: 1, // Default to 1 customer
+            businessId,
+            branchId,
+          };
+
+          console.log("Creating new table order with data:", tableOrderData);
+          const newTableOrder = await TableOrdersService.createTableOrder(
+            tableOrderData
+          );
+          tableOrderId = newTableOrder.id;
+          console.log("Created table order:", newTableOrder);
         } catch (error: any) {
-          console.error("Error creating/finding table order:", error);
+          console.error("Error creating table order:", error);
 
           // Extract specific error message from the response
           let errorMessage = "Error al crear la mesa. Inténtalo de nuevo.";
@@ -405,7 +388,7 @@ export default function NewOrderPage() {
         customerId: selectedCustomer?.id,
         customerName: selectedCustomer?.name,
         tableOrderId,
-        notes: "",
+        notes: orderNotes.trim() || "", // Include the order notes
       };
 
       const order = await ordersService.createOrder(orderData);
@@ -489,6 +472,7 @@ export default function NewOrderPage() {
       setCart([]);
       setSelectedCustomer(null);
       setSelectedTable(null);
+      setOrderNotes(""); // Clear the notes field
 
       // Navigate to orders page
       router.push("/dashboard/waiter/orders");
@@ -646,6 +630,34 @@ export default function NewOrderPage() {
                   Seleccionar Mesa
                 </Button>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Order Notes */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Notas del Pedido
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                placeholder="Agregar notas especiales para el pedido (opcional)..."
+                value={orderNotes}
+                onChange={(e) => setOrderNotes(e.target.value)}
+                className="min-h-[80px] resize-none"
+                maxLength={500}
+              />
+              <div className="flex justify-between items-center mt-2">
+                <p className="text-xs text-gray-500">
+                  Las notas ayudarán a la cocina a preparar el pedido
+                  correctamente
+                </p>
+                <span className="text-xs text-gray-400">
+                  {orderNotes.length}/500
+                </span>
+              </div>
             </CardContent>
           </Card>
         </div>

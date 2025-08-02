@@ -6,13 +6,15 @@ import { useEffect } from "react";
 import { WaiterSidebar } from "@/components/waiter/Sidebar";
 import { MobileBottomNav } from "@/components/waiter/MobileBottomNav";
 import { Logo } from "@/components/shared/Logo";
+import { Button } from "@/components/ui/button";
+import { LogOut } from "lucide-react";
 
 export default function WaiterLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading, user, logout } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -56,12 +58,22 @@ export default function WaiterLayout({
         <div className="bg-white border-b px-4 py-3 flex items-center justify-between">
           <Logo width={40} height={40} />
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">Mesero</span>
+            <span className="text-sm text-gray-600 hidden sm:inline">Mesero</span>
             {user?.name && (
-              <span className="text-sm font-medium text-gray-900">
+              <span className="text-sm font-medium text-gray-900 hidden sm:inline">
                 {user.name}
               </span>
             )}
+            {/* Mobile Sign Out Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="md:hidden text-red-600 hover:text-red-700 hover:bg-red-50"
+              onClick={() => logout()}
+              title="Cerrar Sesión"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
         </div>
         {/* Main Content */}

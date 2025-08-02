@@ -135,6 +135,8 @@ export default function Home() {
           "Error interno del servidor. Inténtalo de nuevo más tarde.";
       } else if (err.code === "NETWORK_ERROR" || err.code === "ERR_NETWORK") {
         errorMessage = "Error de conexión. Verifica tu conexión a internet.";
+      } else if (err.code === "ECONNABORTED" || err.message?.includes("timeout")) {
+        errorMessage = "El servidor está tardando en responder. Inténtalo de nuevo.";
       }
 
       setError(errorMessage);

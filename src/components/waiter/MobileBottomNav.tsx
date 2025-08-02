@@ -2,11 +2,13 @@
 
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Home, Plus, List, Table, User } from "lucide-react";
+import { Home, Plus, List, Table, User, LogOut } from "lucide-react";
+import { useAuth } from "@/lib/auth/AuthContext";
 
 export function MobileBottomNav() {
   const router = useRouter();
   const pathname = usePathname();
+  const { logout } = useAuth();
 
   const navItems = [
     {
@@ -60,6 +62,18 @@ export function MobileBottomNav() {
             </Button>
           );
         })}
+        
+        {/* Sign Out Button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="flex flex-col items-center gap-1 h-auto py-2 px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+          onClick={() => logout()}
+          title="Cerrar Sesión"
+        >
+          <LogOut className="h-5 w-5" />
+          <span className="text-xs font-medium">Salir</span>
+        </Button>
       </div>
     </div>
   );

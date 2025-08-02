@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Building2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { LoadingOverlay } from "@/components/ui/loading-overlay";
 
 interface Branch {
   _props: {
@@ -120,28 +121,23 @@ const BranchesPage = () => {
 
   return (
     <div className="p-4">
-      <Card>
-        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0 pb-2">
-          <div className="flex items-center gap-2">
-            <Building2 className="h-6 w-6 text-muted-foreground" />
-            <CardTitle className="text-2xl font-bold">Branches</CardTitle>
-          </div>
-          <Button
-            onClick={handleCreateBranch}
-            className="flex items-center gap-2 w-full sm:w-auto"
-          >
-            <Plus className="h-4 w-4" />
-            Create Branch
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-8 w-full" />
+      <LoadingOverlay isLoading={loading} message="Loading branches...">
+        <Card>
+          <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0 pb-2">
+            <div className="flex items-center gap-2">
+              <Building2 className="h-6 w-6 text-muted-foreground" />
+              <CardTitle className="text-2xl font-bold">Branches</CardTitle>
             </div>
-          ) : branches.length === 0 ? (
+            <Button
+              onClick={handleCreateBranch}
+              className="flex items-center gap-2 w-full sm:w-auto"
+            >
+              <Plus className="h-4 w-4" />
+              Create Branch
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {branches.length === 0 ? (
             <div className="text-center py-8">
               <div className="flex flex-col items-center gap-2">
                 <Building2 className="h-8 w-8 text-muted-foreground" />
@@ -236,7 +232,8 @@ const BranchesPage = () => {
           )}
         </CardContent>
       </Card>
-    </div>
+    </LoadingOverlay>
+  </div>
   );
 };
 

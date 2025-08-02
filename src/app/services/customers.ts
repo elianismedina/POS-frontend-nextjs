@@ -13,6 +13,21 @@ export interface Customer {
   updatedAt: string;
 }
 
+export interface PaginationParams {
+  page?: number;
+  limit?: number;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
 export interface CreateCustomerDto {
   name: string;
   email: string;
@@ -32,8 +47,14 @@ export interface UpdateCustomerDto {
 }
 
 export class CustomersService {
-  static async getCustomers(): Promise<Customer[]> {
-    const response = await api.get("/customers");
+  static async getCustomers(
+    params?: PaginationParams
+  ): Promise<PaginatedResponse<Customer>> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+
+    const response = await api.get(`/customers?${queryParams.toString()}`);
     return response.data;
   }
 

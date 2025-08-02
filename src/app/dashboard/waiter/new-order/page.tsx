@@ -29,6 +29,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { CustomerModal } from "@/components/waiter/CustomerModal";
 import { TableSelectionModal } from "@/components/waiter/TableSelectionModal";
 import { TableOrdersService } from "@/services/table-orders";
+import { userBranchesService } from "@/app/services/user-branches";
 
 interface Product {
   id: string;
@@ -73,12 +74,26 @@ export default function NewOrderPage() {
 
         // Get business ID from user
         let businessId: string | undefined;
-        if (user?.business?.[0]?.id) {
+        console.log("DEBUG: user.business:", user?.business);
+        console.log("DEBUG: user.business?.id:", user?.business?.id);
+        console.log("DEBUG: user.business?.[0]?.id:", user?.business?.[0]?.id);
+        console.log(
+          "DEBUG: user.branch?.business?.id:",
+          user?.branch?.business?.id
+        );
+
+        if (user?.business?.id) {
+          businessId = user.business.id;
+          console.log("DEBUG: Using user.business.id:", businessId);
+        } else if (user?.business?.[0]?.id) {
           businessId = user.business[0].id;
+          console.log("DEBUG: Using user.business[0].id:", businessId);
         } else if (user?.branch?.business?.id) {
           businessId = user.branch.business.id;
+          console.log("DEBUG: Using user.branch.business.id:", businessId);
         }
 
+        console.log("DEBUG: Final businessId:", businessId);
         if (!businessId) {
           console.error("No business ID found for user:", user);
           toast({
@@ -98,11 +113,49 @@ export default function NewOrderPage() {
         setProducts(productsRes.products);
         setCustomers(customersRes);
         setTables(tablesRes);
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error fetching data:", error);
+
+        // Extract specific error message from the response
+        let errorMessage = "Error al cargar los datos";
+
+        if (error.response?.data?.message) {
+          // Map specific error messages to user-friendly Spanish messages
+          switch (error.response.data.message) {
+            case "No business found for this user":
+              errorMessage =
+                "No se encontró un negocio asociado a su cuenta. Por favor, contacte al administrador.";
+              break;
+            case "Unauthorized":
+              errorMessage =
+                "No tiene permisos para acceder a esta información. Por favor, inicie sesión nuevamente.";
+              break;
+            case "Business not found":
+              errorMessage =
+                "El negocio no fue encontrado. Por favor, contacte al administrador.";
+              break;
+            case "Products not found":
+              errorMessage =
+                "No se pudieron cargar los productos. Por favor, intente nuevamente.";
+              break;
+            case "Customers not found":
+              errorMessage =
+                "No se pudieron cargar los clientes. Por favor, intente nuevamente.";
+              break;
+            case "Tables not found":
+              errorMessage =
+                "No se pudieron cargar las mesas. Por favor, intente nuevamente.";
+              break;
+            default:
+              errorMessage = error.response.data.message;
+          }
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+
         toast({
-          title: "Error",
-          description: "Error al cargar los datos",
+          title: "Error al cargar datos",
+          description: errorMessage,
           variant: "destructive",
         });
       } finally {
@@ -198,7 +251,10 @@ export default function NewOrderPage() {
     try {
       setIsCreatingOrder(true);
 
-      const businessId = user?.business?.[0]?.id || user?.branch?.business?.id;
+      const businessId =
+        user?.business?.id ||
+        user?.business?.[0]?.id ||
+        user?.branch?.business?.id;
       if (!businessId) {
         toast({
           title: "Error",
@@ -210,6 +266,7 @@ export default function NewOrderPage() {
 
       // Create table order if a physical table is selected
       let tableOrderId: string | null = null;
+
       if (selectedTable) {
         try {
           // Check if there's already an active table order for this physical table
@@ -224,32 +281,122 @@ export default function NewOrderPage() {
             console.log("Using existing table order:", existingTableOrder.id);
           } else {
             // Create new table order
+            // Get branch ID from user object (same approach as cashier)
+            let branchId = "";
+            console.log("DEBUG: user.branch:", user?.branch);
+            console.log("DEBUG: user.business:", user?.business);
+
+            if (user?.business?.id) {
+              branchId = user?.branch?.id || "";
+              console.log("DEBUG: Using user.branch.id:", branchId);
+            } else if (user?.business?.[0]?.id) {
+              branchId = user?.branch?.id || "";
+              console.log(
+                "DEBUG: Using user.branch.id (array case):",
+                branchId
+              );
+            } else if (user?.branch?.business?.id) {
+              branchId = user.branch.id;
+              console.log(
+                "DEBUG: Using user.branch.id (branch case):",
+                branchId
+              );
+            }
+
+            // If no branch ID found, try to get it from user branches API
+            if (!branchId) {
+              console.log(
+                "DEBUG: No branch ID found in user object, trying userBranchesService..."
+              );
+              try {
+                const userBranches = await userBranchesService.getUserBranches(
+                  user?.id || ""
+                );
+                console.log("DEBUG: User branches from API:", userBranches);
+                const activeUserBranch = userBranches.find((ub) => ub.isActive);
+                console.log("DEBUG: Active user branch:", activeUserBranch);
+                branchId = activeUserBranch?.branchId || "";
+                console.log("DEBUG: Branch ID from API:", branchId);
+              } catch (error) {
+                console.error("Error fetching user branches:", error);
+              }
+            }
+
+            // If still no branch ID found, show error
+            if (!branchId) {
+              toast({
+                title: "Error",
+                description:
+                  "No se pudo obtener el ID de la sucursal. Contacta al administrador.",
+                variant: "destructive",
+              });
+              return;
+            }
+
             const tableOrderData = {
               physicalTableId: selectedTable.id,
               tableNumber: selectedTable.tableNumber,
               notes: "",
               numberOfCustomers: 1, // Default to 1 customer
               businessId,
-              branchId: user?.branch?.id || "",
+              branchId,
             };
 
-            console.log("Creating new table order with data:", tableOrderData);
             const newTableOrder = await TableOrdersService.createTableOrder(
               tableOrderData
             );
             tableOrderId = newTableOrder.id;
-            console.log("Created new table order:", newTableOrder.id);
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error("Error creating/finding table order:", error);
+
+          // Extract specific error message from the response
+          let errorMessage = "Error al crear la mesa. Inténtalo de nuevo.";
+
+          if (error.response?.data?.message) {
+            // Map specific error messages to user-friendly Spanish messages
+            switch (error.response.data.message) {
+              case "Physical table not found":
+                errorMessage =
+                  "La mesa física no fue encontrada. Por favor, seleccione otra mesa.";
+                break;
+              case "Table is already occupied":
+                errorMessage =
+                  "La mesa ya está ocupada. Por favor, seleccione otra mesa.";
+                break;
+              case "Branch not found":
+                errorMessage =
+                  "La sucursal no fue encontrada. Por favor, contacte al administrador.";
+                break;
+              case "Business not found":
+                errorMessage =
+                  "El negocio no fue encontrado. Por favor, contacte al administrador.";
+                break;
+              case "Unauthorized":
+                errorMessage =
+                  "No tiene permisos para crear órdenes de mesa. Por favor, inicie sesión nuevamente.";
+                break;
+              default:
+                errorMessage = error.response.data.message;
+            }
+          } else if (error.message) {
+            errorMessage = error.message;
+          }
+
           toast({
-            title: "Error",
-            description: "Error al crear la mesa. Inténtalo de nuevo.",
+            title: "Error al crear mesa",
+            description: errorMessage,
             variant: "destructive",
           });
           return;
         }
       }
+
+      console.log(
+        "DEBUG: Final tableOrderId before creating order:",
+        tableOrderId
+      );
+      console.log("DEBUG: tableOrderId type:", typeof tableOrderId);
 
       // Create empty order first
       const orderData = {
@@ -261,22 +408,7 @@ export default function NewOrderPage() {
         notes: "",
       };
 
-      console.log("=== FRONTEND DEBUG ===");
-      console.log("user object:", user);
-      console.log("user.id:", user?.id);
-      console.log("user.role:", user?.role);
-      console.log("Creating order with data:", orderData);
-      console.log("=== END FRONTEND DEBUG ===");
-
       const order = await ordersService.createOrder(orderData);
-      console.log("Order created:", order);
-      console.log("Order ID:", order.id);
-      console.log("Order structure:", JSON.stringify(order, null, 2));
-      console.log("Order type:", typeof order);
-      console.log("Order keys:", Object.keys(order));
-      console.log("Order has id property:", "id" in order);
-      console.log("Order id value:", order?.id);
-      console.log("Order id type:", typeof order?.id);
 
       // Check if order has a valid ID
       if (!order || !order.id) {
@@ -301,11 +433,38 @@ export default function NewOrderPage() {
           });
           console.log("Order after adding item:", updatedOrder);
           console.log("Items in updated order:", updatedOrder.items);
-        } catch (error) {
+        } catch (error: any) {
           console.error("Error adding item to order:", error);
+
+          // Extract specific error message from the response
+          let errorMessage = `Error al agregar ${item.product.name} a la orden`;
+
+          if (error.response?.data?.message) {
+            // Map specific error messages to user-friendly Spanish messages
+            switch (error.response.data.message) {
+              case "Product not found":
+                errorMessage = `El producto ${item.product.name} no fue encontrado. Por favor, seleccione otro producto.`;
+                break;
+              case "Order not found":
+                errorMessage =
+                  "La orden no fue encontrada. Por favor, intente crear la orden nuevamente.";
+                break;
+              case "Invalid quantity":
+                errorMessage = `La cantidad para ${item.product.name} es inválida. Por favor, verifique la cantidad.`;
+                break;
+              case "Product is not available":
+                errorMessage = `El producto ${item.product.name} no está disponible en este momento.`;
+                break;
+              default:
+                errorMessage = error.response.data.message;
+            }
+          } else if (error.message) {
+            errorMessage = error.message;
+          }
+
           toast({
-            title: "Error",
-            description: `Error al agregar ${item.product.name} a la orden`,
+            title: "Error al agregar producto",
+            description: errorMessage,
             variant: "destructive",
           });
           return;
@@ -333,11 +492,49 @@ export default function NewOrderPage() {
 
       // Navigate to orders page
       router.push("/dashboard/waiter/orders");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating order:", error);
+
+      // Extract specific error message from the response
+      let errorMessage = "Error al crear la orden. Inténtalo de nuevo.";
+
+      if (error.response?.data?.message) {
+        // Map specific error messages to user-friendly Spanish messages
+        switch (error.response.data.message) {
+          case "Cannot create order without items":
+            errorMessage =
+              "No se puede crear una orden sin elementos. Por favor, agregue productos al carrito.";
+            break;
+          case "Business not found":
+            errorMessage =
+              "El negocio no fue encontrado. Por favor, contacte al administrador.";
+            break;
+          case "Customer not found":
+            errorMessage =
+              "El cliente seleccionado no fue encontrado. Por favor, seleccione otro cliente.";
+            break;
+          case "Table not found":
+            errorMessage =
+              "La mesa seleccionada no fue encontrada. Por favor, seleccione otra mesa.";
+            break;
+          case "Unauthorized":
+            errorMessage =
+              "No tiene permisos para crear órdenes. Por favor, inicie sesión nuevamente.";
+            break;
+          case "Invalid order data":
+            errorMessage =
+              "Los datos de la orden son inválidos. Por favor, verifique la información.";
+            break;
+          default:
+            errorMessage = error.response.data.message;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       toast({
-        title: "Error",
-        description: "Error al crear la orden. Inténtalo de nuevo.",
+        title: "Error al crear orden",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

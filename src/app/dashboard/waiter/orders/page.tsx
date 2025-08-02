@@ -34,7 +34,9 @@ export default function OrdersPage() {
 
         // Get business ID from user
         let businessId: string | undefined;
-        if (user?.business?.[0]?.id) {
+        if (user?.business?.id) {
+          businessId = user.business.id;
+        } else if (user?.business?.[0]?.id) {
           businessId = user.business[0].id;
         } else if (user?.branch?.business?.id) {
           businessId = user.branch.business.id;
@@ -66,11 +68,37 @@ export default function OrdersPage() {
           });
         });
         setOrders(ordersData);
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error fetching orders:", error);
+
+        // Extract specific error message from the response
+        let errorMessage = "Error al cargar los pedidos";
+
+        if (error.response?.data?.message) {
+          // Map specific error messages to user-friendly Spanish messages
+          switch (error.response.data.message) {
+            case "No business found for this user":
+              errorMessage =
+                "No se encontró un negocio asociado a su cuenta. Por favor, contacte al administrador.";
+              break;
+            case "Unauthorized":
+              errorMessage =
+                "No tiene permisos para acceder a esta información. Por favor, inicie sesión nuevamente.";
+              break;
+            case "Business not found":
+              errorMessage =
+                "El negocio no fue encontrado. Por favor, contacte al administrador.";
+              break;
+            default:
+              errorMessage = error.response.data.message;
+          }
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+
         toast({
-          title: "Error",
-          description: "Error al cargar los pedidos",
+          title: "Error al cargar pedidos",
+          description: errorMessage,
           variant: "destructive",
         });
       } finally {
@@ -114,11 +142,43 @@ export default function OrdersPage() {
         });
         setOrders(updatedOrders);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error confirming order:", error);
+
+      // Extract specific error message from the response
+      let errorMessage = "Error al confirmar el pedido";
+
+      if (error.response?.data?.message) {
+        // Map specific error messages to user-friendly Spanish messages
+        switch (error.response.data.message) {
+          case "Cannot confirm an order with no items":
+            errorMessage =
+              "No se puede confirmar un pedido sin elementos. Por favor, agregue productos al pedido antes de confirmarlo.";
+            break;
+          case "Order not found":
+            errorMessage =
+              "El pedido no fue encontrado. Por favor, intente nuevamente.";
+            break;
+          case "Order is already confirmed":
+            errorMessage = "El pedido ya está confirmado.";
+            break;
+          case "Order is already completed":
+            errorMessage = "El pedido ya está completado.";
+            break;
+          case "Cannot confirm a completed order":
+            errorMessage =
+              "No se puede confirmar un pedido que ya está completado.";
+            break;
+          default:
+            errorMessage = error.response.data.message;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       toast({
-        title: "Error",
-        description: "Error al confirmar el pedido",
+        title: "Error al confirmar pedido",
+        description: errorMessage,
         variant: "destructive",
       });
     }

@@ -45,7 +45,8 @@ export function Pagination({
     return rangeWithDots;
   };
 
-  if (totalPages <= 1) return null;
+  // Always show pagination if we have valid data, even for single page
+  if (totalPages <= 0) return null;
 
   return (
     <div className={`flex items-center justify-center space-x-2 ${className}`}>

@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
+import { FullScreenLoader } from "@/components/ui/full-screen-loader";
 
 interface User {
   id: string;
@@ -192,7 +193,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logout,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {isLoading && <FullScreenLoader message="Initializing..." />}
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {

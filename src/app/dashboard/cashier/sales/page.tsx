@@ -126,8 +126,8 @@ export default function SalesPage() {
           paymentMethodsRes,
           customersRes,
         ] = await Promise.all([
-          productsService.getPaginated({ businessId, page: 0, limit: 1000 }),
-          productsService.getPaginated({ businessId, page: 0, limit: 10000 }),
+          productsService.getPaginated({ businessId, page: 0, limit: 100 }),
+          productsService.getPaginated({ businessId, page: 0, limit: 100 }),
           shiftsService.getActiveShift(user.id),
           businessPaymentMethodsService.getBusinessPaymentMethods(),
           CustomersService.getCustomersByBusiness(),
@@ -184,7 +184,7 @@ export default function SalesPage() {
         const productsRes = await productsService.getPaginated({
           businessId,
           page: 0,
-          limit: 1000,
+          limit: 100,
           categoryName: state.selectedCategory || undefined,
         });
         // Optionally update allProducts if not set

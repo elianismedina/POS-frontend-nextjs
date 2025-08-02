@@ -108,7 +108,7 @@ export default function NewOrderPage() {
         }
 
         const [productsRes, customersRes, tablesRes] = await Promise.all([
-          productsService.getPaginated({ businessId, page: 0, limit: 1000 }),
+          productsService.getPaginated({ businessId, page: 0, limit: 100 }),
           CustomersService.getCustomersByBusiness(),
           PhysicalTablesService.getAvailablePhysicalTables(),
         ]);

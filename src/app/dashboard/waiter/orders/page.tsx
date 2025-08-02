@@ -78,6 +78,7 @@ export default function OrdersPage() {
             cashierId: user?.id,
             page: currentPage,
             limit: 10, // Show 10 orders per page
+            status: selectedStatus !== "all" ? selectedStatus : undefined,
           }),
           ordersService.getOrderStatusCounts({
             businessId,
@@ -205,7 +206,7 @@ export default function OrdersPage() {
     if (user) {
       fetchOrders();
     }
-  }, [user, toast, currentPage]);
+  }, [user, toast, currentPage, selectedStatus]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -216,10 +217,8 @@ export default function OrdersPage() {
     setCurrentPage(1); // Reset to first page when filter changes
   };
 
-  const filteredOrders = orders.filter((order) => {
-    if (selectedStatus === "all") return true;
-    return order.status === selectedStatus;
-  });
+  // Use orders directly since filtering is now done on the backend
+  const filteredOrders = orders;
 
   const confirmOrder = async (orderId: string) => {
     try {
@@ -248,6 +247,7 @@ export default function OrdersPage() {
             cashierId: user?.id, // Filter orders created by the current waiter
             page: currentPage,
             limit: 10,
+            status: selectedStatus !== "all" ? selectedStatus : undefined,
           }),
           ordersService.getOrderStatusCounts({
             businessId,

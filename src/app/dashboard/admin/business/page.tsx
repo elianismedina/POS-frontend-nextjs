@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Pencil } from "lucide-react";
+import { Pencil, QrCode, Copy, ExternalLink } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/components/ui/use-toast";
 import { CloudinaryUploadWidget } from "@/components/shared/CloudinaryUploadWidget";
@@ -26,6 +26,8 @@ interface LocalBusinessSettings {
   invoiceExpirationMonths?: number;
   business_id?: string;
   business_name?: string;
+  digital_menu_url?: string;
+  qr_code_data_url?: string;
 }
 
 export default function BusinessProfilePage() {
@@ -78,6 +80,8 @@ export default function BusinessProfilePage() {
         invoiceExpirationMonths: settingsData.invoice_expiration_months || 0,
         business_id: settingsData.business_id || "",
         business_name: settingsData.business_name || "",
+        digital_menu_url: settingsData.digital_menu_url || "",
+        qr_code_data_url: settingsData.qr_code_data_url || "",
       });
     } catch (error: any) {
       console.error("Error fetching business data:", error);
@@ -88,6 +92,23 @@ export default function BusinessProfilePage() {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Copied!",
+        description: "URL copied to clipboard",
+        variant: "default",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to copy to clipboard",
+        variant: "destructive",
+      });
     }
   };
 
@@ -459,6 +480,117 @@ export default function BusinessProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Digital Menu QR Code Section */}
+      {localSettings.business_id && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5" />
+              Digital Menu QR Code
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* QR Code Display */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-gray-500">
+                  Customer Menu QR Code
+                </h3>
+                {localSettings.qr_code_data_url ? (
+                  <div className="flex flex-col items-center space-y-4">
+                    <img
+                      src={localSettings.qr_code_data_url}
+                      alt="Digital Menu QR Code"
+                      className="w-48 h-48 object-contain border rounded-lg shadow-sm"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const link = document.createElement("a");
+                        link.href = localSettings.qr_code_data_url!;
+                        link.download = `qr-code-${localSettings.business_id}.png`;
+                        link.click();
+                      }}
+                    >
+                      Download QR Code
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-48 border-2 border-dashed border-gray-300 rounded-lg">
+                    <div className="text-center">
+                      <QrCode className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">
+                        QR Code will be generated once business settings are
+                        saved
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Digital Menu Information */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-gray-500">
+                  Digital Menu Information
+                </h3>
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs text-gray-500">Menu URL</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Input
+                        value={localSettings.digital_menu_url || ""}
+                        readOnly
+                        className="text-sm"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          copyToClipboard(localSettings.digital_menu_url || "")
+                        }
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      {localSettings.digital_menu_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            window.open(
+                              localSettings.digital_menu_url,
+                              "_blank"
+                            )
+                          }
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-blue-900 mb-2">
+                      How to use the QR Code
+                    </h4>
+                    <ul className="text-sm text-blue-800 space-y-1">
+                      <li>• Print the QR code and place it on tables</li>
+                      <li>• Customers can scan to access your digital menu</li>
+                      <li>
+                        • No app download required - works with any QR scanner
+                      </li>
+                      <li>
+                        • Menu updates automatically when you change products
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

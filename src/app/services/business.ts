@@ -16,6 +16,8 @@ export interface BusinessSettings {
   invoice_expiration_months: number;
   created_at: Date;
   updated_at: Date;
+  digital_menu_url?: string;
+  qr_code_data_url?: string;
 }
 
 export interface UpdateBusinessSettingsRequest {

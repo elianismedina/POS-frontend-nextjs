@@ -86,9 +86,11 @@ export default function BusinessProfilePage() {
     } catch (error: any) {
       console.error("Error fetching business data:", error);
       if (error.response?.status === 404) {
-        setError("No business associated with this user.");
+        setError("No hay un negocio asociado con este usuario.");
       } else {
-        setError("Error loading business data. Please try again.");
+        setError(
+          "Error al cargar los datos del negocio. Por favor, inténtalo de nuevo."
+        );
       }
     } finally {
       setIsLoading(false);
@@ -99,14 +101,14 @@ export default function BusinessProfilePage() {
     try {
       await navigator.clipboard.writeText(text);
       toast({
-        title: "Copied!",
-        description: "URL copied to clipboard",
+        title: "¡Copiado!",
+        description: "URL copiada al portapapeles",
         variant: "default",
       });
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to copy to clipboard",
+        description: "Error al copiar al portapapeles",
         variant: "destructive",
       });
     }
@@ -119,7 +121,7 @@ export default function BusinessProfilePage() {
 
     try {
       if (!localSettings.business_id) {
-        throw new Error("No business ID found");
+        throw new Error("No se encontró ID del negocio");
       }
 
       await businessService.updateSettings(localSettings.business_id, {
@@ -137,15 +139,15 @@ export default function BusinessProfilePage() {
 
       setIsEditing(false);
       toast({
-        title: "Success",
-        description: "Business settings updated successfully",
+        title: "Éxito",
+        description: "Configuración del negocio actualizada exitosamente",
         variant: "default",
       });
     } catch (error: any) {
       console.error("Error updating business:", error);
       setError(
         error.response?.data?.message ||
-          "Error saving business settings. Please try again."
+          "Error al guardar la configuración del negocio. Por favor, inténtalo de nuevo."
       );
     } finally {
       setIsSaving(false);
@@ -156,9 +158,9 @@ export default function BusinessProfilePage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-4">Loading...</h2>
+          <h2 className="text-2xl font-semibold mb-4">Cargando...</h2>
           <p className="text-gray-500">
-            Please wait while we load your business settings
+            Por favor espera mientras cargamos la configuración de tu negocio
           </p>
         </div>
       </div>
@@ -173,13 +175,15 @@ export default function BusinessProfilePage() {
             <div className="flex-shrink-0">
               <img
                 src={localSettings.imageUrl}
-                alt="Business Logo"
+                alt="Logo del Negocio"
                 className="w-16 h-16 object-cover rounded-lg border shadow-sm"
               />
             </div>
           )}
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold">Business Profile</h1>
+            <h1 className="text-2xl md:text-3xl font-bold">
+              Perfil del Negocio
+            </h1>
             {localSettings.business_name && (
               <p className="text-lg text-gray-600 mt-2">
                 {localSettings.business_name}
@@ -195,7 +199,7 @@ export default function BusinessProfilePage() {
         {!isEditing && !error && (
           <Button onClick={() => setIsEditing(true)}>
             <Pencil className="h-4 w-4 mr-2" />
-            Edit Settings
+            Editar Configuración
           </Button>
         )}
       </div>
@@ -209,19 +213,19 @@ export default function BusinessProfilePage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Business Information</CardTitle>
+            <CardTitle>Información del Negocio</CardTitle>
           </CardHeader>
           <CardContent>
             {isEditing ? (
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-4">
-                  <Label>Business Logo</Label>
+                  <Label>Logo del Negocio</Label>
                   <div className="flex items-center space-x-4">
                     {localSettings.imageUrl && (
                       <div className="flex-shrink-0">
                         <img
                           src={localSettings.imageUrl}
-                          alt="Business Logo"
+                          alt="Logo del Negocio"
                           className="w-20 h-20 object-cover rounded-lg border"
                         />
                       </div>
@@ -233,7 +237,7 @@ export default function BusinessProfilePage() {
                         }
                         uploadPreset="pos-upload-preset"
                         buttonText={
-                          localSettings.imageUrl ? "Change Logo" : "Upload Logo"
+                          localSettings.imageUrl ? "Cambiar Logo" : "Subir Logo"
                         }
                       />
                     </div>
@@ -241,7 +245,7 @@ export default function BusinessProfilePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="address">Address</Label>
+                  <Label htmlFor="address">Dirección</Label>
                   <Input
                     id="address"
                     value={localSettings.address || ""}
@@ -255,7 +259,7 @@ export default function BusinessProfilePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
+                  <Label htmlFor="phone">Teléfono</Label>
                   <Input
                     id="phone"
                     value={localSettings.phone || ""}
@@ -269,7 +273,7 @@ export default function BusinessProfilePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">Correo Electrónico</Label>
                   <Input
                     id="email"
                     type="email"
@@ -284,7 +288,7 @@ export default function BusinessProfilePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="taxId">Tax ID</Label>
+                  <Label htmlFor="taxId">NIT</Label>
                   <Input
                     id="taxId"
                     value={localSettings.taxId || ""}
@@ -303,7 +307,7 @@ export default function BusinessProfilePage() {
                     className="w-full md:w-auto"
                     disabled={isSaving}
                   >
-                    {isSaving ? "Saving..." : "Save Changes"}
+                    {isSaving ? "Guardando..." : "Guardar Cambios"}
                   </Button>
                   <Button
                     type="button"
@@ -312,7 +316,7 @@ export default function BusinessProfilePage() {
                     onClick={() => setIsEditing(false)}
                     disabled={isSaving}
                   >
-                    Cancel
+                    Cancelar
                   </Button>
                 </div>
               </form>
@@ -322,12 +326,12 @@ export default function BusinessProfilePage() {
                 {localSettings.imageUrl && (
                   <div>
                     <h3 className="text-sm font-medium text-gray-500 mb-2">
-                      Business Logo
+                      Logo del Negocio
                     </h3>
                     <div className="flex items-center space-x-4">
                       <img
                         src={localSettings.imageUrl}
-                        alt="Business Logo"
+                        alt="Logo del Negocio"
                         className="w-24 h-24 object-cover rounded-lg border shadow-sm"
                       />
                     </div>
@@ -335,20 +339,34 @@ export default function BusinessProfilePage() {
                 )}
 
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500">Address</h3>
-                  <p className="mt-1">{localSettings.address || "Not set"}</p>
+                  <h3 className="text-sm font-medium text-gray-500">
+                    Dirección
+                  </h3>
+                  <p className="mt-1">
+                    {localSettings.address || "No configurado"}
+                  </p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500">Phone</h3>
-                  <p className="mt-1">{localSettings.phone || "Not set"}</p>
+                  <h3 className="text-sm font-medium text-gray-500">
+                    Teléfono
+                  </h3>
+                  <p className="mt-1">
+                    {localSettings.phone || "No configurado"}
+                  </p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500">Email</h3>
-                  <p className="mt-1">{localSettings.email || "Not set"}</p>
+                  <h3 className="text-sm font-medium text-gray-500">
+                    Correo Electrónico
+                  </h3>
+                  <p className="mt-1">
+                    {localSettings.email || "No configurado"}
+                  </p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500">Tax ID</h3>
-                  <p className="mt-1">{localSettings.taxId || "Not set"}</p>
+                  <h3 className="text-sm font-medium text-gray-500">NIT</h3>
+                  <p className="mt-1">
+                    {localSettings.taxId || "No configurado"}
+                  </p>
                 </div>
               </div>
             )}
@@ -357,13 +375,15 @@ export default function BusinessProfilePage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Invoice Settings</CardTitle>
+            <CardTitle>Configuración de Facturas</CardTitle>
           </CardHeader>
           <CardContent>
             {isEditing ? (
               <div className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="invoicePrefix">Invoice Number Prefix</Label>
+                  <Label htmlFor="invoicePrefix">
+                    Prefijo de Número de Factura
+                  </Label>
                   <Input
                     id="invoicePrefix"
                     value={localSettings.invoiceNumberPrefix || ""}
@@ -378,7 +398,7 @@ export default function BusinessProfilePage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="invoiceStart">Start Number</Label>
+                    <Label htmlFor="invoiceStart">Número Inicial</Label>
                     <Input
                       id="invoiceStart"
                       type="number"
@@ -393,7 +413,7 @@ export default function BusinessProfilePage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="invoiceEnd">End Number</Label>
+                    <Label htmlFor="invoiceEnd">Número Final</Label>
                     <Input
                       id="invoiceEnd"
                       type="number"
@@ -409,7 +429,7 @@ export default function BusinessProfilePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="invoiceCurrent">Current Number</Label>
+                  <Label htmlFor="invoiceCurrent">Número Actual</Label>
                   <Input
                     id="invoiceCurrent"
                     type="number"
@@ -425,7 +445,7 @@ export default function BusinessProfilePage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="invoiceExpiration">
-                    Invoice Expiration (months)
+                    Vencimiento de Factura (meses)
                   </Label>
                   <Input
                     id="invoiceExpiration"
@@ -444,15 +464,15 @@ export default function BusinessProfilePage() {
               <div className="space-y-4">
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">
-                    Invoice Number Prefix
+                    Prefijo de Número de Factura
                   </h3>
                   <p className="mt-1">
-                    {localSettings.invoiceNumberPrefix || "Not set"}
+                    {localSettings.invoiceNumberPrefix || "No configurado"}
                   </p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">
-                    Number Range
+                    Rango de Números
                   </h3>
                   <p className="mt-1">
                     {localSettings.invoiceNumberStart || 0} -{" "}
@@ -461,7 +481,7 @@ export default function BusinessProfilePage() {
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">
-                    Current Number
+                    Número Actual
                   </h3>
                   <p className="mt-1">
                     {localSettings.invoiceNumberCurrent || 0}
@@ -469,10 +489,10 @@ export default function BusinessProfilePage() {
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">
-                    Invoice Expiration
+                    Vencimiento de Factura
                   </h3>
                   <p className="mt-1">
-                    {localSettings.invoiceExpirationMonths || 0} months
+                    {localSettings.invoiceExpirationMonths || 0} meses
                   </p>
                 </div>
               </div>
@@ -487,7 +507,7 @@ export default function BusinessProfilePage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <QrCode className="h-5 w-5" />
-              Digital Menu QR Code
+              Código QR del Menú Digital
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -495,13 +515,13 @@ export default function BusinessProfilePage() {
               {/* QR Code Display */}
               <div className="space-y-4">
                 <h3 className="text-sm font-medium text-gray-500">
-                  Customer Menu QR Code
+                  Código QR del Menú para Clientes
                 </h3>
                 {localSettings.qr_code_data_url ? (
                   <div className="flex flex-col items-center space-y-4">
                     <img
                       src={localSettings.qr_code_data_url}
-                      alt="Digital Menu QR Code"
+                      alt="Código QR del Menú Digital"
                       className="w-48 h-48 object-contain border rounded-lg shadow-sm"
                     />
                     <Button
@@ -514,7 +534,7 @@ export default function BusinessProfilePage() {
                         link.click();
                       }}
                     >
-                      Download QR Code
+                      Descargar Código QR
                     </Button>
                   </div>
                 ) : (
@@ -522,8 +542,8 @@ export default function BusinessProfilePage() {
                     <div className="text-center">
                       <QrCode className="h-12 w-12 text-gray-400 mx-auto mb-2" />
                       <p className="text-sm text-gray-500">
-                        QR Code will be generated once business settings are
-                        saved
+                        El código QR se generará una vez que se guarden la
+                        configuración del negocio
                       </p>
                     </div>
                   </div>
@@ -533,11 +553,13 @@ export default function BusinessProfilePage() {
               {/* Digital Menu Information */}
               <div className="space-y-4">
                 <h3 className="text-sm font-medium text-gray-500">
-                  Digital Menu Information
+                  Información del Menú Digital
                 </h3>
                 <div className="space-y-3">
                   <div>
-                    <Label className="text-xs text-gray-500">Menu URL</Label>
+                    <Label className="text-xs text-gray-500">
+                      URL del Menú
+                    </Label>
                     <div className="flex items-center gap-2 mt-1">
                       <Input
                         value={localSettings.digital_menu_url || ""}
@@ -572,16 +594,21 @@ export default function BusinessProfilePage() {
 
                   <div className="bg-blue-50 p-4 rounded-lg">
                     <h4 className="font-medium text-blue-900 mb-2">
-                      How to use the QR Code
+                      Cómo usar el Código QR
                     </h4>
                     <ul className="text-sm text-blue-800 space-y-1">
-                      <li>• Print the QR code and place it on tables</li>
-                      <li>• Customers can scan to access your digital menu</li>
+                      <li>• Imprime el código QR y colócalo en las mesas</li>
                       <li>
-                        • No app download required - works with any QR scanner
+                        • Los clientes pueden escanear para acceder a tu menú
+                        digital
                       </li>
                       <li>
-                        • Menu updates automatically when you change products
+                        • No se requiere descargar una aplicación - funciona con
+                        cualquier escáner QR
+                      </li>
+                      <li>
+                        • El menú se actualiza automáticamente cuando cambias
+                        los productos
                       </li>
                     </ul>
                   </div>

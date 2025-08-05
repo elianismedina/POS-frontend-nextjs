@@ -60,13 +60,33 @@ export default function TablesPage() {
       <div className="container mx-auto p-6">
         <Card>
           <CardContent className="pt-6">
-            <p className="text-center text-gray-500">
-              No se pudo cargar la información del negocio.
-            </p>
-            <p className="text-center text-sm text-gray-400 mt-2">
-              Business ID: {businessId || "No disponible"} | Branch ID:{" "}
-              {branchId || "No disponible"}
-            </p>
+            <div className="text-center">
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                Configuración Pendiente
+              </h2>
+              <p className="text-gray-500 mb-4">
+                No se pudo cargar la información del negocio. Esto puede deberse
+                a:
+              </p>
+              <ul className="text-sm text-gray-600 text-left max-w-md mx-auto space-y-1">
+                <li>• El usuario no tiene asignaciones de sucursal</li>
+                <li>• La configuración del negocio no está completa</li>
+                <li>• Problemas de conectividad con el servidor</li>
+              </ul>
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                <p className="text-xs text-gray-500">
+                  <strong>Debug Info:</strong>
+                  <br />
+                  Business ID: {businessId || "No disponible"}
+                  <br />
+                  Branch ID: {branchId || "No disponible"}
+                  <br />
+                  User Role: {user?.role?.name || "No disponible"}
+                  <br />
+                  User ID: {user?.id || "No disponible"}
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

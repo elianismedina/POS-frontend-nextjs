@@ -24,6 +24,8 @@ import {
   Users,
   Clock,
   DollarSign,
+  CheckCircle,
+  AlertCircle,
 } from "lucide-react";
 
 export default function TablesPage() {

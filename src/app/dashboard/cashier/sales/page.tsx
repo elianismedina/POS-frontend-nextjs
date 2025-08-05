@@ -35,11 +35,15 @@ import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { useTableManagementService } from "./services/tableManagementService";
 import { TableOrdersService } from "@/services/table-orders";
+import { extractBusinessAndBranchIds } from "@/lib/utils";
 
 export default function SalesPage() {
-  const { isAuthenticated, user, isLoading: authLoading } = useAuth();
-  const router = useRouter();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
+
+  // Get business ID and branch ID using the utility function
+  const { businessId, branchId } = extractBusinessAndBranchIds(user);
   const { sale, setSale, updateSale, state, setState, updateState } =
     useSalesState();
   const actions = useSalesActions(sale, setSale, state, updateState, user);
@@ -110,12 +114,6 @@ export default function SalesPage() {
       try {
         updateState({ isLoading: true });
         if (!user) throw new Error("No user");
-        let businessId: string | undefined;
-        if (user?.business?.[0]?.id) {
-          businessId = user.business[0].id;
-        } else if (user?.branch?.business?.id) {
-          businessId = user.branch.business.id;
-        }
         if (!businessId) throw new Error("No business ID found");
 
         // Fetch all products, active shift, payment methods, and customers
@@ -174,12 +172,6 @@ export default function SalesPage() {
       try {
         updateState({ isLoading: true });
         if (!user) throw new Error("No user");
-        let businessId: string | undefined;
-        if (user?.business?.[0]?.id) {
-          businessId = user.business[0].id;
-        } else if (user?.branch?.business?.id) {
-          businessId = user.branch.business.id;
-        }
         if (!businessId) throw new Error("No business ID found");
         const productsRes = await productsService.getPaginated({
           businessId,
@@ -550,12 +542,6 @@ export default function SalesPage() {
   useEffect(() => {
     const fetchTables = async () => {
       try {
-        let businessId: string | undefined;
-        if (user?.business?.[0]?.id) {
-          businessId = user.business[0].id;
-        } else if (user?.branch?.business?.id) {
-          businessId = user.branch.business.id;
-        }
         if (!businessId) return;
         const tables = await PhysicalTablesService.getAvailablePhysicalTables();
         updateState({ availablePhysicalTables: tables });
@@ -2106,7 +2092,7 @@ export default function SalesPage() {
         setCustomerSearchTerm={(term) =>
           updateState({ customerSearchTerm: term })
         }
-        businessId={user?.business?.[0]?.id || user?.branch?.business?.id || ""}
+        businessId={businessId || ""}
       />
       {showSuccessScreen && completedOrder && (
         <OrderSuccessScreen

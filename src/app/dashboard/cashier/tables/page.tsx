@@ -15,6 +15,7 @@ import {
   PhysicalTable,
 } from "@/services/physical-tables";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { extractBusinessAndBranchIds } from "@/lib/utils";
 import {
   RefreshCw,
   Loader2,
@@ -43,18 +44,33 @@ export default function TablesPage() {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Get business ID based on user type (admin vs cashier)
-  let businessId = "";
-  let branchId = "";
+  // Get business ID and branch ID using the utility function
+  const { businessId, branchId } = extractBusinessAndBranchIds(user);
 
-  if (user?.business?.[0]?.id) {
-    // Admin user
-    businessId = user.business[0].id;
-    branchId = user?.branch?.id || "";
-  } else if (user?.branch?.business?.id) {
-    // Cashier user
-    businessId = user.branch.business.id;
-    branchId = user.branch.id;
+  // Debug user structure
+  console.log("🔍 [TablesPage] User structure:", {
+    user: user,
+    business: user?.business,
+    branch: user?.branch,
+    userBranches: user?.userBranches,
+  });
+
+  if (!businessId || !branchId) {
+    return (
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-gray-500">
+              No se pudo cargar la información del negocio.
+            </p>
+            <p className="text-center text-sm text-gray-400 mt-2">
+              Business ID: {businessId || "No disponible"} | Branch ID:{" "}
+              {branchId || "No disponible"}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   // Load table orders
@@ -222,24 +238,6 @@ export default function TablesPage() {
   const handleTableSelect = (tableOrder: TableOrder) => {
     setSelectedTable(tableOrder);
   };
-
-  if (!businessId || !branchId) {
-    return (
-      <div className="container mx-auto p-6">
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-center text-gray-500">
-              No se pudo cargar la información del negocio.
-            </p>
-            <p className="text-center text-sm text-gray-400 mt-2">
-              Business ID: {businessId || "No disponible"} | Branch ID:{" "}
-              {branchId || "No disponible"}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="container mx-auto p-6">

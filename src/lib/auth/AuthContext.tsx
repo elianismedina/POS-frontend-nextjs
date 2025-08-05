@@ -32,6 +32,20 @@ interface User {
       updatedAt: string;
     };
   };
+  userBranches?: Array<{
+    branch: {
+      id: string;
+      name: string;
+      business: {
+        id: string;
+        name: string;
+        branchLimit: number;
+        isActive: boolean;
+        createdAt: string;
+        updatedAt: string;
+      };
+    };
+  }>;
 }
 
 interface Business {
@@ -65,8 +79,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchUserData = async (accessToken: string) => {
     try {
       console.log("🔍 [AuthContext] Starting fetchUserData...");
-      console.log("🔍 [AuthContext] Access token:", accessToken ? "present" : "missing");
-      
+      console.log(
+        "🔍 [AuthContext] Access token:",
+        accessToken ? "present" : "missing"
+      );
+
       const response = await api.post(
         "/auth/whoami",
         {},
@@ -92,7 +109,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           !Array.isArray(response.data.business) ||
           response.data.business.length === 0)
       ) {
-        console.error("❌ [AuthContext] Admin user missing business information");
+        console.error(
+          "❌ [AuthContext] Admin user missing business information"
+        );
         throw new Error("Admin user missing business information");
       }
 
@@ -129,7 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         console.log("🔍 [AuthContext] Stored tokens:", {
           token: storedToken ? "present" : "missing",
-          refreshToken: storedRefreshToken ? "present" : "missing"
+          refreshToken: storedRefreshToken ? "present" : "missing",
         });
 
         if (storedToken && storedRefreshToken) {
@@ -168,9 +187,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log("🔍 [AuthContext] Starting login...");
       console.log("🔍 [AuthContext] Tokens received:", {
         accessToken: accessToken ? "present" : "missing",
-        refreshToken: refreshToken ? "present" : "missing"
+        refreshToken: refreshToken ? "present" : "missing",
       });
-      
+
       localStorage.setItem("token", accessToken);
       localStorage.setItem("refreshToken", refreshToken);
       setToken(accessToken);

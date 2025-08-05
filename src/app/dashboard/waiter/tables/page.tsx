@@ -1,54 +1,52 @@
 "use client";
 
-import { useAuth } from "@/lib/auth/AuthContext";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  ArrowLeft,
-  Table,
-  Users,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  Plus,
-  RefreshCw,
-  Eye,
-  DollarSign,
-  FileText,
-} from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
+import { TableOrdersList } from "@/components/cashier/TableOrdersList";
+import { TableOrderDetail } from "@/components/cashier/TableOrderDetail";
+import TableDistributionChart from "@/components/cashier/TableDistributionChart";
+import PhysicalTableLayout from "@/components/cashier/PhysicalTableLayout";
+import { TableOrder, TableOrdersService } from "@/services/table-orders";
 import {
   PhysicalTablesService,
   PhysicalTable,
 } from "@/services/physical-tables";
-import { TableOrdersService, TableOrder } from "@/services/table-orders";
-import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { extractBusinessAndBranchIds } from "@/lib/utils";
+import {
+  RefreshCw,
+  Loader2,
+  BarChart3,
+  List,
+  Grid3X3,
+  Users,
+  Clock,
+  DollarSign,
+} from "lucide-react";
 
 export default function TablesPage() {
-  const { user } = useAuth();
-  const router = useRouter();
-  const { toast } = useToast();
+  const [selectedTable, setSelectedTable] = useState<TableOrder | null>(null);
   const [tableOrders, setTableOrders] = useState<TableOrder[]>([]);
   const [availablePhysicalTables, setAvailablePhysicalTables] = useState<
     PhysicalTable[]
   >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showCharts, setShowCharts] = useState(false);
+  const [showLayout, setShowLayout] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "by-table">("list");
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  // Get business ID and branch ID using the utility function
+  const { businessId, branchId } = extractBusinessAndBranchIds(user);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-
-        // Get business ID from user
-        let businessId: string | undefined;
-        if (user?.business?.[0]?.id) {
-          businessId = user.business[0].id;
-        } else if (user?.branch?.business?.id) {
-          businessId = user.branch.business.id;
-        }
 
         if (!businessId) {
           console.error("No business ID found for user:", user);
@@ -102,20 +100,22 @@ export default function TablesPage() {
       }
     };
 
-    if (user) {
+    if (user && businessId) {
       fetchData();
     }
-  }, [user, toast]);
+  }, [user, businessId, toast]);
 
   const handleRefresh = async () => {
     try {
       setIsRefreshing(true);
 
-      let businessId: string | undefined;
-      if (user?.business?.[0]?.id) {
-        businessId = user.business[0].id;
-      } else if (user?.branch?.business?.id) {
-        businessId = user.branch.business.id;
+      if (!businessId) {
+        toast({
+          title: "Error",
+          description: "No se encontró el ID del negocio",
+          variant: "destructive",
+        });
+        return;
       }
 
       const [activeTableOrders, physicalTables] = await Promise.all([

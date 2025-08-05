@@ -44,3 +44,114 @@ export function formatPriceNoDecimals(
 ): string {
   return formatPrice(amount, 0);
 }
+
+export function formatPriceWithDollarSign(priceInCents: number): string {
+  const pesos = priceInCents / 100;
+  return `$${pesos.toLocaleString("es-CO", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  })}`;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: {
+    name: string;
+  };
+  business?: Array<{
+    id: string;
+    name: string;
+    branchLimit: number;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  branch?: {
+    id: string;
+    name: string;
+    business: {
+      id: string;
+      name: string;
+      branchLimit: number;
+      isActive: boolean;
+      createdAt: string;
+      updatedAt: string;
+    };
+  };
+  userBranches?: Array<{
+    branch: {
+      id: string;
+      name: string;
+      business: {
+        id: string;
+        name: string;
+        branchLimit: number;
+        isActive: boolean;
+        createdAt: string;
+        updatedAt: string;
+      };
+    };
+  }>;
+}
+
+export function extractBusinessAndBranchIds(user: User | null): {
+  businessId: string;
+  branchId: string;
+} {
+  let businessId = "";
+  let branchId = "";
+
+  if (!user) {
+    return { businessId, branchId };
+  }
+
+  // Debug user structure
+  console.log("🔍 [extractBusinessAndBranchIds] User structure:", {
+    user: user,
+    business: user?.business,
+    branch: user?.branch,
+    userBranches: user?.userBranches,
+  });
+
+  if (user.business && user.business.length > 0) {
+    // Admin user - has direct business access
+    businessId = user.business[0].id;
+    branchId = user?.branch?.id || "";
+    console.log(
+      "🔍 [extractBusinessAndBranchIds] Admin user - Business ID:",
+      businessId,
+      "Branch ID:",
+      branchId
+    );
+  } else if (user.branch?.business?.id) {
+    // Cashier user - has branch with business
+    businessId = user.branch.business.id;
+    branchId = user.branch.id;
+    console.log(
+      "🔍 [extractBusinessAndBranchIds] Cashier user - Business ID:",
+      businessId,
+      "Branch ID:",
+      branchId
+    );
+  } else if (user.userBranches && user.userBranches.length > 0) {
+    // User with userBranches relationship
+    businessId = user.userBranches[0].branch.business.id;
+    branchId = user.userBranches[0].branch.id;
+    console.log(
+      "🔍 [extractBusinessAndBranchIds] User with userBranches - Business ID:",
+      businessId,
+      "Branch ID:",
+      branchId
+    );
+  }
+
+  console.log(
+    "🔍 [extractBusinessAndBranchIds] Final Business ID:",
+    businessId,
+    "Branch ID:",
+    branchId
+  );
+  return { businessId, branchId };
+}

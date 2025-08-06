@@ -70,13 +70,13 @@ const BranchesPage = () => {
   useEffect(() => {
     const fetchBranches = async () => {
       if (!token) {
-        setError("No authentication token available");
+        setError("No hay token de autenticación disponible");
         setLoading(false);
         return;
       }
 
       if (!user?.business?.[0]?.id) {
-        setError("No business associated with your account");
+        setError("No hay negocio asociado con tu cuenta");
         setLoading(false);
         return;
       }
@@ -97,16 +97,18 @@ const BranchesPage = () => {
           console.error("Error response:", errorData);
           if (errorData?.message === "No business found for this user") {
             throw new Error(
-              "You need to create a business first before managing branches"
+              "Necesitas crear un negocio primero antes de gestionar sucursales"
             );
           } else if (
             errorData?.message === "Your business account is not active"
           ) {
             throw new Error(
-              "Your business account is not active. Please contact support."
+              "Tu cuenta de negocio no está activa. Por favor, contacta soporte."
             );
           } else {
-            throw new Error(errorData?.message || "Failed to fetch branches");
+            throw new Error(
+              errorData?.message || "Error al obtener las sucursales"
+            );
           }
         }
 
@@ -115,7 +117,7 @@ const BranchesPage = () => {
         setBranches(data);
       } catch (err) {
         console.error("Error fetching branches:", err);
-        setError(err instanceof Error ? err.message : "An error occurred");
+        setError(err instanceof Error ? err.message : "Ocurrió un error");
       } finally {
         setLoading(false);
       }
@@ -158,7 +160,9 @@ const BranchesPage = () => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.message || "Failed to update branch");
+        throw new Error(
+          errorData?.message || "Error al actualizar la sucursal"
+        );
       }
 
       const updatedBranch = await response.json();
@@ -173,8 +177,8 @@ const BranchesPage = () => {
       );
 
       toast({
-        title: "Success",
-        description: "Branch updated successfully",
+        title: "Éxito",
+        description: "Sucursal actualizada exitosamente",
       });
 
       setIsEditDialogOpen(false);
@@ -184,7 +188,9 @@ const BranchesPage = () => {
       toast({
         title: "Error",
         description:
-          error instanceof Error ? error.message : "Failed to update branch",
+          error instanceof Error
+            ? error.message
+            : "Error al actualizar la sucursal",
         variant: "destructive",
       });
     } finally {
@@ -254,19 +260,19 @@ const BranchesPage = () => {
                         <div className="space-y-2">
                           <div>
                             <p className="text-sm font-medium text-muted-foreground">
-                              Name
+                              Nombre
                             </p>
                             <p className="font-medium">{branch._props.name}</p>
                           </div>
                           <div>
                             <p className="text-sm font-medium text-muted-foreground">
-                              Address
+                              Dirección
                             </p>
                             <p>{branch._props.address}</p>
                           </div>
                           <div>
                             <p className="text-sm font-medium text-muted-foreground">
-                              Phone
+                              Teléfono
                             </p>
                             <p>{branch._props.phone}</p>
                           </div>
@@ -284,7 +290,7 @@ const BranchesPage = () => {
                               className="flex-1"
                             >
                               <Edit className="h-4 w-4 mr-2" />
-                              Edit
+                              Editar
                             </Button>
                           </div>
                         </div>
@@ -299,16 +305,16 @@ const BranchesPage = () => {
                     <TableHeader>
                       <TableRow key="header">
                         <TableHead key="name-header" className="min-w-[200px]">
-                          Name
+                          Nombre
                         </TableHead>
                         <TableHead
                           key="address-header"
                           className="min-w-[200px]"
                         >
-                          Address
+                          Dirección
                         </TableHead>
                         <TableHead key="phone-header" className="min-w-[150px]">
-                          Phone
+                          Teléfono
                         </TableHead>
                         <TableHead key="email-header" className="min-w-[200px]">
                           Email
@@ -317,7 +323,7 @@ const BranchesPage = () => {
                           key="actions-header"
                           className="min-w-[100px]"
                         >
-                          Actions
+                          Acciones
                         </TableHead>
                       </TableRow>
                     </TableHeader>
@@ -346,7 +352,7 @@ const BranchesPage = () => {
                               onClick={() => handleEditBranch(branch)}
                             >
                               <Edit className="h-4 w-4 mr-2" />
-                              Edit
+                              Editar
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -363,15 +369,16 @@ const BranchesPage = () => {
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>Edit Branch</DialogTitle>
+              <DialogTitle>Editar Sucursal</DialogTitle>
               <DialogDescription>
-                Update the branch information. Click save when you're done.
+                Actualiza la información de la sucursal. Haz clic en guardar
+                cuando termines.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="name" className="text-right">
-                  Name
+                  Nombre
                 </Label>
                 <Input
                   id="name"
@@ -384,7 +391,7 @@ const BranchesPage = () => {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="address" className="text-right">
-                  Address
+                  Dirección
                 </Label>
                 <Input
                   id="address"
@@ -400,7 +407,7 @@ const BranchesPage = () => {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="phone" className="text-right">
-                  Phone
+                  Teléfono
                 </Label>
                 <Input
                   id="phone"
@@ -428,10 +435,10 @@ const BranchesPage = () => {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={handleCancelEdit}>
-                Cancel
+                Cancelar
               </Button>
               <Button onClick={handleUpdateBranch} disabled={isUpdating}>
-                {isUpdating ? "Updating..." : "Save changes"}
+                {isUpdating ? "Actualizando..." : "Guardar cambios"}
               </Button>
             </DialogFooter>
           </DialogContent>

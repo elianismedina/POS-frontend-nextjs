@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
@@ -26,9 +27,13 @@ import {
   DollarSign,
   CheckCircle,
   AlertCircle,
+  ArrowLeft,
+  Plus,
+  Table,
 } from "lucide-react";
 
 export default function TablesPage() {
+  const router = useRouter();
   const [selectedTable, setSelectedTable] = useState<TableOrder | null>(null);
   const [tableOrders, setTableOrders] = useState<TableOrder[]>([]);
   const [availablePhysicalTables, setAvailablePhysicalTables] = useState<

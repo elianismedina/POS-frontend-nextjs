@@ -4,7 +4,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { QrCode, Download, Copy, AlertCircle } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
@@ -13,7 +19,10 @@ interface QRCodeGeneratorProps {
   businessName: string;
 }
 
-export function QRCodeGenerator({ businessId, businessName }: QRCodeGeneratorProps) {
+export function QRCodeGenerator({
+  businessId,
+  businessName,
+}: QRCodeGeneratorProps) {
   const [tableId, setTableId] = useState("");
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -33,9 +42,12 @@ export function QRCodeGenerator({ businessId, businessName }: QRCodeGeneratorPro
     setError(null);
 
     try {
-      const response = await fetch(`/api/customer-menu/qr/${businessId}/${tableId}`, {
-        method: "GET",
-      });
+      const response = await fetch(
+        `/api/customer-menu/qr/${businessId}/${tableId}`,
+        {
+          method: "GET",
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`Failed to generate QR code: ${response.statusText}`);
@@ -44,7 +56,7 @@ export function QRCodeGenerator({ businessId, businessName }: QRCodeGeneratorPro
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       setQrCodeUrl(url);
-      
+
       toast({
         title: "Success",
         description: "QR code generated successfully",
@@ -74,13 +86,15 @@ export function QRCodeGenerator({ businessId, businessName }: QRCodeGeneratorPro
   };
 
   const copyMenuUrl = () => {
-    const baseUrl = process.env.NEXT_PUBLIC_CUSTOMER_MENU_URL || "https://menu.yourdomain.com";
-    const menuUrl = `${baseUrl}/menu/${businessId}?table=${tableId}`;
-    
-    navigator.clipboard.writeText(menuUrl);
+    const baseUrl =
+      process.env.NEXT_PUBLIC_CUSTOMER_MENU_URL ||
+      "https://menu.yourdomain.com";
+    const welcomeUrl = `${baseUrl}/welcome/${businessId}?table=${tableId}`;
+
+    navigator.clipboard.writeText(welcomeUrl);
     toast({
       title: "Copied",
-      description: "Menu URL copied to clipboard",
+      description: "Welcome page URL copied to clipboard",
     });
   };
 
@@ -106,8 +120,8 @@ export function QRCodeGenerator({ businessId, businessName }: QRCodeGeneratorPro
           />
         </div>
 
-        <Button 
-          onClick={generateQRCode} 
+        <Button
+          onClick={generateQRCode}
           disabled={loading || !tableId.trim()}
           className="w-full"
         >
@@ -124,15 +138,15 @@ export function QRCodeGenerator({ businessId, businessName }: QRCodeGeneratorPro
         {qrCodeUrl && (
           <div className="space-y-4">
             <div className="border rounded-lg p-4 bg-gray-50">
-              <img 
-                src={qrCodeUrl} 
-                alt="QR Code" 
+              <img
+                src={qrCodeUrl}
+                alt="QR Code"
                 className="w-full max-w-xs mx-auto"
               />
             </div>
-            
+
             <div className="flex gap-2">
-              <Button 
+              <Button
                 onClick={downloadQRCode}
                 variant="outline"
                 className="flex-1"
@@ -140,7 +154,7 @@ export function QRCodeGenerator({ businessId, businessName }: QRCodeGeneratorPro
                 <Download className="w-4 h-4 mr-2" />
                 Download
               </Button>
-              <Button 
+              <Button
                 onClick={copyMenuUrl}
                 variant="outline"
                 className="flex-1"
@@ -154,4 +168,4 @@ export function QRCodeGenerator({ businessId, businessName }: QRCodeGeneratorPro
       </CardContent>
     </Card>
   );
-} 
+}

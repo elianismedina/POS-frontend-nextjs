@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { TableOrdersList } from "@/components/cashier/TableOrdersList";
 import { TableOrderDetail } from "@/components/cashier/TableOrderDetail";
@@ -30,6 +31,8 @@ import {
   ArrowLeft,
   Plus,
   Table,
+  Eye,
+  FileText,
 } from "lucide-react";
 
 export default function TablesPage() {

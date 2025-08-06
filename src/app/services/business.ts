@@ -33,6 +33,13 @@ export interface UpdateBusinessSettingsRequest {
   invoice_expiration_months?: number;
 }
 
+export interface UpdateBusinessRequest {
+  name?: string;
+  email?: string;
+  address?: string;
+  phone?: string;
+}
+
 export const businessService = {
   // Get business settings for the current user
   async getCurrentSettings(): Promise<BusinessSettings> {
@@ -55,6 +62,15 @@ export const businessService = {
       `/business/${businessId}/settings`,
       settings
     );
+    return response.data;
+  },
+
+  // Update business information (including name)
+  async updateBusiness(
+    businessId: string,
+    businessData: UpdateBusinessRequest
+  ): Promise<any> {
+    const response = await api.patch(`/business/${businessId}`, businessData);
     return response.data;
   },
 };

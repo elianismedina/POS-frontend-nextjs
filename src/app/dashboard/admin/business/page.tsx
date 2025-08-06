@@ -124,6 +124,7 @@ export default function BusinessProfilePage() {
         throw new Error("No se encontró ID del negocio");
       }
 
+      // Update business settings
       await businessService.updateSettings(localSettings.business_id, {
         address: localSettings.address,
         phone: localSettings.phone,
@@ -136,6 +137,13 @@ export default function BusinessProfilePage() {
         invoice_number_current: localSettings.invoiceNumberCurrent,
         invoice_expiration_months: localSettings.invoiceExpirationMonths,
       });
+
+      // Update business name if it has changed
+      if (localSettings.business_name) {
+        await businessService.updateBusiness(localSettings.business_id, {
+          name: localSettings.business_name,
+        });
+      }
 
       setIsEditing(false);
       toast({
@@ -245,6 +253,21 @@ export default function BusinessProfilePage() {
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="businessName">Nombre del Negocio</Label>
+                  <Input
+                    id="businessName"
+                    value={localSettings.business_name || ""}
+                    onChange={(e) =>
+                      setLocalSettings({
+                        ...localSettings,
+                        business_name: e.target.value,
+                      })
+                    }
+                    placeholder="Ingresa el nombre de tu negocio"
+                  />
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="address">Dirección</Label>
                   <Input
                     id="address"
@@ -338,6 +361,14 @@ export default function BusinessProfilePage() {
                   </div>
                 )}
 
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">
+                    Nombre del Negocio
+                  </h3>
+                  <p className="mt-1">
+                    {localSettings.business_name || "No configurado"}
+                  </p>
+                </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">
                     Dirección

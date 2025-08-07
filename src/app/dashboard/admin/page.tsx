@@ -212,7 +212,11 @@ export default function AdminDashboard() {
           const ordersData = await ordersService.getOrders({
             businessId: user.business[0].id,
           });
-          setOrders(ordersData);
+          // Handle both Order[] and PaginatedOrdersResponse
+          const orders = Array.isArray(ordersData)
+            ? ordersData
+            : ordersData.data;
+          setOrders(orders);
         } else {
           console.warn("No business ID found for user");
           setOrders([]);

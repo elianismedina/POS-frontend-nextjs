@@ -21,16 +21,16 @@ import { Loader2 } from "lucide-react";
 
 const branchFormSchema = z.object({
   name: z.string().min(2, {
-    message: "Branch name must be at least 2 characters.",
+    message: "El nombre de la sucursal debe tener al menos 2 caracteres.",
   }),
   address: z.string().min(5, {
-    message: "Address must be at least 5 characters.",
+    message: "La dirección debe tener al menos 5 caracteres.",
   }),
   phone: z.string().min(10, {
-    message: "Phone number must be at least 10 characters.",
+    message: "El número de teléfono debe tener al menos 10 caracteres.",
   }),
   email: z.string().email({
-    message: "Please enter a valid email address.",
+    message: "Por favor ingresa una dirección de email válida.",
   }),
 });
 
@@ -87,13 +87,13 @@ export function NewBranchForm() {
 
   const onSubmit = async (data: BranchFormValues) => {
     if (!token || !user?.business?.[0]?.id) {
-      setError("No business associated with your account");
+      setError("No hay un negocio asociado con tu cuenta");
       return;
     }
 
     if (branchCount >= branchLimit) {
       setError(
-        `You have reached the maximum number of branches (${branchLimit}) allowed for your business plan. Please upgrade your plan to add more branches.`
+        `Has alcanzado el número máximo de sucursales (${branchLimit}) permitidas para tu plan de negocio. Por favor actualiza tu plan para agregar más sucursales.`
       );
       return;
     }
@@ -117,18 +117,18 @@ export function NewBranchForm() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to create branch");
+        throw new Error(errorData.message || "Error al crear la sucursal");
       }
 
       toast({
-        title: "Success",
-        description: "Branch created successfully",
+        title: "Éxito",
+        description: "Sucursal creada exitosamente",
       });
 
       router.push("/dashboard/admin/branches");
     } catch (err) {
       console.error("Error creating branch:", err);
-      setError(err instanceof Error ? err.message : "An error occurred");
+      setError(err instanceof Error ? err.message : "Ocurrió un error");
     } finally {
       setLoading(false);
     }
@@ -147,9 +147,12 @@ export function NewBranchForm() {
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Branch Name</FormLabel>
+              <FormLabel>Nombre de la Sucursal</FormLabel>
               <FormControl>
-                <Input placeholder="Enter branch name" {...field} />
+                <Input
+                  placeholder="Ingresa el nombre de la sucursal"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -160,9 +163,12 @@ export function NewBranchForm() {
           name="address"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Address</FormLabel>
+              <FormLabel>Dirección</FormLabel>
               <FormControl>
-                <Input placeholder="Enter branch address" {...field} />
+                <Input
+                  placeholder="Ingresa la dirección de la sucursal"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -173,9 +179,9 @@ export function NewBranchForm() {
           name="phone"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Phone Number</FormLabel>
+              <FormLabel>Número de Teléfono</FormLabel>
               <FormControl>
-                <Input placeholder="Enter phone number" {...field} />
+                <Input placeholder="Ingresa el número de teléfono" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -188,7 +194,7 @@ export function NewBranchForm() {
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input placeholder="Enter email address" {...field} />
+                <Input placeholder="Ingresa la dirección de email" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -201,16 +207,16 @@ export function NewBranchForm() {
             onClick={() => router.back()}
             disabled={loading}
           >
-            Cancel
+            Cancelar
           </Button>
           <Button type="submit" disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
+                Creando...
               </>
             ) : (
-              "Create Branch"
+              "Crear Sucursal"
             )}
           </Button>
         </div>

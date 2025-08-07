@@ -14,6 +14,7 @@ import {
   DollarSign,
   Calendar,
   Activity,
+  ChevronRight,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
@@ -99,117 +100,89 @@ export default function AdminDashboard() {
     period: "week" | "month" | "year"
   ) => {
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const data: Array<{ name: string; sales: number }> = [];
-
-    // Filter completed orders only (not paid)
-    const completedOrders = orders.filter(
-      (order) => (order.status || order._props?.status) === "COMPLETED"
-    );
+    const data = [];
 
     if (period === "week") {
-      // Get last 7 days
       for (let i = 6; i >= 0; i--) {
-        const date = new Date(today);
+        const date = new Date(now);
         date.setDate(date.getDate() - i);
-        const startOfDay = new Date(
-          date.getFullYear(),
-          date.getMonth(),
-          date.getDate()
-        );
-        const endOfDay = new Date(
-          date.getFullYear(),
-          date.getMonth(),
-          date.getDate(),
-          23,
-          59,
-          59,
-          999
-        );
-
-        const dayOrders = completedOrders.filter((order) => {
+        const dayOrders = orders.filter((order) => {
           const orderDate = new Date(
             order.createdAt || order._props?.createdAt || new Date()
           );
-          return orderDate >= startOfDay && orderDate <= endOfDay;
+          return (
+            orderDate.getDate() === date.getDate() &&
+            orderDate.getMonth() === date.getMonth() &&
+            orderDate.getFullYear() === date.getFullYear()
+          );
         });
-
-        const daySales = dayOrders.reduce(
-          (sum, order) => sum + (order._props?.finalAmount || order.total || 0),
-          0
-        );
-        const dayName = date.toLocaleDateString("es-ES", { weekday: "short" });
-
+        const daySales = dayOrders
+          .filter(
+            (order) => (order.status || order._props?.status) === "COMPLETED"
+          )
+          .reduce(
+            (sum, order) =>
+              sum + (order._props?.finalAmount || order.total || 0),
+            0
+          );
         data.push({
-          name: dayName.charAt(0).toUpperCase() + dayName.slice(1),
+          name: date.toLocaleDateString("es-ES", { weekday: "short" }),
           sales: daySales,
         });
       }
     } else if (period === "month") {
-      // Get current calendar month (from 1st to last day of current month)
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-      const startOfMonth = new Date(currentYear, currentMonth, 1);
-      const endOfMonth = new Date(
-        currentYear,
-        currentMonth + 1,
-        0,
-        23,
-        59,
-        59,
-        999
-      );
-
-      const monthOrders = completedOrders.filter((order) => {
-        const orderDate = new Date(
-          order.createdAt || order._props?.createdAt || new Date()
-        );
-        return orderDate >= startOfMonth && orderDate <= endOfMonth;
-      });
-
-      const monthSales = monthOrders.reduce(
-        (sum, order) => sum + (order._props?.finalAmount || order.total || 0),
-        0
-      );
-
-      data.push({
-        name: startOfMonth.toLocaleDateString("es-ES", {
-          month: "long",
-          year: "numeric",
-        }),
-        sales: monthSales,
-      });
-    } else if (period === "year") {
-      // Get last 12 months
-      for (let i = 11; i >= 0; i--) {
-        const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthEnd = new Date(
-          now.getFullYear(),
-          now.getMonth() - i + 1,
-          0,
-          23,
-          59,
-          59,
-          999
-        );
-
-        const monthOrders = completedOrders.filter((order) => {
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        const dayOrders = orders.filter((order) => {
           const orderDate = new Date(
             order.createdAt || order._props?.createdAt || new Date()
           );
-          return orderDate >= monthStart && orderDate <= monthEnd;
+          return (
+            orderDate.getDate() === date.getDate() &&
+            orderDate.getMonth() === date.getMonth() &&
+            orderDate.getFullYear() === date.getFullYear()
+          );
         });
-
-        const monthSales = monthOrders.reduce(
-          (sum, order) => sum + (order._props?.finalAmount || order.total || 0),
-          0
-        );
-        const monthName = monthStart.toLocaleDateString("es-ES", {
-          month: "short",
-        });
-
+        const daySales = dayOrders
+          .filter(
+            (order) => (order.status || order._props?.status) === "COMPLETED"
+          )
+          .reduce(
+            (sum, order) =>
+              sum + (order._props?.finalAmount || order.total || 0),
+            0
+          );
         data.push({
-          name: monthName.charAt(0).toUpperCase() + monthName.slice(1),
+          name: date.getDate().toString(),
+          sales: daySales,
+        });
+      }
+    } else {
+      // Year - monthly data
+      for (let i = 11; i >= 0; i--) {
+        const date = new Date(now);
+        date.setMonth(date.getMonth() - i);
+        const monthOrders = orders.filter((order) => {
+          const orderDate = new Date(
+            order.createdAt || order._props?.createdAt || new Date()
+          );
+          return (
+            orderDate.getMonth() === date.getMonth() &&
+            orderDate.getFullYear() === date.getFullYear()
+          );
+        });
+        const monthSales = monthOrders
+          .filter(
+            (order) => (order.status || order._props?.status) === "COMPLETED"
+          )
+          .reduce(
+            (sum, order) =>
+              sum + (order._props?.finalAmount || order.total || 0),
+            0
+          );
+        data.push({
+          name: date.toLocaleDateString("es-ES", { month: "short" }),
           sales: monthSales,
         });
       }
@@ -218,85 +191,50 @@ export default function AdminDashboard() {
     return data;
   };
 
-  // Calculate summary statistics from orders
   const calculateSummaryFromOrders = (period: "week" | "month" | "year") => {
-    const historicalData = calculateHistoricalDataFromOrders(period);
-    const totalSales = historicalData.reduce(
-      (sum, item) => sum + item.sales,
-      0
-    );
-    const averageSales =
-      historicalData.length > 0 ? totalSales / historicalData.length : 0;
-    const maxSales =
-      historicalData.length > 0
-        ? Math.max(...historicalData.map((item) => item.sales))
-        : 0;
+    const data = calculateHistoricalDataFromOrders(period);
+    const sales = data.map((item) => item.sales);
+    const totalSales = sales.reduce((sum, sale) => sum + sale, 0);
+    const averageSales = sales.length > 0 ? totalSales / sales.length : 0;
+    const maxSales = Math.max(...sales, 0);
 
     return {
       totalSales,
       averageSales,
       maxSales,
-      dataPoints: historicalData.length,
     };
   };
 
   useEffect(() => {
     const fetchData = async () => {
-      if (user?.business?.[0]?.id) {
-        try {
-          console.log(
-            "Fetching dashboard data for business:",
-            user.business[0].id
-          );
-          console.log("Selected period:", selectedPeriod);
-
-          const ordersResponse = await ordersService.getOrders({
+      try {
+        if (user?.business?.[0]?.id) {
+          const ordersData = await ordersService.getOrders({
             businessId: user.business[0].id,
-            // Don't send page/limit to get all orders without pagination
           });
-
-          // Handle both paginated and non-paginated responses
-          let ordersData: Order[] = [];
-          if (
-            ordersResponse &&
-            "data" in ordersResponse &&
-            "meta" in ordersResponse
-          ) {
-            // Paginated response
-            ordersData = Array.isArray(ordersResponse.data)
-              ? ordersResponse.data
-              : [];
-          } else if (ordersResponse && Array.isArray(ordersResponse)) {
-            // Non-paginated response (fallback)
-            ordersData = ordersResponse;
-          } else {
-            // Fallback for unexpected response
-            console.warn("Unexpected orders response format:", ordersResponse);
-            ordersData = [];
-          }
-
-          console.log("Orders data received:", ordersData);
-
           setOrders(ordersData);
-          // Historical data is now calculated from orders, no need to fetch from API
-        } catch (error) {
-          console.error("Error fetching dashboard data:", error);
-        } finally {
-          setLoading(false);
+        } else {
+          console.warn("No business ID found for user");
+          setOrders([]);
         }
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+        setOrders([]);
+      } finally {
+        setLoading(false);
       }
     };
 
     if (!isLoading && user) {
       fetchData();
     }
-  }, [user, isLoading, selectedPeriod]);
+  }, [user, isLoading]);
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-10">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-4">Cargando Dashboard...</h2>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">
             Por favor espera mientras cargamos tu dashboard
           </p>
@@ -307,151 +245,175 @@ export default function AdminDashboard() {
 
   const quickActions = [
     {
-      title: "Categories",
-      description: "Manage product categories",
+      title: "Categorías",
+      description: "Gestionar categorías de productos",
       icon: Tags,
       href: `/dashboard/admin/categories`,
     },
     {
-      title: "Subcategories",
-      description: "Manage product subcategories",
+      title: "Subcategorías",
+      description: "Gestionar subcategorías de productos",
       icon: ListTree,
       href: `/dashboard/admin/subcategories`,
     },
     {
-      title: "Products",
-      description: "Manage your products",
+      title: "Productos",
+      description: "Gestionar tus productos",
       icon: Package,
       href: `/dashboard/admin/products`,
     },
     {
-      title: "Orders",
-      description: "View and manage orders",
+      title: "Órdenes",
+      description: "Ver y gestionar órdenes",
       icon: ShoppingCart,
       href: `/dashboard/admin/orders`,
     },
     {
-      title: "Customers",
-      description: "Manage customer information",
+      title: "Clientes",
+      description: "Gestionar información de clientes",
       icon: Users,
       href: `/dashboard/admin/customers`,
     },
     {
-      title: "My Business",
-      description: "Manage business settings",
+      title: "Mi Negocio",
+      description: "Gestionar configuración del negocio",
       icon: Building2,
       href: `/dashboard/admin/business`,
     },
   ];
 
   return (
-    <div className="container mx-auto py-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Welcome, {user?.name}</h1>
-        <p className="text-muted-foreground">
-          Manage your business operations from here
-        </p>
-      </div>
+    <div className="min-h-screen bg-background">
+      {/* Mobile-first container with safe area padding */}
+      <div
+        className="container mx-auto px-4 py-6 pb-12"
+        style={{
+          paddingBottom: "calc(48px + env(safe-area-inset-bottom))",
+          paddingBottom: "48px",
+        }}
+      >
+        {/* Header Section - Mobile Optimized */}
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl font-bold sm:text-3xl lg:text-4xl">
+            Welcome, {user?.name}
+          </h1>
+          <p className="text-sm text-muted-foreground sm:text-base mt-1">
+            Gestiona las operaciones de tu negocio desde aquí
+          </p>
+        </div>
 
-      {/* Stats Cards */}
-      {!loading && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Ventas de Hoy
+        {/* Stats Cards - Mobile First Grid */}
+        {!loading && (
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
+            <Card className="p-3 sm:p-4">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-0">
+                <CardTitle className="text-xs sm:text-sm font-medium">
+                  Ventas de Hoy
+                </CardTitle>
+                <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent className="p-0 pt-2">
+                <div className="text-lg sm:text-xl lg:text-2xl font-bold">
+                  ${todaySales.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  +20.1% from yesterday
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="p-3 sm:p-4">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-0">
+                <CardTitle className="text-xs sm:text-sm font-medium">
+                  Órdenes Pendientes
+                </CardTitle>
+                <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent className="p-0 pt-2">
+                <div className="text-lg sm:text-xl lg:text-2xl font-bold">
+                  {pendingOrders}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Requieren atención
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="p-3 sm:p-4">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-0">
+                <CardTitle className="text-xs sm:text-sm font-medium">
+                  Órdenes de Hoy
+                </CardTitle>
+                <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent className="p-0 pt-2">
+                <div className="text-lg sm:text-xl lg:text-2xl font-bold">
+                  {todayOrders.length}
+                </div>
+                <p className="text-xs text-muted-foreground">Total del día</p>
+              </CardContent>
+            </Card>
+
+            <Card className="p-3 sm:p-4">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-0">
+                <CardTitle className="text-xs sm:text-sm font-medium">
+                  Ventas Totales
+                </CardTitle>
+                <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent className="p-0 pt-2">
+                <div className="text-lg sm:text-xl lg:text-2xl font-bold">
+                  ${totalSales.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Historial completo
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Summary Card - Full Width Mobile */}
+        {!loading && (
+          <Card className="mb-6 sm:mb-8">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base sm:text-lg">
+                Resumen del Período
               </CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                ${todaySales.toLocaleString()}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                +20.1% from yesterday
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Órdenes Pendientes
-              </CardTitle>
-              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{pendingOrders}</div>
-              <p className="text-xs text-muted-foreground">
-                Requieren atención
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Órdenes de Hoy
-              </CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{todayOrders.length}</div>
-              <p className="text-xs text-muted-foreground">Total del día</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Ventas Totales
-              </CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                ${totalSales.toLocaleString()}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Historial completo
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Summary Card - Full Width */}
-          <Card className="col-span-full">
-            <CardHeader>
-              <CardTitle>Resumen del Período</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-8">
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8">
+                <div className="text-center p-4 bg-muted/30 rounded-lg">
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-2 font-medium">
                     {selectedPeriod === "week"
                       ? "Total Semanal"
                       : selectedPeriod === "month"
                       ? "Total Mensual"
                       : "Total Anual"}
                   </p>
-                  <p className="text-2xl font-bold">
+                  <p className="text-lg sm:text-xl lg:text-2xl font-bold break-words">
                     $
                     {calculateSummaryFromOrders(
                       selectedPeriod
                     ).totalSales.toLocaleString()}
                   </p>
                 </div>
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">Promedio</p>
-                  <p className="text-2xl font-bold">
+                <div className="text-center p-4 bg-muted/30 rounded-lg">
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-2 font-medium">
+                    Promedio
+                  </p>
+                  <p className="text-lg sm:text-xl lg:text-2xl font-bold break-words">
                     $
                     {calculateSummaryFromOrders(
                       selectedPeriod
                     ).averageSales.toLocaleString()}
                   </p>
                 </div>
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">Máximo</p>
-                  <p className="text-2xl font-bold text-green-600">
+                <div className="text-center p-4 bg-muted/30 rounded-lg">
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-2 font-medium">
+                    Máximo
+                  </p>
+                  <p className="text-lg sm:text-xl lg:text-2xl font-bold text-green-600 break-words">
                     $
                     {calculateSummaryFromOrders(
                       selectedPeriod
@@ -461,280 +423,198 @@ export default function AdminDashboard() {
               </div>
             </CardContent>
           </Card>
-        </div>
-      )}
+        )}
 
-      {/* Charts Section */}
-      <div className="grid gap-4 md:grid-cols-3 mb-8">
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle>Ventas</CardTitle>
-              <div className="flex space-x-2">
-                <Button
-                  variant={selectedPeriod === "week" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedPeriod("week")}
-                >
-                  Semana
-                </Button>
-                <Button
-                  variant={selectedPeriod === "month" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedPeriod("month")}
-                >
-                  Mes
-                </Button>
-                <Button
-                  variant={selectedPeriod === "year" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedPeriod("year")}
-                >
-                  Año
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {calculateHistoricalDataFromOrders(selectedPeriod).length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart
-                  data={calculateHistoricalDataFromOrders(selectedPeriod)}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip
-                    formatter={(value: number) => [
-                      `$${value.toLocaleString()}`,
-                      "Ventas",
-                    ]}
-                    labelFormatter={(label) => `${label}`}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="sales"
-                    stroke="#8884d8"
-                    strokeWidth={2}
-                    dot={{ fill: "#8884d8", strokeWidth: 2, r: 4 }}
-                    activeDot={{
-                      r: 6,
-                      stroke: "#8884d8",
-                      strokeWidth: 2,
-                      fill: "#fff",
-                    }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-                <div className="text-center">
-                  <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No hay datos de ventas para mostrar</p>
-                  <p className="text-sm">
-                    Los datos aparecerán cuando tengas órdenes completadas
-                  </p>
+        {/* Charts Section - Mobile First */}
+        <div className="space-y-4 sm:space-y-6 mb-6 sm:mb-8">
+          {/* Sales Chart */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-3 sm:space-y-0">
+                <CardTitle className="text-base sm:text-lg">Ventas</CardTitle>
+                <div className="flex space-x-1 sm:space-x-2">
+                  <Button
+                    variant={selectedPeriod === "week" ? "default" : "outline"}
+                    size="sm"
+                    className="text-xs px-2 py-1 h-8 sm:h-9 sm:px-3"
+                    onClick={() => setSelectedPeriod("week")}
+                  >
+                    Semana
+                  </Button>
+                  <Button
+                    variant={selectedPeriod === "month" ? "default" : "outline"}
+                    size="sm"
+                    className="text-xs px-2 py-1 h-8 sm:h-9 sm:px-3"
+                    onClick={() => setSelectedPeriod("month")}
+                  >
+                    Mes
+                  </Button>
+                  <Button
+                    variant={selectedPeriod === "year" ? "default" : "outline"}
+                    size="sm"
+                    className="text-xs px-2 py-1 h-8 sm:h-9 sm:px-3"
+                    onClick={() => setSelectedPeriod("year")}
+                  >
+                    Año
+                  </Button>
                 </div>
               </div>
-            )}
-
-            {/* Debug chart data */}
-            <div className="mt-4 text-xs text-muted-foreground">
-              <details>
-                <summary>
-                  Chart Data Debug (
-                  {calculateHistoricalDataFromOrders(selectedPeriod).length}{" "}
-                  data points)
-                </summary>
-                <pre className="mt-2 bg-muted p-2 rounded overflow-auto">
-                  {JSON.stringify(
-                    calculateHistoricalDataFromOrders(selectedPeriod),
-                    null,
-                    2
-                  )}
-                </pre>
-                <div className="mt-2">
-                  <p>
-                    <strong>Total Sales:</strong> $
-                    {calculateHistoricalDataFromOrders(selectedPeriod)
-                      .reduce((sum, item) => sum + item.sales, 0)
-                      .toLocaleString()}
-                  </p>
-                  <p>
-                    <strong>Average Sales:</strong> $
-                    {calculateHistoricalDataFromOrders(selectedPeriod).length >
-                    0
-                      ? Math.round(
-                          calculateHistoricalDataFromOrders(
-                            selectedPeriod
-                          ).reduce((sum, item) => sum + item.sales, 0) /
-                            calculateHistoricalDataFromOrders(selectedPeriod)
-                              .length
-                        ).toLocaleString()
-                      : 0}
-                  </p>
-                  <p>
-                    <strong>Max Sales:</strong> $
-                    {Math.max(
-                      ...calculateHistoricalDataFromOrders(selectedPeriod).map(
-                        (item) => item.sales
-                      )
-                    ).toLocaleString()}
-                  </p>
-                  <p>
-                    <strong>Chart Visible:</strong>{" "}
-                    {calculateHistoricalDataFromOrders(selectedPeriod).length >
-                    0
-                      ? "Yes"
-                      : "No"}
-                  </p>
-                  <p>
-                    <strong>Data Keys:</strong>{" "}
-                    {calculateHistoricalDataFromOrders(selectedPeriod).length >
-                    0
-                      ? Object.keys(
-                          calculateHistoricalDataFromOrders(selectedPeriod)[0]
-                        ).join(", ")
-                      : "None"}
-                  </p>
-                </div>
-
-                {/* Test chart */}
-                {calculateHistoricalDataFromOrders(selectedPeriod).length >
-                  0 && (
-                  <div className="mt-4">
-                    <h4 className="font-semibold mb-2">Test Chart (Small)</h4>
-                    <div style={{ width: "100%", height: "200px" }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart
-                          data={calculateHistoricalDataFromOrders(
-                            selectedPeriod
-                          )}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="name" />
-                          <YAxis />
-                          <Tooltip />
-                          <Line
-                            type="monotone"
-                            dataKey="sales"
-                            stroke="#8884d8"
-                            strokeWidth={2}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-                )}
-              </details>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Estado de Órdenes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={[
-                    {
-                      name: "Completadas",
-                      value: completedOrders,
-                      color: "#10b981",
-                    },
-                    {
-                      name: "Pendientes",
-                      value: pendingOrders,
-                      color: "#f59e0b",
-                    },
-                    { name: "Pagadas", value: paidOrders, color: "#3b82f6" },
-                  ]}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {[
-                    {
-                      name: "Completadas",
-                      value: completedOrders,
-                      color: "#10b981",
-                    },
-                    {
-                      name: "Pendientes",
-                      value: pendingOrders,
-                      color: "#f59e0b",
-                    },
-                    { name: "Pagadas", value: paidOrders, color: "#3b82f6" },
-                  ].map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Debug Section - Remove in production */}
-      {/* The testData object is no longer available, so this section will be removed */}
-      {/* For now, we'll keep the structure but remove the content that relies on testData */}
-      {/* <div className="mb-8">
-        <h2 className="text-2xl font-bold mb-4">Debug Info</h2>
-        <Card>
-          <CardContent>
-            <p>
-              <strong>Total Orders:</strong> {testData.totalOrders}
-            </p>
-            <p>
-              <strong>Completed Orders:</strong> {testData.completedOrders}
-            </p>
-            <p>
-              <strong>Historical Data Points:</strong> {historicalData.length}
-            </p>
-            <details>
-              <summary>Order Details</summary>
-              <pre className="text-xs mt-2 bg-muted p-2 rounded overflow-auto">
-                {JSON.stringify(testData.orders, null, 2)}
-              </pre>
-            </details>
-          </CardContent>
-        </Card>
-      </div> */}
-
-      {/* Quick Actions Section */}
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold mb-4">Acciones Rápidas</h2>
-        <p className="text-muted-foreground mb-6">
-          Accede rápidamente a las funciones principales de tu negocio
-        </p>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {quickActions.map((action) => (
-          <Card
-            key={action.title}
-            className="cursor-pointer transition-colors hover:bg-muted/50"
-            onClick={() => router.push(action.href)}
-          >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                {action.title}
-              </CardTitle>
-              <action.icon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <p className="text-xs text-muted-foreground">
-                {action.description}
-              </p>
+              {calculateHistoricalDataFromOrders(selectedPeriod).length > 0 ? (
+                <div className="h-64 sm:h-80 lg:h-96">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={calculateHistoricalDataFromOrders(selectedPeriod)}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="name"
+                        fontSize={12}
+                        tick={{ fontSize: 10 }}
+                      />
+                      <YAxis fontSize={12} tick={{ fontSize: 10 }} />
+                      <Tooltip
+                        contentStyle={{
+                          fontSize: "12px",
+                          borderRadius: "8px",
+                          border: "none",
+                          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="sales"
+                        stroke="#8884d8"
+                        strokeWidth={2}
+                        dot={{ r: 4 }}
+                        activeDot={{ r: 6 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="h-64 sm:h-80 lg:h-96 flex items-center justify-center text-muted-foreground">
+                  <p className="text-sm">No hay datos disponibles</p>
+                </div>
+              )}
             </CardContent>
           </Card>
-        ))}
+
+          {/* Orders Status Chart */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base sm:text-lg">
+                Estado de Órdenes
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64 sm:h-80 lg:h-96">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={[
+                        {
+                          name: "Completadas",
+                          value: completedOrders,
+                          color: "#10b981",
+                        },
+                        {
+                          name: "Pendientes",
+                          value: pendingOrders,
+                          color: "#f59e0b",
+                        },
+                        {
+                          name: "Pagadas",
+                          value: paidOrders,
+                          color: "#3b82f6",
+                        },
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {[
+                        {
+                          name: "Completadas",
+                          value: completedOrders,
+                          color: "#10b981",
+                        },
+                        {
+                          name: "Pendientes",
+                          value: pendingOrders,
+                          color: "#f59e0b",
+                        },
+                        {
+                          name: "Pagadas",
+                          value: paidOrders,
+                          color: "#3b82f6",
+                        },
+                      ].map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        fontSize: "12px",
+                        borderRadius: "8px",
+                        border: "none",
+                        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Actions Section - Mobile Optimized */}
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">
+            Acciones Rápidas
+          </h2>
+          <p className="text-sm sm:text-base text-muted-foreground mb-4 sm:mb-6">
+            Accede rápidamente a las funciones principales de tu negocio
+          </p>
+        </div>
+
+        {/* Quick Actions Grid - Mobile First */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          {quickActions.map((action) => (
+            <Card
+              key={action.title}
+              className="cursor-pointer transition-all duration-200 hover:bg-muted/50 active:scale-95 touch-manipulation"
+              onClick={() => router.push(action.href)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  router.push(action.href);
+                }
+              }}
+              aria-label={`Navegar a ${action.title}`}
+            >
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
+                <CardTitle className="text-sm sm:text-base font-medium">
+                  {action.title}
+                </CardTitle>
+                <div className="flex items-center space-x-2">
+                  <action.icon className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                  <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 pt-0">
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  {action.description}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     </div>
   );

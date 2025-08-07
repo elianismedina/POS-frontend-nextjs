@@ -115,14 +115,26 @@ export function PaymentMethodsList() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Métodos de Pago</h2>
-        <Button onClick={() => setShowCreateForm(true)}>
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
+            Métodos de Pago
+          </h2>
+          <p className="mt-1 text-sm text-gray-500 sm:text-base">
+            Manage payment methods for your business
+          </p>
+        </div>
+        <Button
+          onClick={() => setShowCreateForm(true)}
+          className="w-full sm:w-auto px-6 py-3 text-base"
+        >
           <Plus className="w-4 h-4 mr-2" />
           Agregar Método de Pago
         </Button>
       </div>
 
+      {/* Forms */}
       {showCreateForm && (
         <CreatePaymentMethodForm
           onSuccess={handleCreateSuccess}
@@ -138,24 +150,34 @@ export function PaymentMethodsList() {
         />
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {/* Payment Methods Grid - Mobile Single Column, Desktop Multi-column */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {paymentMethods.map((method, index) => (
-          <Card key={method.id || `payment-method-${index}`}>
+          <Card
+            key={method.id || `payment-method-${index}`}
+            className="hover:shadow-md transition-shadow duration-200"
+          >
             <CardHeader className="pb-3">
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="text-lg">{method.name}</CardTitle>
-                  <p className="text-sm text-muted-foreground">{method.code}</p>
+              <div className="flex justify-between items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="text-lg sm:text-xl truncate">
+                    {method.name}
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {method.code}
+                  </p>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <Switch
                     checked={method.isActive}
                     onCheckedChange={() => handleToggleActive(method)}
+                    className="data-[state=checked]:bg-blue-600"
                   />
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => setEditingMethod(method)}
+                    className="h-8 w-8 p-0"
                   >
                     <Edit className="w-4 h-4" />
                   </Button>
@@ -163,15 +185,16 @@ export function PaymentMethodsList() {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleDelete(method)}
+                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               {method.description && (
-                <p className="text-sm text-muted-foreground mb-3">
+                <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
                   {method.description}
                 </p>
               )}
@@ -188,11 +211,18 @@ export function PaymentMethodsList() {
         ))}
       </div>
 
+      {/* Empty State */}
       {paymentMethods.length === 0 && (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-8">
-            <p className="text-muted-foreground mb-4">
+        <Card className="border-dashed border-2 border-gray-300">
+          <CardContent className="flex flex-col items-center justify-center py-12 px-4">
+            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <Plus className="w-6 h-6 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
               No payment methods found
+            </h3>
+            <p className="text-sm text-gray-500 text-center mb-6">
+              Get started by adding your first payment method
             </p>
             <Button onClick={() => setShowCreateForm(true)}>
               <Plus className="w-4 h-4 mr-2" />

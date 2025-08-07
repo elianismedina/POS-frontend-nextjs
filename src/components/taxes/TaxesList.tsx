@@ -25,10 +25,10 @@ export const TaxesList: React.FC<TaxesListProps> = ({
   if (error) {
     return (
       <div
-        className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative"
+        className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg relative"
         role="alert"
       >
-        <strong className="font-bold">Error!</strong>
+        <strong className="font-bold">¡Error!</strong>
         <span className="block sm:inline"> {error}</span>
       </div>
     );
@@ -36,8 +36,8 @@ export const TaxesList: React.FC<TaxesListProps> = ({
 
   if (!taxes || taxes.length === 0) {
     return (
-      <div className="text-center py-10">
-        <div className="mx-auto h-12 w-12 text-gray-400">
+      <div className="text-center py-12 px-4">
+        <div className="mx-auto h-12 w-12 text-gray-400 mb-4">
           <svg
             fill="none"
             viewBox="0 0 24 24"
@@ -52,9 +52,11 @@ export const TaxesList: React.FC<TaxesListProps> = ({
             />
           </svg>
         </div>
-        <h3 className="mt-2 text-sm font-medium text-gray-900">No taxes</h3>
-        <p className="mt-1 text-sm text-gray-500">
-          Get started by creating a new tax.
+        <h3 className="text-lg font-medium text-gray-900 mb-2">
+          No se encontraron impuestos
+        </h3>
+        <p className="text-sm text-gray-500">
+          Comienza creando un nuevo impuesto.
         </p>
       </div>
     );
@@ -80,86 +82,138 @@ export const TaxesList: React.FC<TaxesListProps> = ({
       const dateObj = typeof date === "string" ? new Date(date) : date;
       return dateObj.toLocaleDateString();
     } catch (error) {
-      return "Invalid Date";
+      return "Fecha Inválida";
     }
   };
 
   return (
-    <div>
-      <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg border border-gray-200">
-        <table className="min-w-full divide-y divide-gray-300">
-          <thead className="bg-gray-50">
-            <tr>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+    <div className="overflow-hidden">
+      {/* Mobile View - Cards */}
+      <div className="block sm:hidden">
+        <div className="space-y-4 p-4">
+          {taxes.map((tax, index) => {
+            const key = tax.id || `tax-${index}`;
+            return (
+              <div
+                key={key}
+                className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow duration-200"
               >
-                Tax Name
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Rate
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Description
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Created
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Updated
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {taxes.map((tax, index) => {
-              // Use tax.id if available, otherwise fall back to index
-              const key = tax.id || `tax-${index}`;
-              return (
-                <tr key={key} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
-                      {tax.name || "No name"}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      ID: {tax.id || "No ID"}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 font-semibold">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-semibold text-gray-900 truncate">
+                      {tax.name || "Sin nombre"}
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      ID: {tax.id || "Sin ID"}
+                    </p>
+                  </div>
+                  <div className="ml-4 text-right">
+                    <div className="text-lg font-bold text-blue-600">
                       {formatRate(tax.rate)}
                     </div>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-xs text-gray-500">
                       {formatDecimalRate(tax.rate)}
                     </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900 max-w-xs truncate">
-                      {tax.description || "-"}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatDate(tax.createdAt)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatDate(tax.updatedAt)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                  </div>
+                </div>
+
+                {tax.description && (
+                  <div className="mb-3">
+                    <p className="text-sm text-gray-700 line-clamp-2">
+                      {tax.description}
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center text-xs text-gray-500">
+                  <span>Creado: {formatDate(tax.createdAt)}</span>
+                  <span>Actualizado: {formatDate(tax.updatedAt)}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Desktop View - Table */}
+      <div className="hidden sm:block">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th
+                  scope="col"
+                  className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Nombre del Impuesto
+                </th>
+                <th
+                  scope="col"
+                  className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Tasa
+                </th>
+                <th
+                  scope="col"
+                  className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Descripción
+                </th>
+                <th
+                  scope="col"
+                  className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Creado
+                </th>
+                <th
+                  scope="col"
+                  className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Actualizado
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {taxes.map((tax, index) => {
+                const key = tax.id || `tax-${index}`;
+                return (
+                  <tr
+                    key={key}
+                    className="hover:bg-gray-50 transition-colors duration-150"
+                  >
+                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {tax.name || "Sin nombre"}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        ID: {tax.id || "Sin ID"}
+                      </div>
+                    </td>
+                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 font-semibold">
+                        {formatRate(tax.rate)}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {formatDecimalRate(tax.rate)}
+                      </div>
+                    </td>
+                    <td className="px-4 sm:px-6 py-4">
+                      <div className="text-sm text-gray-900 max-w-xs truncate">
+                        {tax.description || "-"}
+                      </div>
+                    </td>
+                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(tax.createdAt)}
+                    </td>
+                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(tax.updatedAt)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

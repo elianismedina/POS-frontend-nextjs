@@ -40,24 +40,25 @@ export const TaxForm: React.FC<TaxFormProps> = ({
     } = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = "Name is required";
+      newErrors.name = "El nombre es requerido";
     }
 
     if (!formData.rate.trim()) {
-      newErrors.rate = "Rate is required";
+      newErrors.rate = "La tasa es requerida";
     } else {
       const rate = parseFloat(formData.rate);
       if (isNaN(rate)) {
-        newErrors.rate = "Rate must be a valid number";
+        newErrors.rate = "La tasa debe ser un número válido";
       } else if (rate < 0) {
-        newErrors.rate = "Rate cannot be negative";
+        newErrors.rate = "La tasa no puede ser negativa";
       } else if (rate > 100) {
-        newErrors.rate = "Rate cannot exceed 100%";
+        newErrors.rate = "La tasa no puede exceder el 100%";
       }
     }
 
     if (formData.description && formData.description.length > 500) {
-      newErrors.description = "Description must be less than 500 characters";
+      newErrors.description =
+        "La descripción debe tener menos de 500 caracteres";
     }
 
     setErrors(newErrors);
@@ -118,13 +119,13 @@ export const TaxForm: React.FC<TaxFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-6">
       <div>
         <label
           htmlFor="name"
-          className="block text-sm font-medium text-gray-700"
+          className="block text-sm font-medium text-gray-700 mb-2"
         >
-          Tax Name *
+          Nombre del Impuesto *
         </label>
         <input
           type="text"
@@ -132,85 +133,97 @@ export const TaxForm: React.FC<TaxFormProps> = ({
           name="name"
           value={formData.name}
           onChange={handleInputChange}
-          className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
+          className={`block w-full px-4 py-3 text-base border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 ${
             errors.name ? "border-red-300" : "border-gray-300"
           }`}
-          placeholder="e.g., VAT, Sales Tax"
+          placeholder="ej., IVA, Impuesto de Ventas"
+          aria-describedby={errors.name ? "name-error" : undefined}
         />
         {errors.name && (
-          <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+          <p id="name-error" className="mt-2 text-sm text-red-600">
+            {errors.name}
+          </p>
         )}
       </div>
 
       <div>
         <label
           htmlFor="rate"
-          className="block text-sm font-medium text-gray-700"
+          className="block text-sm font-medium text-gray-700 mb-2"
         >
-          Tax Rate (%) *
+          Tasa de Impuesto (%) *
         </label>
-        <div className="mt-1 relative">
+        <div className="relative">
           <input
             type="text"
             id="rate"
             name="rate"
             value={formData.rate}
             onChange={handleRateChange}
-            className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
+            className={`block w-full px-4 py-3 text-base border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 ${
               errors.rate ? "border-red-300" : "border-gray-300"
             }`}
-            placeholder="e.g., 16.0"
+            placeholder="ej., 16.0"
+            aria-describedby={errors.rate ? "rate-error" : "rate-help"}
           />
-          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-            <span className="text-gray-500 sm:text-sm">%</span>
+          <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+            <span className="text-gray-500 text-base">%</span>
           </div>
         </div>
         {errors.rate && (
-          <p className="mt-1 text-sm text-red-600">{errors.rate}</p>
+          <p id="rate-error" className="mt-2 text-sm text-red-600">
+            {errors.rate}
+          </p>
         )}
-        <p className="mt-1 text-xs text-gray-500">
-          Enter a value between 0 and 100 (e.g., 16.0 for 16%)
+        <p id="rate-help" className="mt-2 text-xs text-gray-500">
+          Ingresa un valor entre 0 y 100 (ej., 16.0 para 16%)
         </p>
       </div>
 
       <div>
         <label
           htmlFor="description"
-          className="block text-sm font-medium text-gray-700"
+          className="block text-sm font-medium text-gray-700 mb-2"
         >
-          Description
+          Descripción
         </label>
         <textarea
           id="description"
           name="description"
           value={formData.description}
           onChange={handleInputChange}
-          rows={3}
-          className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
+          rows={4}
+          className={`block w-full px-4 py-3 text-base border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 ${
             errors.description ? "border-red-300" : "border-gray-300"
           }`}
-          placeholder="Optional description of the tax"
+          placeholder="Descripción opcional del impuesto"
+          aria-describedby={
+            errors.description ? "description-error" : undefined
+          }
         />
         {errors.description && (
-          <p className="mt-1 text-sm text-red-600">{errors.description}</p>
+          <p id="description-error" className="mt-2 text-sm text-red-600">
+            {errors.description}
+          </p>
         )}
       </div>
 
-      <div className="flex justify-end space-x-3 pt-4">
+      {/* Mobile-first button layout */}
+      <div className="flex flex-col sm:flex-row gap-3 pt-6">
         <button
           type="button"
           onClick={onCancel}
           disabled={isLoading}
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+          className="w-full sm:w-auto px-6 py-3 text-base font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
         >
-          Cancel
+          Cancelar
         </button>
         <button
           type="submit"
           disabled={isLoading}
-          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+          className="w-full sm:w-auto px-6 py-3 text-base font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
         >
-          {isLoading ? "Creating..." : "Create Tax"}
+          {isLoading ? "Creando..." : "Crear Impuesto"}
         </button>
       </div>
     </form>

@@ -42,7 +42,7 @@ export const CategoriesList: React.FC<CategoriesListProps> = ({
         className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative"
         role="alert"
       >
-        <strong className="font-bold">Error!</strong>
+        <strong className="font-bold">¡Error!</strong>
         <span className="block sm:inline"> {error}</span>
       </div>
     );
@@ -52,10 +52,10 @@ export const CategoriesList: React.FC<CategoriesListProps> = ({
     return (
       <div className="text-center py-10">
         <h3 className="text-lg font-medium text-gray-900">
-          No categories found
+          No se encontraron categorías
         </h3>
         <p className="mt-1 text-sm text-gray-500">
-          Get started by creating a new category.
+          Comienza creando una nueva categoría.
         </p>
       </div>
     );
@@ -82,7 +82,7 @@ export const CategoriesList: React.FC<CategoriesListProps> = ({
             </div>
           ) : (
             <div className="h-16 w-16 bg-gray-100 rounded-lg flex items-center justify-center">
-              <span className="text-gray-400 text-xs">No image</span>
+              <span className="text-gray-400 text-xs">Sin imagen</span>
             </div>
           )}
         </div>
@@ -103,21 +103,21 @@ export const CategoriesList: React.FC<CategoriesListProps> = ({
                   : "bg-red-100 text-red-800"
               }`}
             >
-              {category.isActive ? "Active" : "Inactive"}
+              {category.isActive ? "Activa" : "Inactiva"}
             </span>
           </div>
           <p className="mt-1 text-sm text-gray-500">
-            {category.description || "No description"}
+            {category.description || "Sin descripción"}
           </p>
           <p className="mt-1 text-xs text-gray-400">
-            Created: {new Date(category.createdAt).toLocaleDateString()}
+            Creada: {new Date(category.createdAt).toLocaleDateString()}
           </p>
           <div className="mt-2 flex space-x-2">
             <button
               onClick={() => onEditClick?.(category)}
               className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
             >
-              Edit
+              Editar
             </button>
             {category.isActive ? (
               <button
@@ -125,7 +125,7 @@ export const CategoriesList: React.FC<CategoriesListProps> = ({
                 disabled={isDeleting}
                 className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 disabled:opacity-50"
               >
-                {isDeleting ? "Deleting..." : "Delete"}
+                {isDeleting ? "Eliminando..." : "Eliminar"}
               </button>
             ) : (
               <button
@@ -134,8 +134,8 @@ export const CategoriesList: React.FC<CategoriesListProps> = ({
                 className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 disabled:opacity-50"
               >
                 {isReactivating === category.id
-                  ? "Reactivating..."
-                  : "Reactivate"}
+                  ? "Reactivando..."
+                  : "Reactivar"}
               </button>
             )}
           </div>
@@ -157,7 +157,7 @@ export const CategoriesList: React.FC<CategoriesListProps> = ({
           </div>
         ) : (
           <div className="h-16 w-16 bg-gray-100 rounded-lg flex items-center justify-center">
-            <span className="text-gray-400 text-xs">No image</span>
+            <span className="text-gray-400 text-xs">Sin imagen</span>
           </div>
         )}
       </td>
@@ -180,7 +180,7 @@ export const CategoriesList: React.FC<CategoriesListProps> = ({
               : "bg-red-100 text-red-800"
           }`}
         >
-          {category.isActive ? "Active" : "Inactive"}
+          {category.isActive ? "Activa" : "Inactiva"}
         </span>
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -192,7 +192,7 @@ export const CategoriesList: React.FC<CategoriesListProps> = ({
             onClick={() => onEditClick?.(category)}
             className="text-blue-600 hover:text-blue-900"
           >
-            Edit
+            Editar
           </button>
           {category.isActive ? (
             <button
@@ -200,7 +200,7 @@ export const CategoriesList: React.FC<CategoriesListProps> = ({
               disabled={isDeleting}
               className="text-red-600 hover:text-red-900 disabled:opacity-50"
             >
-              {isDeleting ? "Deleting..." : "Delete"}
+              {isDeleting ? "Eliminando..." : "Eliminar"}
             </button>
           ) : (
             <button
@@ -208,9 +208,7 @@ export const CategoriesList: React.FC<CategoriesListProps> = ({
               disabled={isReactivating === category.id}
               className="text-green-600 hover:text-green-900 disabled:opacity-50"
             >
-              {isReactivating === category.id
-                ? "Reactivating..."
-                : "Reactivate"}
+              {isReactivating === category.id ? "Reactivando..." : "Reactivar"}
             </button>
           )}
         </div>
@@ -236,7 +234,7 @@ export const CategoriesList: React.FC<CategoriesListProps> = ({
                   <ChevronRight className="h-5 w-5 text-green-600" />
                 )}
                 <span className="font-medium text-green-800">
-                  Active Categories
+                  Categorías Activas
                 </span>
                 <span className="bg-green-200 text-green-800 text-xs font-medium px-2 py-1 rounded-full">
                   {activeCategories.length}
@@ -267,7 +265,7 @@ export const CategoriesList: React.FC<CategoriesListProps> = ({
                   <ChevronRight className="h-5 w-5 text-red-600" />
                 )}
                 <span className="font-medium text-red-800">
-                  Inactive Categories
+                  Categorías Inactivas
                 </span>
                 <span className="bg-red-200 text-red-800 text-xs font-medium px-2 py-1 rounded-full">
                   {inactiveCategories.length}
@@ -301,7 +299,7 @@ export const CategoriesList: React.FC<CategoriesListProps> = ({
                   <ChevronRight className="h-5 w-5 text-green-600" />
                 )}
                 <span className="font-medium text-green-800">
-                  Active Categories
+                  Categorías Activas
                 </span>
                 <span className="bg-green-200 text-green-800 text-xs font-medium px-2 py-1 rounded-full">
                   {activeCategories.length}
@@ -317,37 +315,37 @@ export const CategoriesList: React.FC<CategoriesListProps> = ({
                         scope="col"
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
-                        Image
+                        Imagen
                       </th>
                       <th
                         scope="col"
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
-                        Name
+                        Nombre
                       </th>
                       <th
                         scope="col"
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
-                        Description
+                        Descripción
                       </th>
                       <th
                         scope="col"
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
-                        Status
+                        Estado
                       </th>
                       <th
                         scope="col"
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
-                        Created At
+                        Creada
                       </th>
                       <th
                         scope="col"
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
-                        Actions
+                        Acciones
                       </th>
                     </tr>
                   </thead>
@@ -376,7 +374,7 @@ export const CategoriesList: React.FC<CategoriesListProps> = ({
                   <ChevronRight className="h-5 w-5 text-red-600" />
                 )}
                 <span className="font-medium text-red-800">
-                  Inactive Categories
+                  Categorías Inactivas
                 </span>
                 <span className="bg-red-200 text-red-800 text-xs font-medium px-2 py-1 rounded-full">
                   {inactiveCategories.length}
@@ -392,37 +390,37 @@ export const CategoriesList: React.FC<CategoriesListProps> = ({
                         scope="col"
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
-                        Image
+                        Imagen
                       </th>
                       <th
                         scope="col"
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
-                        Name
+                        Nombre
                       </th>
                       <th
                         scope="col"
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
-                        Description
+                        Descripción
                       </th>
                       <th
                         scope="col"
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
-                        Status
+                        Estado
                       </th>
                       <th
                         scope="col"
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
-                        Created At
+                        Creada
                       </th>
                       <th
                         scope="col"
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
-                        Actions
+                        Acciones
                       </th>
                     </tr>
                   </thead>

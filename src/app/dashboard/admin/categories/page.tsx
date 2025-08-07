@@ -41,7 +41,9 @@ const CategoriesPage = () => {
       setCategories(data);
       setError(null);
     } catch (err) {
-      setError("Failed to load categories. Please try again later.");
+      setError(
+        "Error al cargar las categorías. Por favor, inténtalo de nuevo más tarde."
+      );
       console.error("Error fetching categories:", err);
     } finally {
       setIsLoading(false);
@@ -74,7 +76,7 @@ const CategoriesPage = () => {
         // Show error modal with detailed information
         setDeleteErrorData({
           categoryName: category.name,
-          message: checkResult.message || "Cannot delete this category",
+          message: checkResult.message || "No se puede eliminar esta categoría",
           subcategoryCount: checkResult.subcategoryCount,
           subcategoryNames: checkResult.subcategoryNames,
         });
@@ -87,7 +89,9 @@ const CategoriesPage = () => {
       setShowDeleteConfirm(true);
     } catch (err: any) {
       console.error("Error checking category deletability:", err);
-      setError("Failed to check if category can be deleted. Please try again.");
+      setError(
+        "Error al verificar si la categoría se puede eliminar. Por favor, inténtalo de nuevo."
+      );
     }
   };
 
@@ -100,7 +104,7 @@ const CategoriesPage = () => {
       setShowDeleteConfirm(false);
       setCategoryToDelete(null);
       setSuccessMessage(
-        `Category "${categoryToDelete.name}" was deleted successfully`
+        `La categoría "${categoryToDelete.name}" fue eliminada exitosamente`
       );
       // Refresh the categories list
       fetchCategories();
@@ -111,7 +115,9 @@ const CategoriesPage = () => {
       }, 3000);
     } catch (err: any) {
       console.error("Error deleting category:", err);
-      setError("Failed to delete category. Please try again.");
+      setError(
+        "Error al eliminar la categoría. Por favor, inténtalo de nuevo."
+      );
     } finally {
       setIsDeleting(false);
     }
@@ -130,7 +136,9 @@ const CategoriesPage = () => {
   const handleEditSuccess = (response: UpdateCategoryResponse) => {
     setShowEditForm(false);
     setCategoryToEdit(null);
-    setSuccessMessage(`Category "${response.name}" was updated successfully`);
+    setSuccessMessage(
+      `La categoría "${response.name}" fue actualizada exitosamente`
+    );
     fetchCategories();
 
     // Clear success message after 3 seconds
@@ -149,7 +157,7 @@ const CategoriesPage = () => {
     try {
       await categoriesService.reactivateCategory(category.id);
       setSuccessMessage(
-        `Category "${category.name}" was reactivated successfully`
+        `La categoría "${category.name}" fue reactivada exitosamente`
       );
       fetchCategories();
 
@@ -159,7 +167,9 @@ const CategoriesPage = () => {
       }, 3000);
     } catch (err) {
       console.error("Error reactivating category:", err);
-      setError("Failed to reactivate category. Please try again.");
+      setError(
+        "Error al reactivar la categoría. Por favor, inténtalo de nuevo."
+      );
     } finally {
       setIsReactivating(null);
     }
@@ -168,7 +178,7 @@ const CategoriesPage = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Categories</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Categorías</h1>
         <button
           className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center gap-2"
           onClick={() => setShowCreateForm(true)}
@@ -185,7 +195,7 @@ const CategoriesPage = () => {
               clipRule="evenodd"
             />
           </svg>
-          Add Category
+          Agregar Categoría
         </button>
       </div>
 
@@ -221,7 +231,7 @@ const CategoriesPage = () => {
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">
-                Create New Category
+                Crear Nueva Categoría
               </h3>
               <CategoryForm onSubmit={handleCreateSuccess} />
               <div className="mt-4">
@@ -229,7 +239,7 @@ const CategoriesPage = () => {
                   onClick={() => setShowCreateForm(false)}
                   className="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:text-sm"
                 >
-                  Cancel
+                  Cancelar
                 </button>
               </div>
             </div>
@@ -243,11 +253,11 @@ const CategoriesPage = () => {
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">
-                Delete Category
+                Eliminar Categoría
               </h3>
               <p className="text-sm text-gray-500 mb-6">
-                Are you sure you want to delete "{categoryToDelete.name}"? This
-                action cannot be undone.
+                ¿Estás seguro de que quieres eliminar "{categoryToDelete.name}"?
+                Esta acción no se puede deshacer.
               </p>
               <div className="flex space-x-3">
                 <button
@@ -255,14 +265,14 @@ const CategoriesPage = () => {
                   disabled={isDeleting}
                   className="flex-1 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isDeleting ? "Deleting..." : "Delete"}
+                  {isDeleting ? "Eliminando..." : "Eliminar"}
                 </button>
                 <button
                   onClick={handleDeleteCancel}
                   disabled={isDeleting}
                   className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Cancel
+                  Cancelar
                 </button>
               </div>
             </div>
@@ -291,18 +301,18 @@ const CategoriesPage = () => {
                 </svg>
               </div>
               <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4 text-center">
-                Cannot Delete Category
+                No Se Puede Eliminar la Categoría
               </h3>
               <div className="text-sm text-gray-600 mb-6">
                 <p className="mb-3">
-                  <strong>"{deleteErrorData.categoryName}"</strong> cannot be
-                  deleted because it has associated subcategories.
+                  <strong>"{deleteErrorData.categoryName}"</strong> no se puede
+                  eliminar porque tiene subcategorías asociadas.
                 </p>
                 {deleteErrorData.subcategoryCount &&
                   deleteErrorData.subcategoryCount > 0 && (
                     <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-3">
                       <p className="text-yellow-800 font-medium mb-2">
-                        Associated Subcategories (
+                        Subcategorías Asociadas (
                         {deleteErrorData.subcategoryCount}):
                       </p>
                       {deleteErrorData.subcategoryNames &&
@@ -318,8 +328,8 @@ const CategoriesPage = () => {
                     </div>
                   )}
                 <p className="text-gray-700">
-                  Please delete or reassign these subcategories before deleting
-                  the category.
+                  Por favor, elimina o reasigna estas subcategorías antes de
+                  eliminar la categoría.
                 </p>
               </div>
               <div className="flex justify-center">
@@ -330,7 +340,7 @@ const CategoriesPage = () => {
                   }}
                   className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 >
-                  Back to Categories
+                  Volver a Categorías
                 </button>
               </div>
             </div>
@@ -344,7 +354,7 @@ const CategoriesPage = () => {
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">
-                Edit Category
+                Editar Categoría
               </h3>
               <EditCategoryForm
                 category={categoryToEdit}
@@ -360,7 +370,7 @@ const CategoriesPage = () => {
                     console.error("Error updating category:", err);
                     setError(
                       err.response?.data?.message ||
-                        "Failed to update category. Please try again."
+                        "Error al actualizar la categoría. Por favor, inténtalo de nuevo."
                     );
                   } finally {
                     setIsUpdating(false);

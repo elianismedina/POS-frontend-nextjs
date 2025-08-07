@@ -59,10 +59,12 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
   return (
     <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700">Name</label>
+        <label className="block text-sm font-medium text-gray-700">
+          Nombre
+        </label>
         <input
           type="text"
-          {...register("name", { required: "Name is required" })}
+          {...register("name", { required: "El nombre es requerido" })}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
         />
         {errors.name && (
@@ -72,7 +74,7 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
 
       <div>
         <label className="block text-sm font-medium text-gray-700">
-          Description
+          Descripción
         </label>
         <textarea
           {...register("description")}
@@ -82,7 +84,7 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Category Image
+          Imagen de Categoría
         </label>
         <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
           <div className="space-y-1 text-center">
@@ -90,7 +92,7 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
               <div className="relative">
                 <img
                   src={previewUrl}
-                  alt="Preview"
+                  alt="Vista previa"
                   className="h-32 w-32 object-cover rounded-lg mx-auto"
                 />
                 <button
@@ -120,7 +122,7 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
               <CloudinaryUploadWidget
                 onUpload={handleImageUpload}
                 uploadPreset="pos-upload-preset"
-                buttonText="Upload Image"
+                buttonText="Subir Imagen"
               />
             )}
           </div>
@@ -133,10 +135,10 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
         className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isSubmitting
-          ? "Creating..."
+          ? "Creando..."
           : initialData
-          ? "Update Category"
-          : "Create Category"}
+          ? "Actualizar Categoría"
+          : "Crear Categoría"}
       </button>
     </form>
   );

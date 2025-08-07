@@ -74,15 +74,16 @@ export const EditCategoryForm: React.FC<EditCategoryFormProps> = ({
     } = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = "Name is required";
+      newErrors.name = "El nombre es requerido";
     }
 
     if (formData.description && formData.description.length > 500) {
-      newErrors.description = "Description must be less than 500 characters";
+      newErrors.description =
+        "La descripción debe tener menos de 500 caracteres";
     }
 
     if (formData.imageUrl && !isValidUrl(formData.imageUrl)) {
-      newErrors.imageUrl = "Please enter a valid URL";
+      newErrors.imageUrl = "Por favor ingresa una URL válida";
     }
 
     setErrors(newErrors);
@@ -141,7 +142,7 @@ export const EditCategoryForm: React.FC<EditCategoryFormProps> = ({
           htmlFor="name"
           className="block text-sm font-medium text-gray-700"
         >
-          Name *
+          Nombre *
         </label>
         <input
           type="text"
@@ -152,7 +153,7 @@ export const EditCategoryForm: React.FC<EditCategoryFormProps> = ({
           className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
             errors.name ? "border-red-300" : "border-gray-300"
           }`}
-          placeholder="Enter category name"
+          placeholder="Ingresa el nombre de la categoría"
         />
         {errors.name && (
           <p className="mt-1 text-sm text-red-600">{errors.name}</p>
@@ -164,7 +165,7 @@ export const EditCategoryForm: React.FC<EditCategoryFormProps> = ({
           htmlFor="description"
           className="block text-sm font-medium text-gray-700"
         >
-          Description
+          Descripción
         </label>
         <textarea
           id="description"
@@ -175,7 +176,7 @@ export const EditCategoryForm: React.FC<EditCategoryFormProps> = ({
           className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
             errors.description ? "border-red-300" : "border-gray-300"
           }`}
-          placeholder="Enter category description (optional)"
+          placeholder="Ingresa la descripción de la categoría (opcional)"
         />
         {errors.description && (
           <p className="mt-1 text-sm text-red-600">{errors.description}</p>
@@ -184,7 +185,7 @@ export const EditCategoryForm: React.FC<EditCategoryFormProps> = ({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Category Image
+          Imagen de Categoría
         </label>
         <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
           <div className="space-y-1 text-center">
@@ -192,7 +193,7 @@ export const EditCategoryForm: React.FC<EditCategoryFormProps> = ({
               <div className="relative">
                 <img
                   src={previewUrl}
-                  alt="Preview"
+                  alt="Vista previa"
                   className="h-32 w-32 object-cover rounded-lg mx-auto"
                 />
                 <button
@@ -218,7 +219,7 @@ export const EditCategoryForm: React.FC<EditCategoryFormProps> = ({
                   <CloudinaryUploadWidget
                     onUpload={handleImageUpload}
                     uploadPreset="pos-upload-preset"
-                    buttonText="Replace Image"
+                    buttonText="Reemplazar Imagen"
                   />
                 </div>
               </div>
@@ -226,7 +227,7 @@ export const EditCategoryForm: React.FC<EditCategoryFormProps> = ({
               <CloudinaryUploadWidget
                 onUpload={handleImageUpload}
                 uploadPreset="pos-upload-preset"
-                buttonText="Upload Image"
+                buttonText="Subir Imagen"
               />
             )}
           </div>
@@ -246,7 +247,7 @@ export const EditCategoryForm: React.FC<EditCategoryFormProps> = ({
           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
         />
         <label htmlFor="isActive" className="ml-2 block text-sm text-gray-900">
-          Active
+          Activa
         </label>
       </div>
 
@@ -256,7 +257,7 @@ export const EditCategoryForm: React.FC<EditCategoryFormProps> = ({
           disabled={isLoading}
           className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isLoading ? "Updating..." : "Update Category"}
+          {isLoading ? "Actualizando..." : "Actualizar Categoría"}
         </button>
         <button
           type="button"
@@ -264,7 +265,7 @@ export const EditCategoryForm: React.FC<EditCategoryFormProps> = ({
           disabled={isLoading}
           className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Cancel
+          Cancelar
         </button>
       </div>
     </form>

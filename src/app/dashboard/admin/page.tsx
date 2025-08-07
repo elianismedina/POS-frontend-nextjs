@@ -293,7 +293,6 @@ export default function AdminDashboard() {
         className="container mx-auto px-4 py-6 pb-12"
         style={{
           paddingBottom: "calc(48px + env(safe-area-inset-bottom))",
-          paddingBottom: "48px",
         }}
       >
         {/* Header Section - Mobile Optimized */}

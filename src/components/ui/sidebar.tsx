@@ -122,7 +122,7 @@ function SidebarTrigger() {
     <Button
       variant="ghost"
       size="icon"
-      className="h-9 w-9"
+      className="h-9 w-9 text-white hover:text-gray-200 hover:bg-white/10"
       onClick={() => setCollapsed(!collapsed)}
     >
       {collapsed ? (

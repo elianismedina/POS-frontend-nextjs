@@ -49,15 +49,15 @@ function SidebarItem({ icon, label, href, isActive }: SidebarItemProps) {
     <Button
       variant="ghost"
       className={cn(
-        "w-full justify-start gap-1 h-5 px-1 text-xs",
-        isActive && "bg-accent",
+        "w-full justify-start gap-2 h-10 px-3 text-sm text-white hover:text-gray-200 hover:bg-white/10 cursor-pointer",
+        isActive && "bg-white/20 text-white",
         collapsed && "justify-center"
       )}
       onClick={() => router.push(href)}
       title={collapsed ? label : undefined}
     >
       {icon}
-      {!collapsed && <span className="text-xs">{label}</span>}
+      {!collapsed && <span className="text-sm">{label}</span>}
     </Button>
   );
 }
@@ -66,7 +66,12 @@ function SidebarHeaderContent() {
   const { collapsed } = useSidebar();
   return (
     <div className="flex items-center justify-between">
-      <h2 className={cn("text-xs font-semibold", collapsed && "hidden")}>
+      <h2
+        className={cn(
+          "text-xs font-semibold text-white",
+          collapsed && "hidden"
+        )}
+      >
         Panel de Administración
       </h2>
       <SidebarTrigger />
@@ -92,14 +97,14 @@ function SidebarFooterContent() {
     <Button
       variant="ghost"
       className={cn(
-        "w-full justify-start gap-1 h-5 px-1 text-xs",
+        "w-full justify-start gap-2 h-10 px-3 text-sm text-white hover:text-gray-200 hover:bg-white/10 cursor-pointer",
         collapsed && "justify-center"
       )}
       onClick={handleLogout}
       title={collapsed ? "Cerrar Sesión" : undefined}
     >
-      <LogOut className="h-2 w-2" />
-      {!collapsed && <span className="text-xs">Cerrar Sesión</span>}
+      <LogOut className="h-4 w-4" />
+      {!collapsed && <span className="text-sm">Cerrar Sesión</span>}
     </Button>
   );
 }
@@ -121,21 +126,21 @@ export function AdminSidebar() {
 
   return (
     <SidebarProvider>
-      <Sidebar className="pattern-bg">
-        <SidebarHeader className="py-0.5 px-1">
+      <Sidebar className="bg-gradient-to-b from-primary-metal to-secondary-metal metallic-animation relative">
+        <SidebarHeader className="py-0.5 px-1 relative z-10">
           <SidebarHeaderContent />
         </SidebarHeader>
-        <SidebarContent className="space-y-0">
+        <SidebarContent className="space-y-0 relative z-10">
           <SidebarGroup key="main-nav">
             <SidebarItem
-              icon={<LayoutDashboard className="h-2 w-2" />}
+              icon={<LayoutDashboard className="h-4 w-4" />}
               label="Panel Principal"
               href="/dashboard/admin"
               isActive={pathname === "/dashboard/admin"}
             />
             {user.business && (
               <SidebarItem
-                icon={<Store className="h-2 w-2" />}
+                icon={<Store className="h-4 w-4" />}
                 label="Mi Negocio"
                 href="/dashboard/admin/business"
                 isActive={pathname.includes("/business")}
@@ -145,19 +150,19 @@ export function AdminSidebar() {
 
           <SidebarGroup key="operations-nav">
             <SidebarItem
-              icon={<Building2 className="h-2 w-2" />}
+              icon={<Building2 className="h-4 w-4" />}
               label="Sucursales"
               href="/dashboard/admin/branches"
               isActive={pathname.includes("/branches")}
             />
             <SidebarItem
-              icon={<Table className="h-2 w-2" />}
+              icon={<Table className="h-4 w-4" />}
               label="Mesas Físicas"
               href="/dashboard/admin/physical-tables"
               isActive={pathname.includes("/physical-tables")}
             />
             <SidebarItem
-              icon={<ShoppingCart className="h-2 w-2" />}
+              icon={<ShoppingCart className="h-4 w-4" />}
               label="Ordenes de mesa"
               href="/dashboard/admin/table-orders"
               isActive={pathname.includes("/table-orders")}
@@ -166,19 +171,19 @@ export function AdminSidebar() {
 
           <SidebarGroup key="catalog-nav">
             <SidebarItem
-              icon={<Package className="h-2 w-2" />}
+              icon={<Package className="h-4 w-4" />}
               label="Productos"
               href="/dashboard/admin/products"
               isActive={pathname.includes("/products")}
             />
             <SidebarItem
-              icon={<List className="h-2 w-2" />}
+              icon={<List className="h-4 w-4" />}
               label="Categorías"
               href="/dashboard/admin/categories"
               isActive={pathname.includes("/categories")}
             />
             <SidebarItem
-              icon={<Layers className="h-2 w-2" />}
+              icon={<Layers className="h-4 w-4" />}
               label="Subcategorías"
               href="/dashboard/admin/subcategories"
               isActive={pathname.includes("/subcategories")}
@@ -187,13 +192,13 @@ export function AdminSidebar() {
 
           <SidebarGroup key="settings-nav">
             <SidebarItem
-              icon={<Calculator className="h-2 w-2" />}
+              icon={<Calculator className="h-4 w-4" />}
               label="Impuestos"
               href="/dashboard/admin/taxes"
               isActive={pathname.includes("/taxes")}
             />
             <SidebarItem
-              icon={<CreditCard className="h-2 w-2" />}
+              icon={<CreditCard className="h-4 w-4" />}
               label="Métodos de Pago"
               href="/dashboard/admin/payment-methods"
               isActive={pathname.includes("/payment-methods")}
@@ -202,31 +207,31 @@ export function AdminSidebar() {
 
           <SidebarGroup key="business-nav">
             <SidebarItem
-              icon={<ShoppingCart className="h-2 w-2" />}
+              icon={<ShoppingCart className="h-4 w-4" />}
               label="Pedidos"
               href="/dashboard/admin/orders"
               isActive={pathname.includes("/orders")}
             />
             <SidebarItem
-              icon={<Users className="h-2 w-2" />}
+              icon={<Users className="h-4 w-4" />}
               label="Clientes"
               href="/dashboard/admin/customers"
               isActive={pathname.includes("/customers")}
             />
             <SidebarItem
-              icon={<Calendar className="h-2 w-2" />}
+              icon={<Calendar className="h-4 w-4" />}
               label="Reservaciones"
               href="/dashboard/admin/reservations"
               isActive={pathname.includes("/reservations")}
             />
             <SidebarItem
-              icon={<UserCheck className="h-2 w-2" />}
+              icon={<UserCheck className="h-4 w-4" />}
               label="Cajeros"
               href="/dashboard/admin/cashiers"
               isActive={pathname.includes("/cashiers")}
             />
             <SidebarItem
-              icon={<Users className="h-2 w-2" />}
+              icon={<Users className="h-4 w-4" />}
               label="Meseros"
               href="/dashboard/admin/waiters"
               isActive={pathname.includes("/waiters")}
@@ -235,14 +240,14 @@ export function AdminSidebar() {
 
           <SidebarGroup key="reports-nav">
             <SidebarItem
-              icon={<BarChart className="h-2 w-2" />}
+              icon={<BarChart className="h-4 w-4" />}
               label="Reportes"
               href="/dashboard/admin/reports"
               isActive={pathname.includes("/reports")}
             />
           </SidebarGroup>
         </SidebarContent>
-        <SidebarFooter className="py-0.5 px-1">
+        <SidebarFooter className="py-0.5 px-1 relative z-10">
           <SidebarGroup key="footer-nav">
             <SidebarFooterContent />
           </SidebarGroup>

@@ -94,6 +94,9 @@ module.exports = {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // Metallic colors
+        "primary-metal": "#c9511d",
+        "secondary-metal": "#a43e17",
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -151,6 +154,14 @@ module.exports = {
             transform: "scale(1)",
           },
         },
+        sheen: {
+          "0%": {
+            transform: "translateX(-100%) rotate(45deg)",
+          },
+          "100%": {
+            transform: "translateX(100%) rotate(45deg)",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -158,6 +169,7 @@ module.exports = {
         "fade-in": "fade-in 0.3s ease-in-out",
         "slide-up": "slide-up 0.3s ease-out",
         "scale-in": "scale-in 0.2s ease-out",
+        sheen: "sheen 3s infinite linear",
       },
     },
   },

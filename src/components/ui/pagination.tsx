@@ -51,7 +51,7 @@ export function Pagination({
   return (
     <div className={`flex items-center justify-center space-x-2 ${className}`}>
       <Button
-        variant="outline"
+        variant="cancel"
         size="sm"
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
@@ -63,12 +63,12 @@ export function Pagination({
       {getVisiblePages().map((page, index) => (
         <React.Fragment key={index}>
           {page === "..." ? (
-            <Button variant="outline" size="sm" disabled>
+            <Button variant="cancel" size="sm" disabled>
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           ) : (
             <Button
-              variant={currentPage === page ? "default" : "outline"}
+              variant={currentPage === page ? "submit" : "cancel"}
               size="sm"
               onClick={() => onPageChange(page as number)}
             >
@@ -79,7 +79,7 @@ export function Pagination({
       ))}
 
       <Button
-        variant="outline"
+        variant="cancel"
         size="sm"
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}

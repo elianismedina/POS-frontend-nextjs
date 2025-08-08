@@ -39,6 +39,9 @@ import {
   Calendar,
   Clock,
   X,
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 
 export default function PhysicalTablesPage() {
@@ -55,6 +58,10 @@ export default function PhysicalTablesPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingTable, setEditingTable] = useState<PhysicalTable | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -74,6 +81,11 @@ export default function PhysicalTablesPage() {
       fetchData();
     }
   }, [isAuthenticated, user, router, authLoading]);
+
+  // Reset to first page when search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const fetchPhysicalTables = async () => {
     try {
@@ -257,6 +269,129 @@ export default function PhysicalTablesPage() {
         table.location.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  // Pagination calculations
+  const totalItems = filteredTables.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentTables = filteredTables.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const PaginationComponent = () => {
+    if (totalPages <= 1) return null;
+
+    const getVisiblePages = () => {
+      const pages = [];
+      const maxVisible = 5;
+      
+      if (totalPages <= maxVisible) {
+        for (let i = 1; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        if (currentPage <= 3) {
+          for (let i = 1; i <= 4; i++) {
+            pages.push(i);
+          }
+          pages.push("...");
+          pages.push(totalPages);
+        } else if (currentPage >= totalPages - 2) {
+          pages.push(1);
+          pages.push("...");
+          for (let i = totalPages - 3; i <= totalPages; i++) {
+            pages.push(i);
+          }
+        } else {
+          pages.push(1);
+          pages.push("...");
+          for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+            pages.push(i);
+          }
+          pages.push("...");
+          pages.push(totalPages);
+        }
+      }
+      
+      return pages;
+    };
+
+    return (
+      <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center text-sm text-gray-700">
+            <span>
+              Mostrando {startIndex + 1} a {Math.min(endIndex, totalItems)} de {totalItems} resultados
+            </span>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(1)}
+              disabled={currentPage === 1}
+              className="h-8 px-2"
+            >
+              <ChevronsLeft className="h-4 w-4" />
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="h-8 px-2"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            
+            <div className="flex items-center space-x-1">
+              {getVisiblePages().map((page, index) => (
+                <div key={index}>
+                  {page === "..." ? (
+                    <span className="px-3 py-1 text-sm text-gray-500">...</span>
+                  ) : (
+                    <Button
+                      variant={currentPage === page ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handlePageChange(page as number)}
+                      className="h-8 w-8 p-0"
+                    >
+                      {page}
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="h-8 px-2"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(totalPages)}
+              disabled={currentPage === totalPages}
+              className="h-8 px-2"
+            >
+              <ChevronsRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (!isAuthenticated) {
     router.replace("/");
     return null;
@@ -366,7 +501,7 @@ export default function PhysicalTablesPage() {
               <>
                 {/* Mobile Card Layout */}
                 <div className="grid gap-4 sm:hidden">
-                  {filteredTables.map((table) => (
+                  {currentTables.map((table) => (
                     <Card
                       key={table.id}
                       className="cursor-pointer transition-all duration-200 hover:bg-muted/50 active:scale-95 touch-manipulation"
@@ -489,7 +624,7 @@ export default function PhysicalTablesPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredTables.map((table) => (
+                      {currentTables.map((table) => (
                         <TableRow key={table.id}>
                           <TableCell className="font-medium">
                             {table.tableNumber}
@@ -550,6 +685,9 @@ export default function PhysicalTablesPage() {
                     </TableBody>
                   </Table>
                 </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && <PaginationComponent />}
               </>
             )}
           </CardContent>

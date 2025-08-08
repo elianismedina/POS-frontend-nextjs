@@ -21,6 +21,7 @@ import {
   ListOrdered,
   Table,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface SidebarItemProps {
   icon: React.ReactNode;
@@ -35,7 +36,10 @@ function SidebarItem({ icon, label, href, isActive }: SidebarItemProps) {
   return (
     <Button
       variant={isActive ? "secondary" : "ghost"}
-      className="w-full justify-start"
+      className={cn(
+        "w-full justify-start text-white hover:text-gray-200 hover:bg-white/10 cursor-pointer h-10 px-3",
+        isActive && "bg-white/20 text-white"
+      )}
       onClick={() => router.push(href)}
     >
       {icon}
@@ -50,14 +54,14 @@ export function WaiterSidebar() {
 
   return (
     <SidebarProvider defaultCollapsed={false}>
-      <Sidebar className="pattern-bg">
-        <SidebarHeader className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold hidden sm:block">
+      <Sidebar className="bg-gradient-to-b from-primary-metal to-secondary-metal metallic-animation relative">
+        <SidebarHeader className="flex items-center justify-between relative z-10">
+          <h2 className="text-lg font-semibold hidden sm:block text-white">
             Panel de Mesero
           </h2>
           <SidebarTrigger />
         </SidebarHeader>
-        <SidebarContent>
+        <SidebarContent className="relative z-10">
           <SidebarGroup>
             <SidebarItem
               icon={<LayoutDashboard className="h-4 w-4" />}
@@ -97,14 +101,14 @@ export function WaiterSidebar() {
             />
           </SidebarGroup>
         </SidebarContent>
-        <SidebarFooter>
+        <SidebarFooter className="relative z-10">
           <div className="flex flex-col gap-2">
-            <div className="px-4 py-2 text-sm text-muted-foreground hidden sm:block">
+            <div className="px-4 py-2 text-sm text-white hidden sm:block">
               {user?.email}
             </div>
             <Button
               variant="ghost"
-              className="w-full justify-start hover:bg-destructive/10 hover:text-destructive"
+              className="w-full justify-start text-white hover:text-gray-200 hover:bg-white/10 cursor-pointer h-10 px-3"
               onClick={() => logout()}
               title="Cerrar Sesión"
             >

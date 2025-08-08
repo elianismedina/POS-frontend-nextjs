@@ -2,6 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .metallic-animation {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .metallic-animation::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      45deg,
+      transparent,
+      rgba(255, 255, 255, 0.3),
+      transparent
+    );
+    animation: sheen 3s infinite linear;
+    pointer-events: none;
+    z-index: 1;
+  }
+}
+
 @layer base {
   :root {
     /* Base Colors */

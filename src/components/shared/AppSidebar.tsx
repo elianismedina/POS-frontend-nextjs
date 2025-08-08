@@ -67,7 +67,7 @@ function SidebarFooterContent() {
           <Button
             variant="ghost"
             className={cn(
-              "w-full justify-start gap-2 h-10 px-3 text-sm text-gray-800 font-medium hover:text-gray-100 hover:bg-orange-600 cursor-pointer transition-all duration-200 border border-white/20 hover:border-orange-400/50",
+              "w-full justify-start gap-2 h-10 px-3 text-sm text-gray-800 font-medium hover:text-gray-100 hover:bg-orange-500 cursor-pointer transition-all duration-200 border border-white/20 hover:border-orange-400/50",
               !open && "justify-center"
             )}
             onClick={handleLogout}
@@ -121,7 +121,7 @@ export function AppSidebar({ role }: AppSidebarProps) {
         {config.groups.map((group, index) => (
           <SidebarGroup key={group.key} className={index > 0 ? "mt-4" : ""}>
             {group.label && (
-              <SidebarGroupLabel className="text-white font-bold text-xs mb-2 px-3 py-2 rounded mx-2 uppercase tracking-wider">
+              <SidebarGroupLabel className="text-gray-800 font-bold text-xs mb-2 px-3 py-2 rounded mx-2 uppercase tracking-wider">
                 {group.label}
               </SidebarGroupLabel>
             )}

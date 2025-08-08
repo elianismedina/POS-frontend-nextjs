@@ -12,7 +12,6 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
   SidebarTrigger,
   useSidebar,
@@ -44,48 +43,6 @@ function SidebarHeaderContent({ title }: { title: string }) {
   );
 }
 
-function SidebarItemComponent({ item }: { item: SidebarItem }) {
-  const router = useRouter();
-  const { open } = useSidebar();
-  const IconComponent = item.icon;
-
-  console.log(`🔍 [SidebarItem] Rendering: ${item.label}`, {
-    isActive: item.isActive,
-    open,
-  });
-
-  return (
-    <SidebarMenuItem>
-      <SidebarMenuButton
-        asChild
-        isActive={item.isActive}
-        className="text-white hover:text-white hover:bg-white/20"
-      >
-        <Button
-          variant="ghost"
-          className={cn(
-            "w-full justify-start gap-2 h-10 px-3 text-sm text-gray-100 hover:text-white hover:bg-gray-600 cursor-pointer transition-all duration-200 font-medium bg-gray-700/50 border border-gray-600",
-            item.isActive &&
-              "bg-gray-600 text-white font-bold shadow-lg border border-gray-400",
-            !open && "justify-center"
-          )}
-          onClick={() => router.push(item.href)}
-          title={!open ? item.label : undefined}
-        >
-          <IconComponent
-            className={cn("h-4 w-4", item.isActive && "text-white")}
-          />
-          {open && (
-            <span className={cn("text-sm", item.isActive && "font-semibold")}>
-              {item.label}
-            </span>
-          )}
-        </Button>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
-  );
-}
-
 function SidebarFooterContent() {
   const { open } = useSidebar();
   const router = useRouter();
@@ -109,20 +66,18 @@ function SidebarFooterContent() {
       )}
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild>
-            <Button
-              variant="ghost"
-              className={cn(
-                "w-full justify-start gap-2 h-10 px-3 text-sm text-white font-medium hover:text-white hover:bg-red-500/30 cursor-pointer transition-all duration-200 border border-white/20 hover:border-red-400/50",
-                !open && "justify-center"
-              )}
-              onClick={handleLogout}
-              title={!open ? "Cerrar Sesión" : undefined}
-            >
-              <LogOut className="h-4 w-4 text-red-300" />
-              {open && <span className="text-sm">Cerrar Sesión</span>}
-            </Button>
-          </SidebarMenuButton>
+          <Button
+            variant="ghost"
+            className={cn(
+              "w-full justify-start gap-2 h-10 px-3 text-sm text-white font-medium hover:text-white hover:bg-red-500/30 cursor-pointer transition-all duration-200 border border-white/20 hover:border-red-400/50",
+              !open && "justify-center"
+            )}
+            onClick={handleLogout}
+            title={!open ? "Cerrar Sesión" : undefined}
+          >
+            <LogOut className="h-4 w-4 text-red-300" />
+            {open && <span className="text-sm">Cerrar Sesión</span>}
+          </Button>
         </SidebarMenuItem>
       </SidebarMenu>
     </SidebarGroup>
@@ -133,6 +88,7 @@ export function AppSidebar({ role }: AppSidebarProps) {
   const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const { open, setOpen, isMobile, setOpenMobile } = useSidebar();
 
   useEffect(() => {
     if (!user) {
@@ -140,11 +96,22 @@ export function AppSidebar({ role }: AppSidebarProps) {
     }
   }, [user, router]);
 
+  // Close sidebar on route change for mobile
+  useEffect(() => {
+    if (isMobile && setOpenMobile) {
+      setOpenMobile(false);
+    }
+  }, [pathname, isMobile, setOpenMobile]);
+
   if (!user) {
     return null;
   }
 
   const config = getSidebarConfig(role, pathname, user);
+
+  const handleNavigation = (href: string) => {
+    router.push(href);
+  };
 
   return (
     <Sidebar
@@ -160,42 +127,47 @@ export function AppSidebar({ role }: AppSidebarProps) {
       </SidebarHeader>
 
       <SidebarContent className="space-y-2 relative z-10 py-2 flex-1 overflow-y-auto min-h-0">
-        {config.groups.map((group, index) => {
-          console.log(`🔍 [Group ${group.key}] Items:`, group.items.length);
-          group.items.forEach((item) =>
-            console.log(`🔍 [Item] ${item.label}:`, item)
-          );
-          return (
-            <SidebarGroup key={group.key} className={index > 0 ? "mt-4" : ""}>
-              {group.label && (
-                <SidebarGroupLabel className="text-white font-bold text-xs mb-2 px-3 py-2 bg-black/30 rounded mx-2 border border-gray-500 uppercase tracking-wider">
-                  {group.label}
-                </SidebarGroupLabel>
-              )}
-              <SidebarGroupContent className="space-y-1">
-                <div className="text-white text-xs px-3 py-1 bg-red-500">
-                  DEBUG: {group.items.length} items
-                </div>
-                <SidebarMenu className="space-y-1">
-                  {group.items.map((item) => (
-                    <div
-                      key={item.href}
-                      className="bg-yellow-500 text-black text-xs px-2 py-1 mx-2"
+        {config.groups.map((group, index) => (
+          <SidebarGroup key={group.key} className={index > 0 ? "mt-4" : ""}>
+            {group.label && (
+              <SidebarGroupLabel className="text-white font-bold text-xs mb-2 px-3 py-2 bg-black/30 rounded mx-2 border border-gray-500 uppercase tracking-wider">
+                {group.label}
+              </SidebarGroupLabel>
+            )}
+            <SidebarGroupContent className="space-y-1">
+              <SidebarMenu className="space-y-1">
+                {group.items.map((item) => (
+                  <SidebarMenuItem key={item.href} className="relative">
+                    <Button
+                      variant="ghost"
+                      className={cn(
+                        "w-full justify-start gap-2 h-10 px-3 text-sm text-gray-100 hover:text-white hover:bg-gray-600 cursor-pointer transition-all duration-200 font-medium bg-gray-700/50 border border-gray-600",
+                        item.isActive &&
+                          "bg-gray-600 text-white font-bold shadow-lg border border-gray-400"
+                      )}
+                      onClick={() => handleNavigation(item.href)}
+                      title={!open ? item.label : undefined}
                     >
-                      TEST: {item.label}
-                    </div>
-                  ))}
-                  {group.items.map((item) => (
-                    <SidebarItemComponent
-                      key={`item-${item.href}`}
-                      item={item}
-                    />
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          );
-        })}
+                      <item.icon
+                        className={cn("h-4 w-4", item.isActive && "text-white")}
+                      />
+                      {open && (
+                        <span
+                          className={cn(
+                            "truncate",
+                            item.isActive && "font-bold"
+                          )}
+                        >
+                          {item.label}
+                        </span>
+                      )}
+                    </Button>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
 
       <SidebarFooter className="py-0.5 px-1 relative z-10">

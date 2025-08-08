@@ -28,12 +28,12 @@ export default function CashierCustomersPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCustomers, setTotalCustomers] = useState(0);
+  const [isSearchMode, setIsSearchMode] = useState(false);
 
   useEffect(() => {
     if (!authLoading) {
@@ -45,39 +45,46 @@ export default function CashierCustomersPage() {
     }
   }, [isAuthenticated, user, router, authLoading]);
 
+  // Fetch customers when page changes or search term changes
   useEffect(() => {
-    applyFilters();
-    // Reset to first page when search term changes
-    if (searchTerm && currentPage !== 1) {
-      setCurrentPage(1);
+    if (!authLoading) {
+      fetchCustomers();
     }
-  }, [allCustomers, searchTerm]);
+  }, [currentPage, searchTerm, authLoading]);
 
-  const fetchCustomers = async (page: number = currentPage) => {
+  const fetchCustomers = async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const response = await CustomersService.getCustomers();
+      // Use proper pagination with 10 customers per page
+      const response = await CustomersService.getCustomers({
+        page: currentPage,
+        limit: 10, // Show 10 customers per page
+        search: searchTerm.trim() || undefined, // Add search parameter if provided
+      });
 
       // Handle both paginated and non-paginated responses
       let customersArray: Customer[] = [];
       if (response && "data" in response && "meta" in response) {
         // Paginated response
         customersArray = Array.isArray(response.data) ? response.data : [];
+        setTotalPages(response.meta.totalPages);
+        setTotalCustomers(response.meta.total);
       } else if (response && Array.isArray(response)) {
         // Non-paginated response (fallback)
         customersArray = response;
+        setTotalPages(1);
+        setTotalCustomers(customersArray.length);
       } else {
         // Fallback for unexpected response
         console.warn("Unexpected customers response format:", response);
         customersArray = [];
+        setTotalPages(1);
+        setTotalCustomers(0);
       }
 
       setCustomers(customersArray);
-      setAllCustomers(customersArray);
-      setTotalPages(1);
-      setTotalCustomers(customersArray.length);
     } catch (error: any) {
       console.error("Error fetching customers:", error);
       const errorMessage =
@@ -96,26 +103,10 @@ export default function CashierCustomersPage() {
     }
   };
 
-  const applyFilters = () => {
-    if (!searchTerm.trim()) {
-      setCustomers(allCustomers);
-      return;
-    }
-
-    const term = searchTerm.toLowerCase();
-    const filtered = allCustomers.filter(
-      (customer) =>
-        customer.name.toLowerCase().includes(term) ||
-        customer.email.toLowerCase().includes(term) ||
-        (customer.phone && customer.phone.includes(term)) ||
-        (customer.documentNumber && customer.documentNumber.includes(term)) ||
-        (customer.address && customer.address.toLowerCase().includes(term))
-    );
-    setCustomers(filtered);
-  };
-
   const clearSearch = () => {
     setSearchTerm("");
+    setIsSearchMode(false);
+    setCurrentPage(1);
   };
 
   const handleSelectCustomer = (customer: Customer) => {
@@ -128,7 +119,19 @@ export default function CashierCustomersPage() {
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    fetchCustomers(page);
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+
+    if (value.trim()) {
+      setIsSearchMode(true);
+      setCurrentPage(1);
+    } else {
+      setIsSearchMode(false);
+      setCurrentPage(1);
+    }
   };
 
   if (!isAuthenticated) {
@@ -198,7 +201,7 @@ export default function CashierCustomersPage() {
             <Input
               placeholder="Search by name, email, phone, document, or address..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={handleSearchChange}
               className="pl-10 w-full"
             />
             {searchTerm && (
@@ -227,7 +230,7 @@ export default function CashierCustomersPage() {
           <CardTitle className="flex items-center">
             <Users className="h-5 w-5 mr-2" />
             Customer List ({customers.length} shown
-            {searchTerm ? " (filtered)" : ""})
+            {isSearchMode ? " (filtered)" : ""})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -247,11 +250,11 @@ export default function CashierCustomersPage() {
                 No customers found
               </h3>
               <p className="text-gray-500 mb-6 max-w-sm mx-auto">
-                {searchTerm
+                {isSearchMode
                   ? "No customers match your search criteria. Try adjusting your search terms."
                   : "No customers are available in your business at the moment."}
               </p>
-              {searchTerm && (
+              {isSearchMode && (
                 <Button onClick={clearSearch} variant="outline">
                   Clear Search
                 </Button>
@@ -272,11 +275,11 @@ export default function CashierCustomersPage() {
       </Card>
 
       {/* Pagination */}
-      {totalPages > 1 && !searchTerm && (
+      {totalPages > 1 && !isSearchMode && (
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-sm text-gray-600 text-center sm:text-left">
-            Showing {(currentPage - 1) * 20 + 1} to{" "}
-            {Math.min(currentPage * 20, totalCustomers)} of {totalCustomers}{" "}
+            Showing {(currentPage - 1) * 10 + 1} to{" "}
+            {Math.min(currentPage * 10, totalCustomers)} of {totalCustomers}{" "}
             customers
           </div>
           <Pagination

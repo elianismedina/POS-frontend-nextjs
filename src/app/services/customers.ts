@@ -16,6 +16,7 @@ export interface Customer {
 export interface PaginationParams {
   page?: number;
   limit?: number;
+  search?: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -53,6 +54,7 @@ export class CustomersService {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append("page", params.page.toString());
     if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.search) queryParams.append("search", params.search);
 
     const response = await api.get(`/customers?${queryParams.toString()}`);
     return response.data;

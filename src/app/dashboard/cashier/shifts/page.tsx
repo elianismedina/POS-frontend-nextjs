@@ -18,6 +18,8 @@ import {
   Play,
   Square,
   RefreshCw,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 export default function MyShiftsPage() {
@@ -29,6 +31,12 @@ export default function MyShiftsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalShifts, setTotalShifts] = useState(0);
+  const [shiftsPerPage] = useState(10);
+
   useEffect(() => {
     if (!authLoading) {
       if (!isAuthenticated || !user?.id) {
@@ -37,17 +45,23 @@ export default function MyShiftsPage() {
       }
       fetchShifts();
     }
-  }, [isAuthenticated, user, router, authLoading]);
+  }, [isAuthenticated, user, router, authLoading, currentPage]);
 
   const fetchShifts = async () => {
     try {
       setIsLoading(true);
       const [shiftsData, activeShiftData] = await Promise.all([
-        shiftsService.getShiftsByCashier(user!.id),
+        shiftsService.getShiftsByCashier(user!.id, {
+          page: currentPage,
+          limit: shiftsPerPage,
+        }),
         shiftsService.getActiveShift(user!.id),
       ]);
 
-      setShifts(shiftsData);
+      // Extract the shifts array from the paginated response
+      setShifts(shiftsData?.shifts || []);
+      setTotalPages(shiftsData?.meta?.totalPages || 1);
+      setTotalShifts(shiftsData?.meta?.total || 0);
       setActiveShift(activeShiftData);
     } catch (error: any) {
       console.error("Error fetching shifts:", error);
@@ -94,6 +108,52 @@ export default function MyShiftsPage() {
       return <Badge className="bg-green-100 text-green-800">Active</Badge>;
     }
     return <Badge variant="secondary">Ended</Badge>;
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const getVisiblePages = () => {
+    const delta = 2;
+    const range = [];
+    const rangeWithDots = [];
+
+    for (
+      let i = Math.max(2, currentPage - delta);
+      i <= Math.min(totalPages - 1, currentPage + delta);
+      i++
+    ) {
+      range.push(i);
+    }
+
+    if (currentPage - delta > 2) {
+      rangeWithDots.push(1, "...");
+    } else {
+      rangeWithDots.push(1);
+    }
+
+    rangeWithDots.push(...range);
+
+    if (currentPage + delta < totalPages - 1) {
+      rangeWithDots.push("...", totalPages);
+    } else if (totalPages > 1) {
+      rangeWithDots.push(totalPages);
+    }
+
+    return rangeWithDots;
   };
 
   if (!isAuthenticated) {
@@ -200,93 +260,152 @@ export default function MyShiftsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3">
-          {shifts.map((shift) => (
-            <Card key={shift.id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Calendar className="h-4 w-4" />
-                    Shift #{shift.id.slice(-8)}
-                  </CardTitle>
-                  {getStatusBadge(shift.status)}
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {/* Date and Time */}
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-gray-500">Date</p>
-                    <p className="text-sm">{formatDate(shift.startTime)}</p>
+        <>
+          <div className="grid gap-3">
+            {shifts.map((shift) => (
+              <Card
+                key={shift.id}
+                className="hover:shadow-md transition-shadow"
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Calendar className="h-4 w-4" />
+                      Shift #{shift.id.slice(-8)}
+                    </CardTitle>
+                    {getStatusBadge(shift.status)}
                   </div>
-
-                  {/* Duration */}
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-gray-500">
-                      Duration
-                    </p>
-                    <p className="text-base font-semibold text-blue-600">
-                      {shift.endTime
-                        ? formatDuration(shift.startTime, shift.endTime)
-                        : formatDuration(shift.startTime)}
-                    </p>
-                  </div>
-
-                  {/* Financial Summary */}
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-gray-500">
-                      Initial Amount
-                    </p>
-                    <p className="text-base font-bold text-gray-900">
-                      {formatPrice(shift.initialAmount)}
-                    </p>
-                  </div>
-
-                  {/* Final Amount */}
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-gray-500">
-                      {shift.endTime ? "Final Amount" : "Current Sales"}
-                    </p>
-                    <p className="text-base font-bold text-green-600">
-                      {formatPrice(shift.finalAmount || shift.totalSales || 0)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Additional Details - More Compact */}
-                <div className="mt-3 pt-3 border-t flex items-center justify-between text-xs text-gray-500">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      <span>Start: {formatTime(shift.startTime)}</span>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {/* Date and Time */}
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-gray-500">Date</p>
+                      <p className="text-sm">{formatDate(shift.startTime)}</p>
                     </div>
 
-                    {shift.endTime && (
+                    {/* Duration */}
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-gray-500">
+                        Duration
+                      </p>
+                      <p className="text-base font-semibold text-blue-600">
+                        {shift.endTime
+                          ? formatDuration(shift.startTime, shift.endTime)
+                          : formatDuration(shift.startTime)}
+                      </p>
+                    </div>
+
+                    {/* Financial Summary */}
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-gray-500">
+                        Initial Amount
+                      </p>
+                      <p className="text-base font-bold text-gray-900">
+                        {formatPrice(shift.initialAmount)}
+                      </p>
+                    </div>
+
+                    {/* Final Amount */}
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-gray-500">
+                        {shift.endTime ? "Final Amount" : "Current Sales"}
+                      </p>
+                      <p className="text-base font-bold text-green-600">
+                        {formatPrice(
+                          shift.finalAmount || shift.totalSales || 0
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Additional Details - More Compact */}
+                  <div className="mt-3 pt-3 border-t flex items-center justify-between text-xs text-gray-500">
+                    <div className="flex items-center gap-4">
                       <div className="flex items-center gap-1">
-                        <Square className="h-3 w-3" />
-                        <span>End: {formatTime(shift.endTime)}</span>
+                        <Clock className="h-3 w-3" />
+                        <span>Start: {formatTime(shift.startTime)}</span>
+                      </div>
+
+                      {shift.endTime && (
+                        <div className="flex items-center gap-1">
+                          <Square className="h-3 w-3" />
+                          <span>End: {formatTime(shift.endTime)}</span>
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-1">
+                        <ShoppingCart className="h-3 w-3" />
+                        <span className="font-semibold text-blue-600">
+                          {shift.totalOrders || 0} orders
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Notes - Only show if exists */}
+                    {shift.notes && (
+                      <div className="text-xs text-gray-600 max-w-xs truncate">
+                        {shift.notes}
                       </div>
                     )}
-
-                    <div className="flex items-center gap-1">
-                      <ShoppingCart className="h-3 w-3" />
-                      <span className="font-semibold text-blue-600">
-                        {shift.totalOrders || 0} orders
-                      </span>
-                    </div>
                   </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-                  {/* Notes - Only show if exists */}
-                  {shift.notes && (
-                    <div className="text-xs text-gray-600 max-w-xs truncate">
-                      {shift.notes}
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="mt-6 flex items-center justify-between">
+              <div className="text-sm text-gray-500">
+                Showing {(currentPage - 1) * shiftsPerPage + 1} to{" "}
+                {Math.min(currentPage * shiftsPerPage, totalShifts)} of{" "}
+                {totalShifts} shifts
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePreviousPage}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {getVisiblePages().map((page, index) => (
+                    <div key={index}>
+                      {page === "..." ? (
+                        <span className="px-2 py-1 text-gray-500">...</span>
+                      ) : (
+                        <Button
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handlePageChange(page as number)}
+                          className="w-8 h-8 p-0"
+                        >
+                          {page}
+                        </Button>
+                      )}
                     </div>
-                  )}
+                  ))}
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

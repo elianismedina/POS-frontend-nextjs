@@ -24,6 +24,21 @@ export interface EndShiftRequest {
   finalAmount: number;
 }
 
+export interface PaginationParams {
+  page?: number;
+  limit?: number;
+}
+
+export interface PaginatedShiftsResponse {
+  shifts: Shift[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
 export const shiftsService = {
   async startShift(data: StartShiftRequest): Promise<Shift> {
     const response = await api.post("/register-shifts", data);
@@ -49,8 +64,21 @@ export const shiftsService = {
     }
   },
 
-  async getShiftsByCashier(cashierId: string): Promise<Shift[]> {
-    const response = await api.get(`/register-shifts/cashier/${cashierId}`);
+  async getShiftsByCashier(
+    cashierId: string,
+    params?: PaginationParams
+  ): Promise<PaginatedShiftsResponse> {
+    const queryParams = new URLSearchParams();
+
+    if (params) {
+      if (params.page) queryParams.append("page", params.page.toString());
+      if (params.limit) queryParams.append("limit", params.limit.toString());
+    }
+
+    const response = await api.get(
+      `/register-shifts/cashier/${cashierId}?${queryParams.toString()}`
+    );
+
     return response.data;
   },
 

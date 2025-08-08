@@ -84,6 +84,12 @@ export default function CashReportPage() {
   const [reportLoading, setReportLoading] = useState(false);
   const { toast } = useToast();
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalShifts, setTotalShifts] = useState(0);
+  const [shiftsPerPage] = useState(10);
+
   // Estado para cuadre ciego
   const [showBlindCountModal, setShowBlindCountModal] = useState(false);
   const [blindCount, setBlindCount] = useState<Partial<BlindCount>>({});
@@ -99,16 +105,26 @@ export default function CashReportPage() {
     if (user?.id) {
       loadShifts();
     }
-  }, [user?.id]);
+  }, [user?.id, currentPage]);
 
   const loadShifts = async () => {
     if (!user?.id) return;
 
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await shiftsService.getShiftsByCashier(user.id);
-      setShifts(response as Shift[]);
+      const response = await shiftsService.getShiftsByCashier(user.id, {
+        page: currentPage,
+        limit: shiftsPerPage,
+      });
+
+      setShifts(response?.shifts || []);
+      setTotalPages(response?.meta?.totalPages || 1);
+      setTotalShifts(response?.meta?.total || 0);
     } catch (error) {
+      console.error("Error loading shifts:", error);
+      setShifts([]);
+      setTotalPages(1);
+      setTotalShifts(0);
       toast({
         title: "Error",
         description: "No se pudieron cargar los turnos",
@@ -246,6 +262,53 @@ export default function CashReportPage() {
     setShowTheoreticalAmount(false);
   };
 
+  // Pagination handlers
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const getVisiblePages = () => {
+    const delta = 2;
+    const range = [];
+    const rangeWithDots = [];
+
+    for (
+      let i = Math.max(2, currentPage - delta);
+      i <= Math.min(totalPages - 1, currentPage + delta);
+      i++
+    ) {
+      range.push(i);
+    }
+
+    if (currentPage - delta > 2) {
+      rangeWithDots.push(1, "...");
+    } else {
+      rangeWithDots.push(1);
+    }
+
+    rangeWithDots.push(...range);
+
+    if (currentPage + delta < totalPages - 1) {
+      rangeWithDots.push("...", totalPages);
+    } else {
+      rangeWithDots.push(totalPages);
+    }
+
+    return rangeWithDots;
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -269,9 +332,16 @@ export default function CashReportPage() {
         {/* Lista de Turnos */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Clock className="h-5 w-5" />
-              <span>Seleccionar Turno</span>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Clock className="h-5 w-5" />
+                <span>Seleccionar Turno</span>
+              </div>
+              {totalShifts > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  {totalShifts} turnos
+                </Badge>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -310,6 +380,63 @@ export default function CashReportPage() {
                     </div>
                   </div>
                 ))}
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="mt-6">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-muted-foreground">
+                        Mostrando {(currentPage - 1) * shiftsPerPage + 1} -{" "}
+                        {Math.min(currentPage * shiftsPerPage, totalShifts)} de{" "}
+                        {totalShifts} turnos
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handlePreviousPage}
+                          disabled={currentPage === 1}
+                        >
+                          Anterior
+                        </Button>
+
+                        <div className="flex items-center space-x-1">
+                          {getVisiblePages().map((page, index) => (
+                            <div key={index}>
+                              {page === "..." ? (
+                                <span className="px-2 py-1 text-sm text-muted-foreground">
+                                  ...
+                                </span>
+                              ) : (
+                                <Button
+                                  variant={
+                                    currentPage === page ? "default" : "outline"
+                                  }
+                                  size="sm"
+                                  onClick={() =>
+                                    handlePageChange(page as number)
+                                  }
+                                  className="w-8 h-8 p-0"
+                                >
+                                  {page}
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleNextPage}
+                          disabled={currentPage === totalPages}
+                        >
+                          Siguiente
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>

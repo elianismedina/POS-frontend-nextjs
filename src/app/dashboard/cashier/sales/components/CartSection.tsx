@@ -154,8 +154,8 @@ export const CartSection = ({
                 {formatPrice(sale.tipAmount || 0)}
               </span>
             </div>
-            <div className="grid grid-cols-3 gap-1">
-              {[0, 10, 15, 18, 20, 25].map((percentage) => (
+            <div className="grid grid-cols-2 gap-1">
+              {[0, 10].map((percentage) => (
                 <Button
                   key={percentage}
                   variant={

@@ -65,6 +65,20 @@ This document summarizes the comprehensive standardization of button UI componen
 - **"Done" button**: Changed to `submit` variant
 - **Impact**: Clear action hierarchy
 
+### 6. List Components (CRITICAL FIX)
+
+#### CategoriesList (`src/app/components/CategoriesList.tsx`)
+- **"Edit" buttons**: Changed from custom blue buttons to `info` variant
+- **"Delete" buttons**: Changed from custom red buttons to `destructive` variant
+- **"Reactivate" buttons**: Changed from custom green buttons to `success` variant
+- **Impact**: Complete standardization of category management buttons
+
+#### SubcategoriesList (`src/app/components/SubcategoriesList.tsx`)
+- **"Edit" buttons**: Changed from custom blue buttons to `info` variant
+- **"Delete" buttons**: Changed from custom red buttons to `destructive` variant
+- **"Reactivate" buttons**: Changed from custom green buttons to `success` variant
+- **Impact**: Complete standardization of subcategory management buttons
+
 ## Color Scheme Implementation
 
 ### Primary Actions (Green)
@@ -89,10 +103,15 @@ This document summarizes the comprehensive standardization of button UI componen
 - Positive actions
 - Completion actions
 
+### Destructive Actions (Red)
+- Delete actions
+- Remove actions
+- Destructive confirmations
+
 ## Benefits Achieved
 
 1. **Visual Consistency**: All buttons now follow the same color scheme
-2. **User Experience**: Intuitive color coding (green = positive, gray = neutral)
+2. **User Experience**: Intuitive color coding (green = positive, gray = neutral, red = destructive)
 3. **Accessibility**: Better contrast and clear action hierarchy
 4. **Maintainability**: Centralized button styling system
 5. **Mobile-First**: Responsive design with consistent sizing
@@ -122,6 +141,14 @@ This document summarizes the comprehensive standardization of button UI componen
 </Button>
 ```
 
+### Destructive Action Button
+```tsx
+<Button variant="destructive" onClick={handleDelete}>
+  <Trash2 className="mr-2 h-4 w-4" />
+  Delete
+</Button>
+```
+
 ## Migration Notes
 
 - All existing functionality preserved
@@ -138,6 +165,30 @@ This document summarizes the comprehensive standardization of button UI componen
 - ✅ Consistent styling across all components
 - ✅ Mobile responsiveness maintained
 
+## Critical Fixes Applied
+
+### Issue Identified
+The categories page at https://pos-frontend-nextjs.vercel.app/dashboard/admin/categories was showing buttons with completely different colors because the `CategoriesList` and `SubcategoriesList` components were using regular HTML `<button>` elements with custom CSS classes instead of the standardized Button component.
+
+### Solution Applied
+1. **CategoriesList**: Replaced all custom button elements with standardized Button components
+   - Edit buttons: `variant="info"` (blue)
+   - Delete buttons: `variant="destructive"` (red)
+   - Reactivate buttons: `variant="success"` (green)
+
+2. **SubcategoriesList**: Applied the same standardization
+   - Edit buttons: `variant="info"` (blue)
+   - Delete buttons: `variant="destructive"` (red)
+   - Reactivate buttons: `variant="success"` (green)
+
+3. **Added Icons**: Enhanced user experience by adding appropriate icons to all buttons
+   - Edit: `<Edit />` icon
+   - Delete: `<Trash2 />` icon
+   - Reactivate: `<RotateCcw />` icon
+
+### Result
+All buttons across the application now have consistent styling and behavior, including the categories and subcategories pages that were previously using non-standardized buttons.
+
 ## Future Enhancements
 
 1. **Loading States**: Consider adding loading indicators to submit buttons
@@ -148,4 +199,4 @@ This document summarizes the comprehensive standardization of button UI componen
 ---
 
 *Last updated: [Current Date]*
-*Version: 1.0*
+*Version: 1.1*

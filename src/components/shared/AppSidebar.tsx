@@ -140,7 +140,10 @@ export function AppSidebar({ role }: AppSidebarProps) {
                       title={!open ? item.label : undefined}
                     >
                       <item.icon
-                        className={cn("h-4 w-4", item.isActive && "text-white")}
+                        className={cn(
+                          "h-4 w-4",
+                          item.isActive && "text-gray-900"
+                        )}
                       />
                       {open && (
                         <span

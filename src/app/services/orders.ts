@@ -166,6 +166,18 @@ class OrdersService {
 
   async getOrder(orderId: string): Promise<Order> {
     const response = await api.get(`/orders/${orderId}`);
+    console.log("[OrdersService] getOrder response:", response.data);
+    console.log("[OrdersService] getOrder items:", response.data?.items);
+    if (response.data?.items && response.data.items.length > 0) {
+      console.log(
+        "[OrdersService] First item structure:",
+        response.data.items[0]
+      );
+      console.log(
+        "[OrdersService] First item keys:",
+        Object.keys(response.data.items[0] || {})
+      );
+    }
     return response.data;
   }
 

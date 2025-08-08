@@ -27,7 +27,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
+import { X, ShoppingCart, User, Table } from "lucide-react";
 import { useTableManagementService } from "./services/tableManagementService";
 import { TableOrdersService } from "@/services/table-orders";
 import { extractBusinessAndBranchIds } from "@/lib/utils";
@@ -47,6 +47,9 @@ export default function SalesPage() {
   // Add success screen state
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<any>(null);
+
+  // Mobile cart visibility state
+  const [showMobileCart, setShowMobileCart] = useState(false);
 
   // Add pagination state
   const productsPerPage = 20;
@@ -98,10 +101,11 @@ export default function SalesPage() {
         setSale((prev) => ({
           ...prev,
           tipAmount: newTipAmount,
+          total: (prev.subtotal || 0) + newTipAmount + (prev.tax || 0),
         }));
       }
     }
-  }, [sale.subtotal, sale.tipPercentage, sale.tipAmount, setSale]);
+  }, [sale.subtotal, sale.tipPercentage, sale.tax, sale.tipAmount, setSale]);
 
   // Data loading effect: fetch products and active shift, and extract categories
   useEffect(() => {
@@ -1585,17 +1589,47 @@ export default function SalesPage() {
   // Main layout
   return (
     <div className="h-screen flex flex-col bg-gray-50">
-      {/* Header, filters, and actions can be further extracted if needed */}
-      <div className="bg-white border-b px-6 py-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">POS Venta</h1>
-        <div className="flex items-center gap-4">
-          {/* Customer Selection Button */}
+      {/* Header - Mobile First */}
+      <div className="bg-white border-b px-4 py-3 md:px-6 md:py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <h1 className="text-lg md:text-xl font-bold text-gray-900">
+              Nueva Venta
+            </h1>
+            <p className="text-sm text-gray-600 hidden md:block">
+              Crear venta para cliente
+            </p>
+          </div>
+
+          {/* Mobile Cart Toggle Button */}
+          <div className="md:hidden">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowMobileCart(!showMobileCart)}
+              className="relative"
+            >
+              <ShoppingCart className="h-4 w-4 mr-2" />
+              Carrito
+              {sale.items.length > 0 && (
+                <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                  {sale.items.length}
+                </Badge>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Customer and Payment Actions - Mobile First */}
+      <div className="bg-white border-b px-4 py-3 md:px-6 md:py-4">
+        <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
           <Button
             onClick={() => updateState({ showCustomerModal: true })}
             variant="outline"
-            className="px-4 py-2"
-            disabled={!!(isOrderCompleted || isOrderPaid)}
+            className="w-full md:w-auto justify-start"
           >
+            <User className="h-4 w-4 mr-2" />
             {sale.customer ? (
               <div className="flex items-center gap-2">
                 <span>Cliente: {sale.customer.name}</span>
@@ -1630,7 +1664,7 @@ export default function SalesPage() {
             disabled={
               sale.items.length === 0 || !!(isOrderCompleted || isOrderPaid)
             }
-            className="px-6 py-2 text-base"
+            className="w-full md:w-auto px-6 py-2 text-base"
           >
             Ir a Pago
           </Button>
@@ -1639,9 +1673,9 @@ export default function SalesPage() {
 
       {/* Show completed order message */}
       {isOrderCompleted && (
-        <div className="bg-yellow-50 border-b px-6 py-3 flex items-center justify-between">
+        <div className="bg-yellow-50 border-b px-4 py-3 md:px-6 md:py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-yellow-800 font-medium">
+            <span className="text-yellow-800 font-medium text-sm md:text-base">
               Pedido Completado - Solo Lectura
             </span>
             <Badge
@@ -1665,9 +1699,9 @@ export default function SalesPage() {
 
       {/* Show paid order message for PICKUP/DELIVERY */}
       {isOrderPaid && !isOrderCompleted && (
-        <div className="bg-blue-50 border-b px-6 py-3 flex items-center justify-between">
+        <div className="bg-blue-50 border-b px-4 py-3 md:px-6 md:py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-blue-800 font-medium">
+            <span className="text-blue-800 font-medium text-sm md:text-base">
               Pedido Pagado - En Preparación
             </span>
             <Badge variant="secondary" className="bg-blue-100 text-blue-800">
@@ -1685,9 +1719,10 @@ export default function SalesPage() {
           </Button>
         </div>
       )}
+
       {/* Show current order ID if exists */}
       {sale.currentOrder && (
-        <div className="bg-blue-50 border-b px-6 py-1 flex items-center gap-4">
+        <div className="bg-blue-50 border-b px-4 py-1 md:px-6 md:py-1 flex items-center gap-4">
           <span className="text-xs text-blue-800 font-mono">
             ID del Pedido:{" "}
             {sale.currentOrder.id ||
@@ -1696,22 +1731,11 @@ export default function SalesPage() {
           </span>
         </div>
       )}
+
       {/* Table selection UI */}
       {!isOrderFinalized && (
-        <div className="bg-white border-b px-6 py-1 flex items-center gap-4">
+        <div className="bg-white border-b px-4 py-1 md:px-6 md:py-1 flex items-center gap-4">
           {(() => {
-            console.log(
-              "Table selection UI - selectedPhysicalTable:",
-              state.selectedPhysicalTable
-            );
-            console.log(
-              "Table selection UI - currentTableOrder:",
-              state.currentTableOrder
-            );
-            console.log(
-              "Table selection UI - sale.currentOrder:",
-              sale.currentOrder
-            );
             return (
               state.selectedPhysicalTable ||
               state.currentTableOrder ||
@@ -1728,7 +1752,6 @@ export default function SalesPage() {
                       state.currentTableOrder?.tableNumber ||
                       sale.currentOrder?.tableOrderId ||
                       "N/A";
-                    console.log("Table number for badge:", tableNumber);
                     return tableNumber;
                   })()}
                 </Badge>
@@ -1744,89 +1767,35 @@ export default function SalesPage() {
                 size="sm"
                 variant="ghost"
                 onClick={async () => {
-                  console.log("=== REMOVE TABLE BUTTON CLICKED ===");
-                  console.log(
-                    "Button clicked - starting table removal process"
-                  );
-
                   try {
-                    console.log(
-                      "state.currentTableOrder:",
-                      state.currentTableOrder
-                    );
-                    console.log("sale.currentOrder:", sale.currentOrder);
-
-                    // Clear the table order if there's a current table order
                     if (
                       state.currentTableOrder ||
                       sale.currentOrder?.tableOrderId
                     ) {
-                      console.log(
-                        "Calling tableManagementService.clearTableOrder"
-                      );
                       const updatedOrder =
                         await tableManagementService.clearTableOrder(
                           state.currentTableOrder,
                           sale
                         );
-                      console.log(
-                        "tableManagementService.clearTableOrder completed"
-                      );
-                      console.log("Updated order from backend:", updatedOrder);
 
-                      // Update the sale state with the updated order from backend
                       if (updatedOrder) {
-                        console.log(
-                          "About to update sale state with:",
-                          updatedOrder
-                        );
-                        console.log(
-                          "Updated order tableOrderId:",
-                          updatedOrder.tableOrderId
-                        );
-                        console.log(
-                          "Updated order _props tableOrderId:",
-                          updatedOrder._props?.tableOrderId
-                        );
-
-                        // Force refresh the order data to ensure we have the latest state
                         try {
                           const freshOrder = await ordersService.getOrder(
                             updatedOrder.id
                           );
-                          console.log("Fresh order from backend:", freshOrder);
-                          console.log(
-                            "Fresh order tableOrderId:",
-                            freshOrder.tableOrderId
-                          );
-
                           setSale((prev) => ({
                             ...prev,
                             currentOrder: freshOrder,
                           }));
-                          console.log(
-                            "Sale state updated with fresh order data"
-                          );
                         } catch (error) {
-                          console.error("Error fetching fresh order:", error);
-                          // Fallback to using the updated order
                           setSale((prev) => ({
                             ...prev,
                             currentOrder: updatedOrder,
                           }));
-                          console.log(
-                            "Sale state updated with fallback order data"
-                          );
                         }
                       }
-                    } else {
-                      console.log("No table order to clear");
                     }
 
-                    // Update local state to clear table selection
-                    console.log(
-                      "Updating local state to clear table selection"
-                    );
                     updateState({
                       selectedPhysicalTable: null,
                       currentTableOrder: null,
@@ -1835,11 +1804,7 @@ export default function SalesPage() {
                         completionType: "PICKUP",
                       },
                     });
-
-                    console.log("Table removed from local state");
-                    console.log("=== REMOVE TABLE BUTTON COMPLETED ===");
                   } catch (error) {
-                    console.error("Error removing table:", error);
                     toast({
                       title: "Error",
                       description:
@@ -1867,7 +1832,7 @@ export default function SalesPage() {
           (sale.currentOrder &&
             (sale.currentOrder.completionType === "DINE_IN" ||
               sale.currentOrder._props?.completionType === "DINE_IN"))) && (
-          <div className="bg-gray-50 border-b px-6 py-1 flex items-center gap-4">
+          <div className="bg-gray-50 border-b px-4 py-1 md:px-6 md:py-1 flex items-center gap-4">
             <span className="text-sm text-gray-600">Mesa asignada:</span>
             <Badge variant="secondary" className="bg-gray-100 text-gray-800">
               {state.selectedPhysicalTable
@@ -1878,6 +1843,7 @@ export default function SalesPage() {
             </Badge>
           </div>
         )}
+
       {/* Table selection modal */}
       {showTableModal && !isOrderFinalized && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
@@ -1914,7 +1880,6 @@ export default function SalesPage() {
                           className="w-full justify-start"
                           onClick={async () => {
                             try {
-                              // Create or get existing table order for the selected physical table
                               const tableOrder =
                                 await tableManagementService.selectPhysicalTable(
                                   table,
@@ -1932,7 +1897,6 @@ export default function SalesPage() {
                               });
                               setShowTableModal(false);
 
-                              // Check if this is a table change (existing order with different table)
                               const isTableChange =
                                 sale.currentOrder &&
                                 (sale.currentOrder.tableOrderId ||
@@ -1942,10 +1906,8 @@ export default function SalesPage() {
                                   sale.currentOrder._props?.tableOrderId !==
                                     tableOrder?.id);
 
-                              // Trigger a custom event to notify other pages to refresh
                               if (typeof window !== "undefined") {
                                 if (isTableChange && sale.currentOrder) {
-                                  // Dispatch table change event
                                   window.dispatchEvent(
                                     new CustomEvent("tableChanged", {
                                       detail: {
@@ -1962,9 +1924,7 @@ export default function SalesPage() {
                                       },
                                     })
                                   );
-                                  console.log("Dispatched tableChanged event");
                                 } else {
-                                  // Dispatch table selected event
                                   window.dispatchEvent(
                                     new CustomEvent("tableSelected", {
                                       detail: {
@@ -1974,11 +1934,9 @@ export default function SalesPage() {
                                       },
                                     })
                                   );
-                                  console.log("Dispatched tableSelected event");
                                 }
                               }
                             } catch (error) {
-                              console.error("Error selecting table:", error);
                               toast({
                                 title: "Error",
                                 description:
@@ -2004,8 +1962,9 @@ export default function SalesPage() {
           </div>
         </div>
       )}
+
       {/* Category filter UI */}
-      <div className="bg-white border-b px-6 py-1 flex items-center gap-4">
+      <div className="bg-white border-b px-4 py-1 md:px-6 md:py-1 flex items-center gap-4">
         <label htmlFor="categoryFilter" className="text-sm font-medium">
           Categoría:
         </label>
@@ -2024,48 +1983,86 @@ export default function SalesPage() {
             ))}
         </select>
       </div>
+
+      {/* Main Content Area - Mobile First */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Products */}
-        <div className="flex-1 flex flex-col">
-          {/* Search/filter UI can be extracted if needed */}
-          <ProductGrid
-            products={paginatedProducts}
-            isLoading={state.isLoadingProducts}
-            isOrderCompleted={!!(isOrderCompleted || isOrderPaid)}
-            onAddToCart={actions.addToCart}
-          />
-          {/* Pagination controls */}
-          <div className="flex justify-center items-center gap-2 py-2">
-            <button
-              className="px-3 py-1 rounded border bg-white disabled:opacity-50"
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-            >
-              Anterior
-            </button>
-            <span className="text-sm">
-              Página {currentPage} de {totalPages}
-            </span>
-            <button
-              className="px-3 py-1 rounded border bg-white disabled:opacity-50"
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-            >
-              Siguiente
-            </button>
+        {/* Products - Mobile First */}
+        <div className="flex-1 flex flex-col md:flex-row">
+          <div className="flex-1 flex flex-col">
+            <ProductGrid
+              products={paginatedProducts}
+              isLoading={state.isLoadingProducts}
+              isOrderCompleted={!!(isOrderCompleted || isOrderPaid)}
+              onAddToCart={actions.addToCart}
+            />
+            {/* Pagination controls */}
+            <div className="flex justify-center items-center gap-2 py-2 bg-white border-t">
+              <button
+                className="px-3 py-1 rounded border bg-white disabled:opacity-50"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                Anterior
+              </button>
+              <span className="text-sm">
+                Página {currentPage} de {totalPages}
+              </span>
+              <button
+                className="px-3 py-1 rounded border bg-white disabled:opacity-50"
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
+                disabled={currentPage === totalPages}
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
+
+          {/* Cart and summary - Desktop */}
+          <div className="hidden md:block">
+            <CartSection
+              sale={sale}
+              taxes={state.taxes}
+              isOrderCompleted={!!(isOrderCompleted || isOrderPaid)}
+              onUpdateQuantity={actions.updateQuantity}
+              onRemoveFromCart={actions.removeFromCart}
+              onTipChange={onTipChange}
+              onClearCustomer={actions.clearCustomer}
+            />
           </div>
         </div>
-        {/* Cart and summary */}
-        <CartSection
-          sale={sale}
-          taxes={state.taxes}
-          isOrderCompleted={!!(isOrderCompleted || isOrderPaid)}
-          onUpdateQuantity={actions.updateQuantity}
-          onRemoveFromCart={actions.removeFromCart}
-          onTipChange={onTipChange}
-          onClearCustomer={actions.clearCustomer}
-        />
       </div>
+
+      {/* Mobile Cart Overlay */}
+      {showMobileCart && (
+        <div className="fixed inset-0 z-50 bg-black/50 md:hidden">
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-lg max-h-[80vh] overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold">Carrito</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowMobileCart(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="overflow-y-auto max-h-[calc(80vh-120px)]">
+              <CartSection
+                sale={sale}
+                taxes={state.taxes}
+                isOrderCompleted={!!(isOrderCompleted || isOrderPaid)}
+                onUpdateQuantity={actions.updateQuantity}
+                onRemoveFromCart={actions.removeFromCart}
+                onTipChange={onTipChange}
+                onClearCustomer={actions.clearCustomer}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modals */}
       <OrderCompletionModal
         isOpen={state.showCompletionModal}

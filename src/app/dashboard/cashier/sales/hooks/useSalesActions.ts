@@ -119,17 +119,82 @@ export const useSalesActions = (
 
           console.log("[Frontend] addItemData being sent:", addItemData);
           console.log("[Frontend] sale.tipPercentage:", sale.tipPercentage);
+          console.log("[Frontend] businessId:", businessId);
+          console.log("[Frontend] user.id:", user.id);
+          console.log("[Frontend] state.taxes:", state.taxes);
+          console.log("[Frontend] sale.customer:", sale.customer);
+          console.log(
+            "[Frontend] state.selectedPhysicalTable:",
+            state.selectedPhysicalTable
+          );
 
-          const newOrder = await ordersService.createOrderWithItem({
+          const orderData = {
             businessId,
             cashierId: user.id,
             customerId: sale.customer?.id,
             tableOrderId: state.selectedPhysicalTable?.id || null,
             customerName: sale.customerName,
             item: addItemData,
-          });
+          };
 
-          currentOrder = newOrder;
+          console.log("[Frontend] Full order data being sent:", orderData);
+
+          // Validate required data before making API call
+          if (!businessId) {
+            console.error("[Frontend] Error: businessId is missing or empty");
+            toast({
+              title: "Error al crear el pedido",
+              description:
+                "ID del negocio no encontrado. Por favor, inicie sesión nuevamente.",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          if (!user.id) {
+            console.error("[Frontend] Error: user.id is missing or empty");
+            toast({
+              title: "Error al crear el pedido",
+              description:
+                "ID del usuario no encontrado. Por favor, inicie sesión nuevamente.",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          if (!product.id && !product.barcode) {
+            console.error(
+              "[Frontend] Error: product.id and product.barcode are both missing"
+            );
+            toast({
+              title: "Error al crear el pedido",
+              description:
+                "Producto inválido. Por favor, seleccione otro producto.",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          let newOrder;
+          try {
+            newOrder = await ordersService.createOrderWithItem(orderData);
+            currentOrder = newOrder;
+          } catch (error: any) {
+            console.error("[Frontend] Error creating order with item:", error);
+            console.error("[Frontend] Error response:", error.response?.data);
+            console.error("[Frontend] Error status:", error.response?.status);
+            console.error("[Frontend] Error message:", error.message);
+
+            toast({
+              title: "Error al crear el pedido",
+              description:
+                error.response?.data?.message ||
+                error.message ||
+                "Error desconocido",
+              variant: "destructive",
+            });
+            return;
+          }
           setSale((prev) => ({ ...prev, currentOrder: newOrder }));
           const orderId =
             newOrder.id ||
@@ -161,11 +226,53 @@ export const useSalesActions = (
           console.log("[Frontend] addItemData being sent:", addItemData);
           console.log("[Frontend] sale.tipPercentage:", sale.tipPercentage);
 
-          const updatedOrder = await ordersService.addItem(
-            orderId,
-            addItemData
-          );
-          currentOrder = updatedOrder;
+          // Validate required data before making API call
+          if (!orderId) {
+            console.error("[Frontend] Error: orderId is missing or empty");
+            toast({
+              title: "Error al agregar item",
+              description:
+                "ID del pedido no encontrado. Por favor, intente nuevamente.",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          if (!product.id && !product.barcode) {
+            console.error(
+              "[Frontend] Error: product.id and product.barcode are both missing"
+            );
+            toast({
+              title: "Error al agregar item",
+              description:
+                "Producto inválido. Por favor, seleccione otro producto.",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          try {
+            const updatedOrder = await ordersService.addItem(
+              orderId,
+              addItemData
+            );
+            currentOrder = updatedOrder;
+          } catch (error: any) {
+            console.error("[Frontend] Error adding item to order:", error);
+            console.error("[Frontend] Error response:", error.response?.data);
+            console.error("[Frontend] Error status:", error.response?.status);
+            console.error("[Frontend] Error message:", error.message);
+
+            toast({
+              title: "Error al agregar item",
+              description:
+                error.response?.data?.message ||
+                error.message ||
+                "Error desconocido",
+              variant: "destructive",
+            });
+            return;
+          }
         }
 
         // Always update the sale state with the latest order data

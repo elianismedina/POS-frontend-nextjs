@@ -17,6 +17,25 @@ export function OrderSuccessScreen({
 }: OrderSuccessScreenProps) {
   const orderData = order._props || order;
 
+  // Debug logging to understand the order structure
+  console.log("[OrderSuccessScreen] Full order data:", order);
+  console.log(
+    "[OrderSuccessScreen] Order data after _props fallback:",
+    orderData
+  );
+  console.log("[OrderSuccessScreen] Order items:", orderData?.items);
+
+  if (orderData?.items && orderData.items.length > 0) {
+    console.log(
+      "[OrderSuccessScreen] First item structure:",
+      orderData.items[0]
+    );
+    console.log(
+      "[OrderSuccessScreen] First item keys:",
+      Object.keys(orderData.items[0] || {})
+    );
+  }
+
   // Determine the success message based on status and completion type
   const getSuccessMessage = () => {
     const status = orderData.status;
@@ -154,8 +173,25 @@ export function OrderSuccessScreen({
               </h4>
               <div className="space-y-1 max-h-32 overflow-y-auto">
                 {orderData.items.map((item: any, index: number) => {
+                  // Debug logging for each item
+                  console.log(`[OrderSuccessScreen] Item ${index}:`, item);
+                  console.log(
+                    `[OrderSuccessScreen] Item ${index} keys:`,
+                    Object.keys(item || {})
+                  );
+
+                  // Try multiple possible paths for product name
                   const itemName =
-                    item.product?.name || item.productName || "Unknown Product";
+                    item.productName ||
+                    item.product?.name ||
+                    item.name ||
+                    "Unknown Product";
+
+                  console.log(
+                    `[OrderSuccessScreen] Item ${index} name resolved to:`,
+                    itemName
+                  );
+
                   const itemQuantity = item.quantity || 1;
                   const itemSubtotal =
                     item.subtotal || item.unitPrice * itemQuantity || 0;

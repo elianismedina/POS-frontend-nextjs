@@ -82,7 +82,6 @@ export default function BusinessProfilePage() {
         qr_code_data_url: settingsData.qr_code_data_url || "",
       });
     } catch (error: any) {
-      console.error("Error fetching business data:", error);
       if (error.response?.status === 404) {
         setError("No hay un negocio asociado con este usuario.");
       } else {

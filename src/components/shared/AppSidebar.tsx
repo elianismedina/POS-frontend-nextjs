@@ -52,9 +52,7 @@ function SidebarFooterContent() {
     try {
       await logout();
       router.replace("/");
-    } catch (error) {
-      console.error("Error during logout:", error);
-    }
+    } catch (error) {}
   };
 
   return (

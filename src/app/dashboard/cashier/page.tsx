@@ -43,6 +43,13 @@ export default function CashierDashboard() {
         setDashboardStats(data);
       } catch (error) {
         console.error("Error fetching dashboard stats:", error);
+        // Provide fallback values instead of breaking the UI
+        setDashboardStats({
+          todaySales: 0,
+          pendingOrders: 0,
+          totalSales: 0,
+          todayOrders: 0,
+        });
       } finally {
         setStatsLoading(false);
       }

@@ -31,7 +31,42 @@ export const ProductGrid = ({
 
   return (
     <div className="flex-1 overflow-y-auto p-2">
-      <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+      {/* Mobile Grid - 2 columns, no images */}
+      <div className="grid grid-cols-2 gap-2 md:hidden">
+        {products.map((product) => (
+          <Card
+            key={product.id}
+            className={`transition-shadow ${
+              isOrderCompleted
+                ? "cursor-not-allowed opacity-50"
+                : "cursor-pointer hover:shadow-lg"
+            }`}
+            onClick={() => !isOrderCompleted && onAddToCart(product)}
+          >
+            <CardContent className="p-3">
+              <div className="space-y-2">
+                <h3 className="font-semibold text-sm line-clamp-2 leading-tight">
+                  {product.name}
+                </h3>
+                <p className="text-sm font-bold text-green-600">
+                  {formatPrice(product.price)}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Stock: {product.stock || 0}
+                </p>
+                {product.categoryName && (
+                  <Badge variant="outline" className="text-xs">
+                    {product.categoryName}
+                  </Badge>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Desktop Grid - 3+ columns with images */}
+      <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2">
         {products.map((product) => (
           <Card
             key={product.id}

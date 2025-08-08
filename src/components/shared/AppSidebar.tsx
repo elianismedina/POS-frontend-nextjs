@@ -32,7 +32,7 @@ function SidebarHeaderContent({ title }: { title: string }) {
     <div className="flex items-center justify-between">
       <h2
         className={cn(
-          "text-sm font-bold text-white bg-black/20 px-3 py-1 rounded border border-gray-500",
+          "text-sm font-bold text-white px-3 py-1 rounded",
           !open && "hidden"
         )}
       >
@@ -67,13 +67,13 @@ function SidebarFooterContent() {
           <Button
             variant="ghost"
             className={cn(
-              "w-full justify-start gap-2 h-10 px-3 text-sm text-white font-medium hover:text-white hover:bg-red-500/30 cursor-pointer transition-all duration-200 border border-white/20 hover:border-red-400/50",
+              "w-full justify-start gap-2 h-10 px-3 text-sm text-gray-800 font-medium hover:text-gray-100 hover:bg-orange-600 cursor-pointer transition-all duration-200 border border-white/20 hover:border-orange-400/50",
               !open && "justify-center"
             )}
             onClick={handleLogout}
             title={!open ? "Cerrar Sesión" : undefined}
           >
-            <LogOut className="h-4 w-4 text-red-300" />
+            <LogOut className="h-4 w-4 text-gray-600" />
             {open && <span className="text-sm">Cerrar Sesión</span>}
           </Button>
         </SidebarMenuItem>
@@ -112,15 +112,8 @@ export function AppSidebar({ role }: AppSidebarProps) {
   };
 
   return (
-    <Sidebar
-      variant="sidebar"
-      className="bg-gradient-to-b from-slate-800 to-slate-700 metallic-animation relative border-r border-slate-600"
-      style={{
-        background:
-          "linear-gradient(to bottom, hsl(var(--primary-metal, 220 13% 18%)), hsl(var(--secondary-metal, 215 25% 27%)))",
-      }}
-    >
-      <SidebarHeader className="py-0.5 px-1 relative z-10">
+    <Sidebar variant="sidebar" className="relative">
+      <SidebarHeader className="py-0.5 px-1 relative z-10 bg-orange-500">
         <SidebarHeaderContent title={config.title} />
       </SidebarHeader>
 
@@ -128,7 +121,7 @@ export function AppSidebar({ role }: AppSidebarProps) {
         {config.groups.map((group, index) => (
           <SidebarGroup key={group.key} className={index > 0 ? "mt-4" : ""}>
             {group.label && (
-              <SidebarGroupLabel className="text-white font-bold text-xs mb-2 px-3 py-2 bg-black/30 rounded mx-2 border border-gray-500 uppercase tracking-wider">
+              <SidebarGroupLabel className="text-white font-bold text-xs mb-2 px-3 py-2 rounded mx-2 uppercase tracking-wider">
                 {group.label}
               </SidebarGroupLabel>
             )}
@@ -139,9 +132,9 @@ export function AppSidebar({ role }: AppSidebarProps) {
                     <Button
                       variant="ghost"
                       className={cn(
-                        "w-full justify-start gap-2 h-10 px-3 text-sm text-gray-100 hover:text-white hover:bg-gray-600 cursor-pointer transition-all duration-200 font-medium bg-gray-700/50 border border-gray-600",
+                        "w-full justify-start gap-2 h-10 px-3 text-sm text-gray-800 hover:text-gray-900 hover:bg-orange-500 cursor-pointer transition-all duration-200 font-medium",
                         item.isActive &&
-                          "bg-gray-600 text-white font-bold shadow-lg border border-gray-400"
+                          " text-gray-800 font-bold shadow-lg border"
                       )}
                       onClick={() => handleNavigation(item.href)}
                       title={!open ? item.label : undefined}

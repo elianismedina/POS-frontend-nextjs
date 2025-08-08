@@ -1067,6 +1067,9 @@ export default function SalesPage() {
         // Show success screen
         setCompletedOrder(completeOrder);
         setShowSuccessScreen(true);
+
+        // Trigger shift data refresh when returning to dashboard
+        sessionStorage.setItem("shouldRefreshShift", "true");
       }
 
       // Ensure updatedOrder is defined for the toast message
@@ -1514,6 +1517,9 @@ export default function SalesPage() {
       setCompletedOrder(completeOrder);
       setShowSuccessScreen(true);
 
+      // Trigger shift data refresh when returning to dashboard
+      sessionStorage.setItem("shouldRefreshShift", "true");
+
       toast({
         title: "Pago procesado",
         description: "El pago se ha realizado exitosamente.",
@@ -1586,6 +1592,33 @@ export default function SalesPage() {
     });
   };
 
+  // Function to reset sale state for a new sale
+  const resetSaleState = () => {
+    setSale({
+      items: [],
+      subtotal: 0,
+      tax: 0,
+      tipAmount: 0,
+      tipPercentage: 0, // Reset tip percentage to 0
+      total: 0,
+      currentOrder: null,
+      customer: null,
+      selectedPaymentMethod: null,
+      amountTendered: 0,
+      discount: 0,
+      discountType: "percentage",
+    });
+    updateState({
+      selectedPhysicalTable: null,
+      completionDetails: {
+        completionType: "PICKUP",
+        deliveryAddress: "",
+        estimatedTime: "",
+        notes: "",
+      },
+    });
+  };
+
   // Main layout
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -1601,22 +1634,35 @@ export default function SalesPage() {
             </p>
           </div>
 
-          {/* Mobile Cart Toggle Button */}
-          <div className="md:hidden">
+          {/* New Sale Button */}
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setShowMobileCart(!showMobileCart)}
-              className="relative"
+              onClick={resetSaleState}
+              disabled={sale.items.length === 0}
+              className="hidden md:flex"
             >
-              <ShoppingCart className="h-4 w-4 mr-2" />
-              Carrito
-              {sale.items.length > 0 && (
-                <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                  {sale.items.length}
-                </Badge>
-              )}
+              Nueva Venta
             </Button>
+
+            {/* Mobile Cart Toggle Button */}
+            <div className="md:hidden">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowMobileCart(!showMobileCart)}
+                className="relative"
+              >
+                <ShoppingCart className="h-4 w-4 mr-2" />
+                Carrito
+                {sale.items.length > 0 && (
+                  <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                    {sale.items.length}
+                  </Badge>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -2104,29 +2150,7 @@ export default function SalesPage() {
             setShowSuccessScreen(false);
             setCompletedOrder(null);
             // Reset the sale state for a new order
-            setSale({
-              items: [],
-              subtotal: 0,
-              tax: 0,
-              tipAmount: 0,
-              tipPercentage: 0,
-              total: 0,
-              currentOrder: null,
-              customer: null,
-              selectedPaymentMethod: null,
-              amountTendered: 0,
-              discount: 0,
-              discountType: "percentage",
-            });
-            updateState({
-              selectedPhysicalTable: null,
-              completionDetails: {
-                completionType: "PICKUP",
-                deliveryAddress: "",
-                estimatedTime: "",
-                notes: "",
-              },
-            });
+            resetSaleState();
           }}
         />
       )}

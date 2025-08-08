@@ -69,6 +69,16 @@ export default function CashierDashboard() {
     }
   }, []);
 
+  // Check if we should refresh shift data
+  useEffect(() => {
+    const shouldRefreshShift = sessionStorage.getItem("shouldRefreshShift");
+    if (shouldRefreshShift === "true") {
+      // Trigger a custom event to refresh shift data
+      window.dispatchEvent(new CustomEvent("refreshShiftData"));
+      sessionStorage.removeItem("shouldRefreshShift");
+    }
+  }, []);
+
   // Load stats visibility preference from localStorage
   useEffect(() => {
     const savedStatsVisibility = localStorage.getItem("cashier-stats-visible");

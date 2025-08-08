@@ -10,7 +10,14 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { shiftsService, Shift } from "@/app/services/shifts";
 import { formatPrice } from "@/lib/utils";
-import { Play, Square, Clock, DollarSign, TrendingUp } from "lucide-react";
+import {
+  Play,
+  Square,
+  Clock,
+  DollarSign,
+  TrendingUp,
+  RefreshCw,
+} from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 // Helper function to safely format dates
@@ -40,6 +47,7 @@ export function ShiftManager() {
   const [isLoading, setIsLoading] = useState(true);
   const [isStartingShift, setIsStartingShift] = useState(false);
   const [isEndingShift, setIsEndingShift] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [initialAmount, setInitialAmount] = useState("");
   const [finalAmount, setFinalAmount] = useState("");
 
@@ -48,6 +56,31 @@ export function ShiftManager() {
       fetchActiveShift();
     }
   }, [user?.id]);
+
+  // Auto-refresh shift data every 30 seconds when there's an active shift
+  useEffect(() => {
+    if (!activeShift) return;
+
+    const interval = setInterval(() => {
+      fetchActiveShift();
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [activeShift]);
+
+  // Listen for custom refresh events (e.g., when returning from sales page)
+  useEffect(() => {
+    const handleRefreshEvent = () => {
+      if (activeShift) {
+        fetchActiveShift();
+      }
+    };
+
+    window.addEventListener("refreshShiftData", handleRefreshEvent);
+    return () => {
+      window.removeEventListener("refreshShiftData", handleRefreshEvent);
+    };
+  }, [activeShift]);
 
   const fetchActiveShift = async () => {
     try {
@@ -71,6 +104,28 @@ export function ShiftManager() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleRefreshShift = async () => {
+    if (!activeShift) return;
+
+    try {
+      setIsRefreshing(true);
+      await fetchActiveShift();
+      toast({
+        title: "Refreshed",
+        description: "Shift statistics updated",
+      });
+    } catch (error) {
+      console.error("Error refreshing shift:", error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh shift data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -185,11 +240,24 @@ export function ShiftManager() {
                 <Play className="h-2 w-2" />
                 Activo
               </Badge>
-              <span className="text-xs text-gray-600">
-                {activeShift.startTime
-                  ? formatDate(activeShift.startTime)
-                  : "Unknown"}
-              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRefreshShift}
+                  disabled={isRefreshing}
+                  className="h-4 w-4 p-0"
+                >
+                  <RefreshCw
+                    className={`h-2 w-2 ${isRefreshing ? "animate-spin" : ""}`}
+                  />
+                </Button>
+                <span className="text-xs text-gray-600">
+                  {activeShift.startTime
+                    ? formatDate(activeShift.startTime)
+                    : "Unknown"}
+                </span>
+              </div>
             </div>
 
             {/* Ultra Compact Stats Grid */}

@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Ensure business data is present for admin users
       if (
-        response.data.role.name === "ADMIN" &&
+        response.data.role.name === "admin" &&
         (!response.data.business ||
           !Array.isArray(response.data.business) ||
           response.data.business.length === 0)

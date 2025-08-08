@@ -3,7 +3,8 @@
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { AdminSidebar } from "@/components/admin/Sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/shared/AppSidebar";
 
 export default function AdminLayout({
   children,
@@ -39,13 +40,12 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="flex h-screen">
-      <AdminSidebar />
-      <div className="flex-1 flex flex-col w-full">
-        <main className="flex-1 overflow-auto bg-background md:ml-0 ml-[60px]">
-          {children}
-        </main>
-      </div>
-    </div>
+    <SidebarProvider>
+      <AppSidebar role="admin" />
+      <main className="flex-1 overflow-auto bg-background">
+        <SidebarTrigger />
+        {children}
+      </main>
+    </SidebarProvider>
   );
 }

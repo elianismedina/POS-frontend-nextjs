@@ -3,7 +3,8 @@
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { CashierSidebar } from "@/components/cashier/Sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/shared/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 
@@ -46,34 +47,12 @@ export default function CashierLayout({
 
   // Render the layout with sidebar and content
   return (
-    <div className="flex h-screen">
-      <CashierSidebar />
-      <div className="flex-1 flex flex-col w-full">
-        {/* Top Bar with Mobile Sign Out */}
-        <div className="bg-white border-b px-4 py-3 flex items-center justify-between md:hidden">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">Cajero</span>
-            {user?.name && (
-              <span className="text-sm font-medium text-gray-900">
-                {user.name}
-              </span>
-            )}
-          </div>
-          {/* Mobile Sign Out Button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-            onClick={() => logout()}
-            title="Cerrar Sesión"
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
-        </div>
-        <main className="flex-1 overflow-auto bg-background md:ml-0 ml-[60px]">
-          {children}
-        </main>
-      </div>
-    </div>
+    <SidebarProvider>
+      <AppSidebar role="cashier" />
+      <main className="flex-1 overflow-auto bg-background">
+        <SidebarTrigger />
+        {children}
+      </main>
+    </SidebarProvider>
   );
 }

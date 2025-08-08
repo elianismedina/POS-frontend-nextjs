@@ -405,7 +405,7 @@ export default function CashierOrdersPage() {
           </div>
           <div className="flex items-center gap-4">
             <Button
-              variant="submit"
+              variant="default"
               onClick={() => router.push("/dashboard/cashier/sales")}
               className="flex items-center gap-2"
             >
@@ -886,7 +886,7 @@ export default function CashierOrdersPage() {
                         </p>
                       </div>
                       <Button
-                        variant="info"
+                        variant="outline"
                         size="sm"
                         onClick={() =>
                           router.push(

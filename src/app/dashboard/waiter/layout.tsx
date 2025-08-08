@@ -3,7 +3,8 @@
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { WaiterSidebar } from "@/components/waiter/Sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/shared/AppSidebar";
 import { MobileBottomNav } from "@/components/waiter/MobileBottomNav";
 import { Logo } from "@/components/shared/Logo";
 import { Button } from "@/components/ui/button";
@@ -46,17 +47,17 @@ export default function WaiterLayout({
     return null;
   }
 
-  // Render the layout with top bar, sidebar, content, and mobile bottom nav
+  // Render the layout with sidebar and content
   return (
-    <div className="flex h-screen">
-      {/* Sidebar - hidden on mobile, visible on desktop */}
-      <div className="hidden md:block">
-        <WaiterSidebar />
-      </div>
+    <SidebarProvider>
+      <AppSidebar role="waiter" />
       <div className="flex-1 flex flex-col w-full">
         {/* Top Bar */}
         <div className="bg-white border-b px-4 py-3 flex items-center justify-between">
-          <Logo width={40} height={40} />
+          <div className="flex items-center gap-2">
+            <SidebarTrigger />
+            <Logo width={40} height={40} />
+          </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600 hidden sm:inline">
               Mesero
@@ -86,6 +87,6 @@ export default function WaiterLayout({
       </div>
       {/* Mobile Bottom Navigation */}
       <MobileBottomNav />
-    </div>
+    </SidebarProvider>
   );
 }

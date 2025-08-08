@@ -85,7 +85,7 @@ export const SubcategoriesList: React.FC<SubcategoriesListProps> = ({
           </p>
           <div className="mt-2 flex space-x-2">
             <Button
-              variant="info"
+              variant="outline"
               size="sm"
               onClick={() => onEditClick?.(subcategory)}
               className="text-xs"
@@ -106,7 +106,7 @@ export const SubcategoriesList: React.FC<SubcategoriesListProps> = ({
               </Button>
             ) : (
               <Button
-                variant="success"
+                variant="default"
                 size="sm"
                 onClick={() => onReactivateClick?.(subcategory)}
                 disabled={isReactivating === subcategory.id}

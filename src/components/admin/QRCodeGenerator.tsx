@@ -137,7 +137,11 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
                 <Copy className="w-4 h-4 mr-2" />
                 Copy URL
               </Button>
-              <Button variant="info" onClick={openMenuUrl} className="flex-1">
+              <Button
+                variant="outline"
+                onClick={openMenuUrl}
+                className="flex-1"
+              >
                 <ExternalLink className="w-4 h-4 mr-2" />
                 Open Menu
               </Button>

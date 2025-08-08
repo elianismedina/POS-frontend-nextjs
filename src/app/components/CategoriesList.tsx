@@ -82,7 +82,7 @@ export const CategoriesList: React.FC<CategoriesListProps> = ({
           </p>
           <div className="mt-2 flex space-x-2">
             <Button
-              variant="info"
+              variant="outline"
               size="sm"
               onClick={() => onEditClick?.(category)}
               className="text-xs"
@@ -103,7 +103,7 @@ export const CategoriesList: React.FC<CategoriesListProps> = ({
               </Button>
             ) : (
               <Button
-                variant="success"
+                variant="default"
                 size="sm"
                 onClick={() => onReactivateClick?.(category)}
                 disabled={isReactivating === category.id}

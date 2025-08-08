@@ -4,7 +4,6 @@ export interface UserProfile {
   id: string;
   name: string;
   email: string;
-  phone?: string;
   role: string;
   businessId?: string;
   businessName?: string;
@@ -17,7 +16,6 @@ export interface UserProfile {
 export interface UpdateProfileRequest {
   name?: string;
   email?: string;
-  phone?: string;
 }
 
 export const profileService = {

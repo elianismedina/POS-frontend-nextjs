@@ -10,7 +10,6 @@ import { Separator } from "@/components/ui/separator";
 import {
   User,
   Mail,
-  Phone,
   MapPin,
   Calendar,
   Clock,
@@ -20,20 +19,11 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { toast } from "@/components/ui/use-toast";
-
-interface UserProfile {
-  id: string;
-  name: string;
-  email: string;
-  phone?: string;
-  role: string;
-  businessId?: string;
-  businessName?: string;
-  branchId?: string;
-  branchName?: string;
-  createdAt: string;
-  lastLogin?: string;
-}
+import {
+  profileService,
+  UserProfile,
+  UpdateProfileRequest,
+} from "@/app/services/profile";
 
 export default function CashierProfilePage() {
   const { user, logout } = useAuth();
@@ -43,25 +33,30 @@ export default function CashierProfilePage() {
   const [editedProfile, setEditedProfile] = useState<Partial<UserProfile>>({});
 
   useEffect(() => {
-    if (user) {
-      // Simulate fetching user profile data
-      const mockProfile: UserProfile = {
-        id: user.id || "1",
-        name: user.name || "Cashier Name",
-        email: user.email || "cashier@example.com",
-        phone: "+57 300 123 4567",
-        role: "CASHIER",
-        businessId: "business-1",
-        businessName: "Restaurant Name",
-        branchId: "branch-1",
-        branchName: "Main Branch",
-        createdAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString(),
-      };
-      setProfile(mockProfile);
-      setEditedProfile(mockProfile);
-      setIsLoading(false);
-    }
+    const fetchProfile = async () => {
+      if (user) {
+        try {
+          setIsLoading(true);
+          console.log("Fetching profile...");
+          const profileData = await profileService.getProfile();
+          console.log("Profile data received:", profileData);
+          setProfile(profileData);
+          setEditedProfile(profileData);
+          console.log("Profile state set");
+        } catch (error) {
+          console.error("Error fetching profile:", error);
+          toast({
+            title: "Error",
+            description: "Failed to load profile data",
+            variant: "destructive",
+          });
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchProfile();
   }, [user]);
 
   const handleEdit = () => {
@@ -76,11 +71,16 @@ export default function CashierProfilePage() {
 
   const handleSave = async () => {
     try {
-      // Here you would typically make an API call to update the profile
-      // For now, we'll just simulate the update
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (!profile) return;
 
-      setProfile((prev) => (prev ? { ...prev, ...editedProfile } : null));
+      const updateData: UpdateProfileRequest = {
+        name: editedProfile.name,
+        email: editedProfile.email,
+        // phone: editedProfile.phone, // Phone field not supported in backend
+      };
+
+      const updatedProfile = await profileService.updateProfile(updateData);
+      setProfile(updatedProfile);
       setIsEditing(false);
 
       toast({
@@ -89,6 +89,7 @@ export default function CashierProfilePage() {
         variant: "default",
       });
     } catch (error) {
+      console.error("Error updating profile:", error);
       toast({
         title: "Error",
         description: "Failed to update profile. Please try again.",
@@ -205,92 +206,10 @@ export default function CashierProfilePage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Phone</Label>
-                    {isEditing ? (
-                      <Input
-                        id="phone"
-                        value={editedProfile.phone || ""}
-                        onChange={(e) =>
-                          handleInputChange("phone", e.target.value)
-                        }
-                      />
-                    ) : (
-                      <p className="text-sm text-gray-900">
-                        {profile.phone || "Not provided"}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
                     <Label>Role</Label>
                     <Badge variant="secondary">{profile.role}</Badge>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Work Information */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
-                  Work Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Business</Label>
-                  <p className="text-sm text-gray-900">
-                    {profile.businessName}
-                  </p>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Branch</Label>
-                  <p className="text-sm text-gray-900">{profile.branchName}</p>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Member Since</Label>
-                  <p className="text-sm text-gray-900">
-                    {new Date(profile.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-
-                {profile.lastLogin && (
-                  <>
-                    <Separator />
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Last Login</Label>
-                      <p className="text-sm text-gray-900">
-                        {new Date(profile.lastLogin).toLocaleString()}
-                      </p>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full justify-start">
-                  <Clock className="h-4 w-4 mr-2" />
-                  View Shift History
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Schedule
-                </Button>
               </CardContent>
             </Card>
           </div>

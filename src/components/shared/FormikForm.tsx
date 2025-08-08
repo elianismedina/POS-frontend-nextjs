@@ -59,21 +59,23 @@ export const FormikForm: React.FC<FormikFormProps> = ({
   };
 
   return (
-    <Card className="border-2 border-blue-200 bg-blue-50/30">
-      <CardHeader className="pb-4">
+    <Card className="border-2 border-gray-200 bg-white shadow-lg">
+      <CardHeader className="pb-4 border-b border-gray-100">
         <div className="flex justify-between items-center">
-          <CardTitle className="text-xl sm:text-2xl">{title}</CardTitle>
+          <CardTitle className="text-xl sm:text-2xl font-semibold text-gray-900">
+            {title}
+          </CardTitle>
           <Button
             variant="ghost"
             size="sm"
             onClick={onCancel}
-            className="h-8 w-8 p-0 hover:bg-blue-100"
+            className="h-8 w-8 p-0 hover:bg-gray-100 text-gray-500 hover:text-gray-700"
           >
             <X className="w-4 h-4" />
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-6">
         <Formik
           initialValues={initialValues}
           validationSchema={validationSchema}
@@ -93,20 +95,23 @@ export const FormikForm: React.FC<FormikFormProps> = ({
               {children}
 
               {/* Mobile-first button layout */}
-              <div className="flex flex-col sm:flex-row gap-3 pt-6">
+              <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-gray-100">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="cancel"
+                  size="form"
                   onClick={onCancel}
-                  className="w-full sm:w-auto h-12 text-base"
+                  className="w-full sm:w-auto"
                   disabled={isSubmitting || isLoading}
                 >
                   {cancelButtonText}
                 </Button>
                 <Button
                   type="submit"
+                  variant="submit"
+                  size="form"
                   disabled={isSubmitting || isLoading || !isValid || !dirty}
-                  className="w-full sm:w-auto h-12 text-base"
+                  className="w-full sm:w-auto"
                 >
                   {isSubmitting || isLoading
                     ? "Processing..."
@@ -146,8 +151,8 @@ export const FormikInput: React.FC<{
   ...rest
 }) => (
   <div className="space-y-3">
-    <Label htmlFor={name} className="text-sm font-medium">
-      {label} {required && "*"}
+    <Label htmlFor={name} className="text-sm font-medium text-gray-700">
+      {label} {required && <span className="text-red-500">*</span>}
     </Label>
     <Field
       as={Input}
@@ -155,7 +160,7 @@ export const FormikInput: React.FC<{
       name={name}
       type={type}
       placeholder={placeholder}
-      className={`h-12 text-base ${className}`}
+      className={className}
       step={step}
       min={min}
       max={max}
@@ -190,8 +195,8 @@ export const FormikTextarea: React.FC<{
   required?: boolean;
 }> = ({ name, label, placeholder, rows = 4, required = false }) => (
   <div className="space-y-3">
-    <Label htmlFor={name} className="text-sm font-medium">
-      {label} {required && "*"}
+    <Label htmlFor={name} className="text-sm font-medium text-gray-700">
+      {label} {required && <span className="text-red-500">*</span>}
     </Label>
     <Field
       as={Textarea}
@@ -199,7 +204,6 @@ export const FormikTextarea: React.FC<{
       name={name}
       placeholder={placeholder}
       rows={rows}
-      className="text-base resize-none"
     />
     <ErrorMessage
       name={name}
@@ -240,31 +244,31 @@ export const FormikSelect: React.FC<{
   onChange,
 }) => (
   <div className="space-y-3">
-    <Label htmlFor={name} className="text-sm font-medium">
-      {label} {required && "*"}
+    <Label htmlFor={name} className="text-sm font-medium text-gray-700">
+      {label} {required && <span className="text-red-500">*</span>}
     </Label>
-    <Field name={name}>
-      {({ field, form }: { field: any; form: any }) => (
-        <select
-          id={name}
-          {...field}
-          disabled={disabled}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-12 text-base"
-          onChange={(e) => {
-            field.onChange(e);
-            if (onChange) {
-              onChange(e.target.value);
-            }
-          }}
-        >
-          <option value="">{placeholder || "Select an option"}</option>
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+    <Field
+      as="select"
+      id={name}
+      name={name}
+      disabled={disabled}
+      className="flex h-12 w-full items-center justify-between rounded-md border border-gray-300 bg-white px-4 py-3 text-base shadow-sm placeholder:text-gray-500 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:placeholder:text-gray-400 dark:focus:border-green-400 dark:focus:ring-green-400/20"
+      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+        if (onChange) {
+          onChange(e.target.value);
+        }
+      }}
+    >
+      {placeholder && (
+        <option value="" disabled>
+          {placeholder}
+        </option>
       )}
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
     </Field>
     <ErrorMessage
       name={name}
@@ -292,24 +296,39 @@ export const FormikSwitch: React.FC<{
   label: string;
   description?: string;
 }> = ({ name, label, description }) => (
-  <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
-    <div className="space-y-1">
-      <Label htmlFor={name} className="text-sm font-medium">
-        {label}
-      </Label>
-      {description && (
-        <div className="text-xs text-muted-foreground">{description}</div>
-      )}
+  <div className="space-y-3">
+    <div className="flex items-center justify-between">
+      <div className="space-y-0.5">
+        <Label htmlFor={name} className="text-sm font-medium text-gray-700">
+          {label}
+        </Label>
+        {description && <p className="text-sm text-gray-500">{description}</p>}
+      </div>
+      <Field
+        as={Switch}
+        id={name}
+        name={name}
+        className="data-[state=checked]:bg-green-600"
+      />
     </div>
-    <Field name={name}>
-      {({ field, form }: { field: any; form: any }) => (
-        <Switch
-          checked={field.value}
-          onCheckedChange={(checked) => form.setFieldValue(name, checked)}
-          className="data-[state=checked]:bg-blue-600"
-        />
+    <ErrorMessage
+      name={name}
+      component="div"
+      className="text-sm text-red-600 flex items-center"
+    >
+      {(msg: string) => (
+        <>
+          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <path
+              fillRule="evenodd"
+              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+              clipRule="evenodd"
+            />
+          </svg>
+          {msg}
+        </>
       )}
-    </Field>
+    </ErrorMessage>
   </div>
 );
 
@@ -317,15 +336,35 @@ export const FormikCheckbox: React.FC<{
   name: string;
   label: string;
 }> = ({ name, label }) => (
-  <div className="flex items-center space-x-2">
-    <Field name={name}>
-      {({ field, form }: { field: any; form: any }) => (
-        <Checkbox
-          checked={field.value}
-          onChange={(e) => form.setFieldValue(name, e.target.checked)}
-        />
+  <div className="space-y-3">
+    <div className="flex items-center space-x-2">
+      <Field
+        as={Checkbox}
+        id={name}
+        name={name}
+        className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+      />
+      <Label htmlFor={name} className="text-sm font-medium text-gray-700">
+        {label}
+      </Label>
+    </div>
+    <ErrorMessage
+      name={name}
+      component="div"
+      className="text-sm text-red-600 flex items-center"
+    >
+      {(msg: string) => (
+        <>
+          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <path
+              fillRule="evenodd"
+              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+              clipRule="evenodd"
+            />
+          </svg>
+          {msg}
+        </>
       )}
-    </Field>
-    <Label>{label}</Label>
+    </ErrorMessage>
   </div>
 );

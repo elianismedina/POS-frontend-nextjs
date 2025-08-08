@@ -46,6 +46,13 @@ This document summarizes the comprehensive standardization of button UI componen
 - **"Update" button**: Changed to `submit` variant
 - **Impact**: Clear visual feedback for tip selection and submission
 
+#### CashierOrdersPage (`src/app/dashboard/cashier/orders/page.tsx`)
+- **"Create a new sale" button**: Changed from `outline` to `submit` variant
+- **"Refresh" button**: Changed from `outline` to `cancel` variant
+- **"View" buttons**: Changed from `outline` to `info` variant
+- **Select elements**: Replaced HTML `<select>` with standardized `Select` component
+- **Impact**: Complete standardization of cashier orders interface
+
 ### 4. UI Components
 
 #### BarcodeScanner (`src/components/ui/barcode-scanner.tsx`)
@@ -167,10 +174,10 @@ This document summarizes the comprehensive standardization of button UI componen
 
 ## Critical Fixes Applied
 
-### Issue Identified
-The categories page at https://pos-frontend-nextjs.vercel.app/dashboard/admin/categories was showing buttons with completely different colors because the `CategoriesList` and `SubcategoriesList` components were using regular HTML `<button>` elements with custom CSS classes instead of the standardized Button component.
+### Issue 1: Categories Page Buttons
+**Problem**: The categories page at https://pos-frontend-nextjs.vercel.app/dashboard/admin/categories was showing buttons with completely different colors because the `CategoriesList` and `SubcategoriesList` components were using regular HTML `<button>` elements with custom CSS classes instead of the standardized Button component.
 
-### Solution Applied
+**Solution Applied**:
 1. **CategoriesList**: Replaced all custom button elements with standardized Button components
    - Edit buttons: `variant="info"` (blue)
    - Delete buttons: `variant="destructive"` (red)
@@ -186,8 +193,27 @@ The categories page at https://pos-frontend-nextjs.vercel.app/dashboard/admin/ca
    - Delete: `<Trash2 />` icon
    - Reactivate: `<RotateCcw />` icon
 
+### Issue 2: Cashier Orders Page Buttons
+**Problem**: The cashier orders page at https://pos-frontend-nextjs.vercel.app/dashboard/cashier/orders was using non-standardized button variants and HTML select elements.
+
+**Solution Applied**:
+1. **Button Standardization**:
+   - "Create a new sale" button: Changed from `outline` to `submit` variant
+   - "Refresh" button: Changed from `outline` to `cancel` variant
+   - "View" buttons: Changed from `outline` to `info` variant
+
+2. **Select Component Standardization**:
+   - Replaced all HTML `<select>` elements with standardized `Select` component
+   - Applied consistent styling across all filter dropdowns
+   - Improved accessibility and user experience
+
+3. **API Integration Fix**:
+   - Fixed incorrect API method calls (`listOrders` → `getOrders`)
+   - Corrected user property access (`businessId` → `branch.business.id`)
+   - Ensured proper data handling for both array and paginated responses
+
 ### Result
-All buttons across the application now have consistent styling and behavior, including the categories and subcategories pages that were previously using non-standardized buttons.
+All buttons across the application now have consistent styling and behavior, including the categories, subcategories, and cashier orders pages that were previously using non-standardized buttons and components.
 
 ## Future Enhancements
 
@@ -199,4 +225,4 @@ All buttons across the application now have consistent styling and behavior, inc
 ---
 
 *Last updated: [Current Date]*
-*Version: 1.1*
+*Version: 1.2*

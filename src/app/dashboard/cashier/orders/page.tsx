@@ -6,6 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ordersService, Order } from "@/app/services/orders";
@@ -98,15 +105,12 @@ export default function CashierOrdersPage() {
     endDate: "",
   });
   const [sortBy, setSortBy] = useState("MOST_RECENT");
-  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
-
-  // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [ordersPerPage] = useState(10);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const ordersPerPage = 10;
 
-  // Date filter options
   const dateFilterOptions = [
-    { value: "ALL", label: "All Time" },
+    { value: "ALL", label: "All Dates" },
     { value: "TODAY", label: "Today" },
     { value: "YESTERDAY", label: "Yesterday" },
     { value: "THIS_WEEK", label: "This Week" },
@@ -116,7 +120,6 @@ export default function CashierOrdersPage() {
     { value: "CUSTOM", label: "Custom Range" },
   ];
 
-  // Sort options
   const sortOptions = [
     { value: "MOST_RECENT", label: "Most Recent" },
     { value: "OLDEST", label: "Oldest First" },
@@ -125,48 +128,60 @@ export default function CashierOrdersPage() {
     { value: "STATUS", label: "By Status" },
   ];
 
-  // Helper function to get date range based on filter
   const getDateRange = (filter: string) => {
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
+    const startOfDay = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
+    const endOfDay = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      23,
+      59,
+      59
+    );
 
     switch (filter) {
       case "TODAY":
-        return {
-          start: today,
-          end: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1),
-        };
+        return { start: startOfDay, end: endOfDay };
       case "YESTERDAY":
-        return {
-          start: yesterday,
-          end: new Date(yesterday.getTime() + 24 * 60 * 60 * 1000 - 1),
-        };
+        const yesterday = new Date(startOfDay);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const endOfYesterday = new Date(yesterday);
+        endOfYesterday.setHours(23, 59, 59);
+        return { start: yesterday, end: endOfYesterday };
       case "THIS_WEEK":
-        const startOfWeek = new Date(today);
-        startOfWeek.setDate(today.getDate() - today.getDay());
-        return {
-          start: startOfWeek,
-          end: new Date(startOfWeek.getTime() + 7 * 24 * 60 * 60 * 1000 - 1),
-        };
+        const startOfWeek = new Date(startOfDay);
+        startOfWeek.setDate(startOfDay.getDate() - startOfDay.getDay());
+        return { start: startOfWeek, end: endOfDay };
       case "LAST_WEEK":
-        const lastWeekStart = new Date(today);
-        lastWeekStart.setDate(today.getDate() - today.getDay() - 7);
-        return {
-          start: lastWeekStart,
-          end: new Date(lastWeekStart.getTime() + 7 * 24 * 60 * 60 * 1000 - 1),
-        };
+        const startOfLastWeek = new Date(startOfDay);
+        startOfLastWeek.setDate(startOfDay.getDate() - startOfDay.getDay() - 7);
+        const endOfLastWeek = new Date(startOfLastWeek);
+        endOfLastWeek.setDate(startOfLastWeek.getDate() + 6);
+        endOfLastWeek.setHours(23, 59, 59);
+        return { start: startOfLastWeek, end: endOfLastWeek };
       case "THIS_MONTH":
-        return {
-          start: new Date(now.getFullYear(), now.getMonth(), 1),
-          end: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59),
-        };
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        return { start: startOfMonth, end: endOfDay };
       case "LAST_MONTH":
-        return {
-          start: new Date(now.getFullYear(), now.getMonth() - 1, 1),
-          end: new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59),
-        };
+        const startOfLastMonth = new Date(
+          now.getFullYear(),
+          now.getMonth() - 1,
+          1
+        );
+        const endOfLastMonth = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          0,
+          23,
+          59,
+          59
+        );
+        return { start: startOfLastMonth, end: endOfLastMonth };
       case "CUSTOM":
         if (customDateRange.startDate && customDateRange.endDate) {
           return {
@@ -180,13 +195,11 @@ export default function CashierOrdersPage() {
     }
   };
 
-  // Helper function to check if order is within date range
   const isOrderInDateRange = (
     order: Order,
     dateRange: { start: Date; end: Date } | null
   ) => {
     if (!dateRange) return true;
-
     const orderDate = new Date(
       order.createdAt || order._props?.createdAt || new Date()
     );
@@ -194,153 +207,148 @@ export default function CashierOrdersPage() {
   };
 
   const fetchOrders = useCallback(async () => {
-    if (user?.branch?.business?.id) {
-      try {
-        setLoading(true);
+    if (!user?.branch?.business?.id) return;
 
-        // For cashiers, we'll get orders filtered by their business and cashier ID
-        const response = await ordersService.getOrders({
-          businessId: user.branch.business.id,
-          cashierId: user.id, // Filter by current cashier
-        });
-
-        let ordersArray: Order[] = [];
-        if (response && "data" in response && "meta" in response) {
-          ordersArray = Array.isArray(response.data) ? response.data : [];
-        } else if (response && Array.isArray(response)) {
-          ordersArray = response;
-        } else {
-          console.warn("Unexpected orders response format:", response);
-          ordersArray = [];
-        }
-        setOrders(ordersArray);
-        setFilteredOrders(ordersArray);
-        setLastRefresh(new Date());
-      } catch (error) {
-        console.error("Error fetching orders:", error);
-      } finally {
-        setLoading(false);
-      }
+    try {
+      setLoading(true);
+      const data = await ordersService.getOrders({
+        businessId: user.branch.business.id,
+        cashierId: user.id,
+      });
+      setOrders(Array.isArray(data) ? data : data.data || []);
+      setLastRefresh(new Date());
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+    } finally {
+      setLoading(false);
     }
-  }, [user?.id, user?.branch?.business?.id]);
+  }, [user?.branch?.business?.id, user?.id]);
 
-  // Single useEffect to handle all refresh scenarios
   useEffect(() => {
-    let isInitialized = false;
+    fetchOrders();
+  }, [fetchOrders]);
 
+  // Auto-refresh functionality
+  useEffect(() => {
     const handleBeforeUnload = () => {
-      // Set a flag in sessionStorage to indicate we should refresh on return
-      sessionStorage.setItem("shouldRefreshOrders", "true");
+      // Clear any pending refresh timers
     };
 
     const checkForRefresh = () => {
-      const shouldRefresh = sessionStorage.getItem("shouldRefreshOrders");
-      if (shouldRefresh === "true") {
+      // Check if we need to refresh data
+      const now = new Date();
+      if (lastRefresh && now.getTime() - lastRefresh.getTime() > 30000) {
+        // Refresh if more than 30 seconds have passed
         fetchOrders();
-        sessionStorage.removeItem("shouldRefreshOrders");
       }
     };
 
     const handleFocus = () => {
-      if (isInitialized) {
-        fetchOrders();
-      }
+      // Refresh when window regains focus
+      checkForRefresh();
     };
 
     const handleVisibilityChange = () => {
-      if (!document.hidden && isInitialized) {
-        fetchOrders();
+      if (!document.hidden) {
+        // Refresh when page becomes visible
+        checkForRefresh();
       }
     };
 
-    // Initial fetch when component mounts
-    if (!isInitialized) {
-      fetchOrders();
-      isInitialized = true;
-    }
-
-    // Check if we should refresh when component mounts
-    checkForRefresh();
-
-    // Set up listeners
+    // Set up event listeners
     window.addEventListener("beforeunload", handleBeforeUnload);
     window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Set up auto-refresh interval
+    const interval = setInterval(checkForRefresh, 30000); // Check every 30 seconds
 
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      clearInterval(interval);
     };
-  }, [user?.id]); // Only depend on user.id, not the entire user object
+  }, [fetchOrders, lastRefresh]);
 
+  // Filter and sort orders
   useEffect(() => {
-    let filtered = orders;
+    let filtered = [...orders];
 
-    // Filter by search term
+    // Apply search filter
     if (searchTerm) {
-      filtered = filtered.filter(
-        (order) =>
-          ((order.id || order._props?.id) &&
-            (order.id || order._props?.id || "")
-              .toLowerCase()
-              .includes(searchTerm.toLowerCase())) ||
-          (order.customer?.name &&
-            order.customer.name
-              .toLowerCase()
-              .includes(searchTerm.toLowerCase())) ||
-          ((order.status || order._props?.status) &&
-            (order.status || order._props?.status || "")
-              .toLowerCase()
-              .includes(searchTerm.toLowerCase()))
-      );
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter((order) => {
+        const orderId = (order.id || order._props?.id || "").toLowerCase();
+        const customerName = (
+          (order as any).customer?.name ||
+          (order as any)._props?.customer?.name ||
+          ""
+        ).toLowerCase();
+        const status = (
+          order.status ||
+          order._props?.status ||
+          ""
+        ).toLowerCase();
+        return (
+          orderId.includes(searchLower) ||
+          customerName.includes(searchLower) ||
+          status.includes(searchLower)
+        );
+      });
     }
 
-    // Filter by status
+    // Apply status filter
     if (statusFilter !== "ALL") {
       filtered = filtered.filter(
-        (order) =>
-          (order.status || order._props?.status) &&
-          (order.status || order._props?.status) === statusFilter
+        (order) => (order.status || order._props?.status) === statusFilter
       );
     }
 
-    // Filter by completion type
+    // Apply completion type filter
     if (completionTypeFilter !== "ALL") {
       filtered = filtered.filter(
         (order) =>
-          (order.completionType || order._props?.completionType) &&
           (order.completionType || order._props?.completionType) ===
-            completionTypeFilter
+          completionTypeFilter
       );
     }
 
-    // Filter by date
+    // Apply date filter
     const dateRange = getDateRange(dateFilter);
-    filtered = filtered.filter((order) => isOrderInDateRange(order, dateRange));
+    if (dateRange) {
+      filtered = filtered.filter((order) =>
+        isOrderInDateRange(order, dateRange)
+      );
+    }
 
-    // Sort orders
+    // Apply sorting
     filtered.sort((a, b) => {
-      const aDate = new Date(a.createdAt || a._props?.createdAt || new Date());
-      const bDate = new Date(b.createdAt || b._props?.createdAt || new Date());
-      const aTotal = a.total || a._props?.total || 0;
-      const bTotal = b.total || b._props?.total || 0;
-      const aStatus = a.status || a._props?.status || "";
-      const bStatus = b.status || b._props?.status || "";
-
       switch (sortBy) {
-        case "MOST_RECENT":
-          return bDate.getTime() - aDate.getTime();
         case "OLDEST":
-          return aDate.getTime() - bDate.getTime();
+          return (
+            new Date(a.createdAt || a._props?.createdAt || 0).getTime() -
+            new Date(b.createdAt || b._props?.createdAt || 0).getTime()
+          );
         case "HIGHEST_AMOUNT":
-          return bTotal - aTotal;
+          return (
+            (b.total || b._props?.total || 0) -
+            (a.total || a._props?.total || 0)
+          );
         case "LOWEST_AMOUNT":
-          return aTotal - bTotal;
+          return (
+            (a.total || a._props?.total || 0) -
+            (b.total || b._props?.total || 0)
+          );
         case "STATUS":
-          return aStatus.localeCompare(bStatus);
-        default:
-          return bDate.getTime() - aDate.getTime(); // Default to most recent
+          return (a.status || a._props?.status || "").localeCompare(
+            b.status || b._props?.status || ""
+          );
+        default: // MOST_RECENT
+          return (
+            new Date(b.createdAt || b._props?.createdAt || 0).getTime() -
+            new Date(a.createdAt || a._props?.createdAt || 0).getTime()
+          );
       }
     });
 
@@ -352,12 +360,10 @@ export default function CashierOrdersPage() {
     statusFilter,
     completionTypeFilter,
     dateFilter,
-    customDateRange.startDate,
-    customDateRange.endDate,
+    customDateRange,
     sortBy,
   ]);
 
-  // Calculate pagination
   const { totalPages, startIndex, endIndex, currentOrders } =
     calculatePagination(filteredOrders, currentPage, ordersPerPage);
 
@@ -367,38 +373,45 @@ export default function CashierOrdersPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-4">Loading...</h2>
-          <p className="text-muted-foreground">
-            Please wait while we load your orders
-          </p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-gray-600">Please log in to view orders.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-6 md:py-10 px-4">
-      <div className="mb-8">
-        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+    <div className="container mx-auto px-4 py-6">
+      {/* Header */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold">My Orders</h1>
-            <p className="text-muted-foreground">
-              View and manage all your orders
+            <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
+            <p className="text-gray-600">
+              Manage and track all orders in your business
             </p>
           </div>
-          <div className="flex flex-col items-center sm:items-end gap-2">
+          <div className="flex items-center gap-4">
             <Button
+              variant="submit"
               onClick={() => router.push("/dashboard/cashier/sales")}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 w-full sm:w-auto"
+              className="flex items-center gap-2"
             >
               <Plus className="h-4 w-4" />
-              New Order
-            </Button>
-            <p className="text-xs text-gray-500 text-center sm:text-right">
               Create a new sale
-            </p>
+            </Button>
           </div>
         </div>
       </div>
@@ -414,54 +427,61 @@ export default function CashierOrdersPage() {
             className="pl-10"
           />
         </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="ALL">All Statuses</option>
-          <option value="PENDING">Pending</option>
-          <option value="RECEIVED">Received</option>
-          <option value="CONFIRMED">Confirmed</option>
-          <option value="PREPARING">Preparing</option>
-          <option value="PAID">Paid</option>
-          <option value="COMPLETED">Completed</option>
-          <option value="CANCELLED">Cancelled</option>
-        </select>
-        <select
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="All Statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All Statuses</SelectItem>
+            <SelectItem value="PENDING">Pending</SelectItem>
+            <SelectItem value="RECEIVED">Received</SelectItem>
+            <SelectItem value="CONFIRMED">Confirmed</SelectItem>
+            <SelectItem value="PREPARING">Preparing</SelectItem>
+            <SelectItem value="PAID">Paid</SelectItem>
+            <SelectItem value="COMPLETED">Completed</SelectItem>
+            <SelectItem value="CANCELLED">Cancelled</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select
           value={completionTypeFilter}
-          onChange={(e) => setCompletionTypeFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          onValueChange={setCompletionTypeFilter}
         >
-          <option value="ALL">All Types</option>
-          <option value="PICKUP">Pickup</option>
-          <option value="DELIVERY">Delivery</option>
-          <option value="DINE_IN">Dine In</option>
-        </select>
-        <select
-          value={dateFilter}
-          onChange={(e) => setDateFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          {dateFilterOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          {sortOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="All Types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All Types</SelectItem>
+            <SelectItem value="PICKUP">Pickup</SelectItem>
+            <SelectItem value="DELIVERY">Delivery</SelectItem>
+            <SelectItem value="DINE_IN">Dine In</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={dateFilter} onValueChange={setDateFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="All Dates" />
+          </SelectTrigger>
+          <SelectContent>
+            {dateFilterOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={sortBy} onValueChange={setSortBy}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Sort by" />
+          </SelectTrigger>
+          <SelectContent>
+            {sortOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Button
-          variant="outline"
+          variant="cancel"
           onClick={fetchOrders}
           disabled={loading}
           className="flex items-center gap-2"
@@ -470,7 +490,7 @@ export default function CashierOrdersPage() {
           {loading ? "Refreshing..." : "Refresh"}
         </Button>
         {lastRefresh && (
-          <div className="text-xs text-muted-foreground">
+          <div className="text-xs text-gray-500">
             Last updated: {lastRefresh.toLocaleTimeString()}
           </div>
         )}
@@ -868,7 +888,7 @@ export default function CashierOrdersPage() {
                         </p>
                       </div>
                       <Button
-                        variant="outline"
+                        variant="info"
                         size="sm"
                         onClick={() =>
                           router.push(

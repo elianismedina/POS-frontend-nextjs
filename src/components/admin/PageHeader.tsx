@@ -23,7 +23,7 @@ export function PageHeader({
         )}
       </div>
       {onAdd && (
-        <Button onClick={onAdd}>
+        <Button variant="submit" onClick={onAdd}>
           <Plus className="mr-2 h-4 w-4" />
           {addButtonText}
         </Button>

@@ -156,7 +156,7 @@ export function BarcodeScanner({
           {/* Scan Mode Toggle */}
           <div className="flex gap-2">
             <Button
-              variant={scanMode === "hardware" ? "default" : "outline"}
+              variant={scanMode === "hardware" ? "submit" : "cancel"}
               size="sm"
               onClick={() => setScanMode("hardware")}
               className="flex-1"
@@ -165,7 +165,7 @@ export function BarcodeScanner({
               Hardware Scanner
             </Button>
             <Button
-              variant={scanMode === "manual" ? "default" : "outline"}
+              variant={scanMode === "manual" ? "submit" : "cancel"}
               size="sm"
               onClick={() => setScanMode("manual")}
               className="flex-1"
@@ -204,7 +204,7 @@ export function BarcodeScanner({
                 )}
                 {scanMode === "manual" && barcode && (
                   <Button
-                    variant="ghost"
+                    variant="submit"
                     size="sm"
                     onClick={handleManualSubmit}
                     disabled={isScanning}
@@ -213,7 +213,7 @@ export function BarcodeScanner({
                     {isScanning ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
                     ) : (
-                      <CheckCircle className="h-3 w-3 text-green-600" />
+                      <CheckCircle className="h-3 w-3 text-white" />
                     )}
                   </Button>
                 )}

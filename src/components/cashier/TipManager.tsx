@@ -115,23 +115,21 @@ export function TipManager({
           />
           <div className="flex gap-1 ml-2">
             <Button
-              variant="outline"
+              variant="cancel"
               size="sm"
               onClick={() => handleQuickTip(0)}
               className={`text-xs px-2 py-1 ${
-                tipPercentage === 0 ? "bg-primary text-primary-foreground" : ""
+                tipPercentage === 0 ? "bg-green-600 text-white" : ""
               }`}
             >
               0%
             </Button>
             <Button
-              variant="outline"
+              variant="cancel"
               size="sm"
               onClick={() => handleQuickTip(0.1)}
               className={`text-xs px-2 py-1 ${
-                tipPercentage === 0.1
-                  ? "bg-primary text-primary-foreground"
-                  : ""
+                tipPercentage === 0.1 ? "bg-green-600 text-white" : ""
               }`}
             >
               10%
@@ -159,6 +157,7 @@ export function TipManager({
         </div>
 
         <Button
+          variant="submit"
           onClick={handleTipUpdate}
           disabled={isLoading || tipPercentage === currentTipPercentage}
           className="w-full text-sm py-1"

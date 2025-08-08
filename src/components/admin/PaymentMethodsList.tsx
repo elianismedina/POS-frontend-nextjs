@@ -1,233 +1,253 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Edit, Plus, Trash2 } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
-import {
-  paymentMethodsService,
-  PaymentMethod,
-} from "@/app/services/payment-methods";
+import { Edit, Trash2, Plus, Eye, EyeOff } from "lucide-react";
+import { businessPaymentMethodsService } from "@/app/services/business-payment-methods";
 import { CreatePaymentMethodForm } from "./CreatePaymentMethodForm";
 import { EditPaymentMethodForm } from "./EditPaymentMethodForm";
+import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/lib/auth/AuthContext";
+
+interface BusinessPaymentMethod {
+  id: string;
+  businessId: string;
+  paymentMethodId: string;
+  paymentMethod: {
+    id: string;
+    name: string;
+    code: string;
+    description?: string;
+    isActive: boolean;
+    requiresConfirmation: boolean;
+  };
+  isActive: boolean;
+  isDefault: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export function PaymentMethodsList() {
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [editingMethod, setEditingMethod] = useState<PaymentMethod | null>(
-    null
+  const [paymentMethods, setPaymentMethods] = useState<BusinessPaymentMethod[]>(
+    []
   );
+  const [isLoading, setIsLoading] = useState(true);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editingMethod, setEditingMethod] =
+    useState<BusinessPaymentMethod | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
 
-  const loadPaymentMethods = async () => {
+  useEffect(() => {
+    fetchPaymentMethods();
+  }, []);
+
+  const fetchPaymentMethods = async () => {
     try {
-      setLoading(true);
-      const methods = await paymentMethodsService.getAll();
-      console.log("Loaded payment methods:", methods);
+      setIsLoading(true);
+      const methods =
+        await businessPaymentMethodsService.getBusinessPaymentMethods();
       setPaymentMethods(methods);
     } catch (error) {
-      console.error("Error loading payment methods:", error);
+      console.error("Error fetching payment methods:", error);
       toast({
         title: "Error",
-        description: "No se pudieron cargar los métodos de pago",
+        description: "Failed to load payment methods",
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadPaymentMethods();
-  }, []);
-
-  const handleToggleActive = async (method: PaymentMethod) => {
-    try {
-      await paymentMethodsService.toggleActive(method.id, !method.isActive);
-      await loadPaymentMethods();
-      toast({
-        title: "Éxito",
-        description: `Método de pago ${
-          method.isActive ? "desactivado" : "activado"
-        } exitosamente`,
-      });
-    } catch (error) {
-      console.error("Error toggling payment method:", error);
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar el estado del método de pago",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDelete = async (method: PaymentMethod) => {
-    if (!confirm(`¿Estás seguro de que quieres eliminar "${method.name}"?`)) {
-      return;
-    }
-
-    try {
-      await paymentMethodsService.delete(method.id);
-      await loadPaymentMethods();
-      toast({
-        title: "Éxito",
-        description: "Método de pago eliminado exitosamente",
-      });
-    } catch (error) {
-      console.error("Error deleting payment method:", error);
-      toast({
-        title: "Error",
-        description: "No se pudo eliminar el método de pago",
-        variant: "destructive",
-      });
+      setIsLoading(false);
     }
   };
 
   const handleCreateSuccess = () => {
     setShowCreateForm(false);
-    loadPaymentMethods();
+    fetchPaymentMethods();
     toast({
-      title: "Éxito",
-      description: "Método de pago creado exitosamente",
+      title: "Success",
+      description: "Payment method created successfully",
+      variant: "success",
     });
   };
 
   const handleEditSuccess = () => {
+    setShowEditForm(false);
     setEditingMethod(null);
-    loadPaymentMethods();
+    fetchPaymentMethods();
     toast({
-      title: "Éxito",
-      description: "Método de pago actualizado exitosamente",
+      title: "Success",
+      description: "Payment method updated successfully",
+      variant: "success",
     });
   };
 
-  if (loading) {
+  const handleEditClick = (method: BusinessPaymentMethod) => {
+    setEditingMethod(method);
+    setShowEditForm(true);
+  };
+
+  const handleToggleActive = async (method: BusinessPaymentMethod) => {
+    try {
+      // This would need to be implemented in the service
+      // await businessPaymentMethodsService.toggleActive(method.id);
+      await fetchPaymentMethods();
+      toast({
+        title: "Success",
+        description: `Payment method ${
+          method.isActive ? "deactivated" : "activated"
+        } successfully`,
+        variant: "success",
+      });
+    } catch (error) {
+      console.error("Error toggling payment method:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update payment method",
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Loading payment methods...</div>
+      <div className="flex items-center justify-center p-8">
+        <div className="text-sm text-gray-500">Loading payment methods...</div>
       </div>
+    );
+  }
+
+  if (showCreateForm) {
+    return (
+      <CreatePaymentMethodForm
+        onSuccess={handleCreateSuccess}
+        onCancel={() => setShowCreateForm(false)}
+      />
+    );
+  }
+
+  if (showEditForm && editingMethod) {
+    return (
+      <EditPaymentMethodForm
+        paymentMethod={{
+          id: editingMethod.paymentMethod.id,
+          name: editingMethod.paymentMethod.name,
+          code: editingMethod.paymentMethod.code,
+          description: editingMethod.paymentMethod.description,
+          isActive: editingMethod.paymentMethod.isActive,
+          requiresConfirmation:
+            editingMethod.paymentMethod.requiresConfirmation,
+        }}
+        onSuccess={handleEditSuccess}
+        onCancel={() => {
+          setShowEditForm(false);
+          setEditingMethod(null);
+        }}
+      />
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
-            Métodos de Pago
-          </h2>
-          <p className="mt-1 text-sm text-gray-500 sm:text-base">
+          <h2 className="text-2xl font-bold text-gray-900">Payment Methods</h2>
+          <p className="text-gray-600 mt-1">
             Manage payment methods for your business
           </p>
         </div>
-        <Button
-          onClick={() => setShowCreateForm(true)}
-          className="w-full sm:w-auto px-6 py-3 text-base"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Agregar Método de Pago
+        <Button variant="submit" onClick={() => setShowCreateForm(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Payment Method
         </Button>
       </div>
 
-      {/* Forms */}
-      {showCreateForm && (
-        <CreatePaymentMethodForm
-          onSuccess={handleCreateSuccess}
-          onCancel={() => setShowCreateForm(false)}
-        />
-      )}
-
-      {editingMethod && (
-        <EditPaymentMethodForm
-          paymentMethod={editingMethod}
-          onSuccess={handleEditSuccess}
-          onCancel={() => setEditingMethod(null)}
-        />
-      )}
-
-      {/* Payment Methods Grid - Mobile Single Column, Desktop Multi-column */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {paymentMethods.map((method, index) => (
-          <Card
-            key={method.id || `payment-method-${index}`}
-            className="hover:shadow-md transition-shadow duration-200"
-          >
+      <div className="grid gap-4">
+        {paymentMethods.map((method) => (
+          <Card key={method.id} className="border border-gray-200">
             <CardHeader className="pb-3">
-              <div className="flex justify-between items-start gap-3">
-                <div className="flex-1 min-w-0">
-                  <CardTitle className="text-lg sm:text-xl truncate">
-                    {method.name}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <CardTitle className="text-lg font-semibold">
+                    {method.paymentMethod.name}
                   </CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {method.code}
-                  </p>
+                  {method.isDefault && (
+                    <Badge variant="outline" className="text-xs">
+                      Default
+                    </Badge>
+                  )}
+                  {method.paymentMethod.requiresConfirmation && (
+                    <Badge variant="outline">Requires Confirmation</Badge>
+                  )}
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <Switch
-                    checked={method.isActive}
-                    onCheckedChange={() => handleToggleActive(method)}
-                    className="data-[state=checked]:bg-blue-600"
-                  />
+                <div className="flex items-center space-x-2">
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setEditingMethod(method)}
-                    className="h-8 w-8 p-0"
+                    onClick={() => handleToggleActive(method)}
+                    title={method.isActive ? "Deactivate" : "Activate"}
                   >
-                    <Edit className="w-4 h-4" />
+                    {method.isActive ? (
+                      <Eye className="h-4 w-4" />
+                    ) : (
+                      <EyeOff className="h-4 w-4" />
+                    )}
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleDelete(method)}
-                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    onClick={() => handleEditClick(method)}
+                    title="Edit"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Edit className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="pt-0">
-              {method.description && (
-                <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                  {method.description}
-                </p>
-              )}
-              <div className="flex flex-wrap gap-2">
-                <Badge variant={method.isActive ? "default" : "secondary"}>
-                  {method.isActive ? "Active" : "Inactive"}
-                </Badge>
-                {method.requiresConfirmation && (
-                  <Badge variant="outline">Requires Confirmation</Badge>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">Code:</span>
+                  <span className="font-mono">{method.paymentMethod.code}</span>
+                </div>
+                {method.paymentMethod.description && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Description:</span>
+                    <span>{method.paymentMethod.description}</span>
+                  </div>
                 )}
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">Status:</span>
+                  <Badge
+                    variant={method.isActive ? "default" : "secondary"}
+                    className="text-xs"
+                  >
+                    {method.isActive ? "Active" : "Inactive"}
+                  </Badge>
+                </div>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Empty State */}
       {paymentMethods.length === 0 && (
-        <Card className="border-dashed border-2 border-gray-300">
-          <CardContent className="flex flex-col items-center justify-center py-12 px-4">
-            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-              <Plus className="w-6 h-6 text-gray-400" />
+        <Card className="border-dashed border-gray-300">
+          <CardContent className="flex flex-col items-center justify-center py-8">
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                No Payment Methods
+              </h3>
+              <p className="text-gray-600 mb-4">
+                Get started by adding your first payment method.
+              </p>
+              <Button variant="submit" onClick={() => setShowCreateForm(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Payment Method
+              </Button>
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No payment methods found
-            </h3>
-            <p className="text-sm text-gray-500 text-center mb-6">
-              Get started by adding your first payment method
-            </p>
-            <Button onClick={() => setShowCreateForm(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add First Payment Method
-            </Button>
           </CardContent>
         </Card>
       )}

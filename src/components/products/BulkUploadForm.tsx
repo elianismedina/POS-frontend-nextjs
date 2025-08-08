@@ -218,7 +218,7 @@ export function BulkUploadForm({ onSuccess, onCancel }: BulkUploadFormProps) {
 
           <div className="flex gap-2">
             <Button
-              variant="outline"
+              variant="cancel"
               onClick={downloadTemplate}
               className="flex items-center gap-2"
             >
@@ -312,11 +312,13 @@ export function BulkUploadForm({ onSuccess, onCancel }: BulkUploadFormProps) {
 
       {/* Action Buttons */}
       <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={onCancel}>
+        <Button variant="cancel" onClick={onCancel}>
           Cerrar
         </Button>
         {uploadResult && uploadResult.result.successful > 0 && (
-          <Button onClick={onCancel}>Listo</Button>
+          <Button variant="submit" onClick={onCancel}>
+            Listo
+          </Button>
         )}
       </div>
     </div>

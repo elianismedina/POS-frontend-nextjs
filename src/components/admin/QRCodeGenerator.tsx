@@ -1,15 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { QrCode, Download, Copy, AlertCircle } from "lucide-react";
+import { QrCode, Copy, ExternalLink } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 interface QRCodeGeneratorProps {
@@ -17,14 +11,14 @@ interface QRCodeGeneratorProps {
   businessName: string;
 }
 
-export function QRCodeGenerator({
+export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
   businessId,
   businessName,
-}: QRCodeGeneratorProps) {
+}) => {
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { toast, error: errorToast, success } = useToast();
+  const { toast } = useToast();
 
   const generateQRCode = async () => {
     setLoading(true);
@@ -34,8 +28,8 @@ export function QRCodeGenerator({
       // Create QR code client-side since backend API is not available
       const baseUrl =
         process.env.NEXT_PUBLIC_CUSTOMER_MENU_URL ||
-        "https://customer-menu-frontend-jc8n.vercel.app";
-      const menuUrl = `${baseUrl}/welcome/${businessId}`;
+        "https://customer-menu-frontend-jc8n.vercel.app"; // Corrected base URL
+      const menuUrl = `${baseUrl}/welcome/${businessId}`; // Corrected path
 
       // Create a simple QR code using a public QR code API
       const qrCodeApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
@@ -62,42 +56,49 @@ export function QRCodeGenerator({
   // Auto-generate QR code when component mounts
   useEffect(() => {
     generateQRCode();
-  }, [businessId]);
+  }, [businessId]); // Dependency on businessId ensures it regenerates for different businesses
 
-  const downloadQRCode = () => {
-    if (!qrCodeUrl) return;
+  const copyToClipboard = async () => {
+    try {
+      const baseUrl =
+        process.env.NEXT_PUBLIC_CUSTOMER_MENU_URL ||
+        "https://customer-menu-frontend-jc8n.vercel.app";
+      const menuUrl = `${baseUrl}/welcome/${businessId}`;
 
-    const link = document.createElement("a");
-    link.href = qrCodeUrl;
-    link.download = `qr-code-${businessName}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      await navigator.clipboard.writeText(menuUrl);
+      toast({
+        title: "Success",
+        description: "URL copied to clipboard",
+        variant: "success",
+      });
+    } catch (err) {
+      console.error("Failed to copy URL:", err);
+      toast({
+        title: "Error",
+        description: "Failed to copy URL to clipboard",
+        variant: "error",
+      });
+    }
   };
 
-  const copyMenuUrl = () => {
+  const openMenuUrl = () => {
     const baseUrl =
       process.env.NEXT_PUBLIC_CUSTOMER_MENU_URL ||
       "https://customer-menu-frontend-jc8n.vercel.app";
     const menuUrl = `${baseUrl}/welcome/${businessId}`;
-
-    navigator.clipboard.writeText(menuUrl);
-    success({
-      title: "Copied",
-      description: "Menu URL copied to clipboard",
-    });
+    window.open(menuUrl, "_blank");
   };
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
+    <Card className="w-full">
+      <CardHeader className="pb-4">
         <CardTitle className="flex items-center gap-2">
           <QrCode className="w-5 h-5" />
-          QR Code
+          QR Code {/* Changed title */}
         </CardTitle>
-        <CardDescription>
-          QR code for {businessName} digital menu
-        </CardDescription>
+        <p className="text-sm text-gray-600">
+          QR code for {businessName} digital menu {/* Changed description */}
+        </p>
       </CardHeader>
       <CardContent className="space-y-4">
         {loading && (
@@ -107,38 +108,38 @@ export function QRCodeGenerator({
         )}
 
         {error && (
-          <div className="flex items-center gap-2 text-red-600 text-sm">
-            <AlertCircle className="w-4 h-4" />
-            {error}
+          <div className="text-center p-4">
+            <p className="text-red-600 text-sm mb-4">{error}</p>
+            <Button variant="submit" onClick={generateQRCode}>
+              Try Again
+            </Button>
           </div>
         )}
 
-        {qrCodeUrl && (
+        {qrCodeUrl && !loading && (
           <div className="space-y-4">
-            <div className="border rounded-lg p-4 bg-gray-50">
+            <div className="flex justify-center">
               <img
                 src={qrCodeUrl}
-                alt="QR Code"
-                className="w-full max-w-xs mx-auto"
+                alt={`QR Code for ${businessName}`}
+                className="border border-gray-200 rounded-lg"
+                width={200}
+                height={200}
               />
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button
-                onClick={downloadQRCode}
-                variant="outline"
-                className="flex-1"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Download
-              </Button>
-              <Button
-                onClick={copyMenuUrl}
-                variant="outline"
+                variant="cancel"
+                onClick={copyToClipboard}
                 className="flex-1"
               >
                 <Copy className="w-4 h-4 mr-2" />
                 Copy URL
+              </Button>
+              <Button variant="info" onClick={openMenuUrl} className="flex-1">
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Open Menu
               </Button>
             </div>
           </div>
@@ -146,4 +147,4 @@ export function QRCodeGenerator({
       </CardContent>
     </Card>
   );
-}
+};

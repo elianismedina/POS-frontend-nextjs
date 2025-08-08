@@ -219,7 +219,7 @@ export default function WaiterDashboard() {
   }) => (
     <Card
       className={`cursor-pointer transition-all hover:shadow-md ${
-        variant === "primary" ? "border-blue-200 bg-blue-50" : ""
+        variant === "primary" ? "border-green-200 bg-green-50" : ""
       }`}
       onClick={onClick}
     >
@@ -228,8 +228,8 @@ export default function WaiterDashboard() {
           <div
             className={`p-2 rounded-lg ${
               variant === "primary"
-                ? "bg-blue-100 text-blue-600"
-                : "bg-gray-100"
+                ? "bg-green-100 text-green-600"
+                : "bg-gray-100 text-gray-600"
             }`}
           >
             {icon}
@@ -254,15 +254,25 @@ export default function WaiterDashboard() {
     icon: React.ReactNode;
     color?: "blue" | "green" | "orange" | "red";
   }) => (
-    <Card className="flex-1">
+    <Card>
       <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-gray-600 mb-1">{title}</p>
-            <p className="text-2xl font-bold">{value}</p>
-          </div>
-          <div className={`p-2 rounded-lg bg-${color}-100 text-${color}-600`}>
+        <div className="flex items-center gap-3">
+          <div
+            className={`p-2 rounded-lg ${
+              color === "green"
+                ? "bg-green-100 text-green-600"
+                : color === "orange"
+                ? "bg-orange-100 text-orange-600"
+                : color === "red"
+                ? "bg-red-100 text-red-600"
+                : "bg-blue-100 text-blue-600"
+            }`}
+          >
             {icon}
+          </div>
+          <div className="flex-1">
+            <p className="text-xs text-gray-600">{title}</p>
+            <p className="text-lg font-bold">{value}</p>
           </div>
         </div>
       </CardContent>
@@ -281,21 +291,21 @@ export default function WaiterDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
+    <div className="container-pos mx-auto p-4 space-pos-lg">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">
-          ¡Hola, {user?.name || "Mesero"}!
+          Panel de Mesero
         </h1>
-        <p className="text-gray-600 text-sm">
-          Gestiona tus pedidos y mesas desde aquí
+        <p className="text-gray-600">
+          Bienvenido, {user?.name}. Gestiona pedidos y mesas desde aquí.
         </p>
       </div>
 
       {/* Quick Actions */}
       <div className="mb-6">
         <h2 className="text-lg font-semibold mb-3">Acciones Rápidas</h2>
-        <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
           <QuickActionCard
             title="Nuevo Pedido"
             description="Crear un nuevo pedido para un cliente"
@@ -402,7 +412,7 @@ export default function WaiterDashboard() {
             <span className="text-xs">Dashboard</span>
           </Button>
           <Button
-            variant="ghost"
+            variant="submit"
             size="sm"
             onClick={() => router.push("/dashboard/waiter/new-order")}
             className="flex flex-col items-center gap-1"

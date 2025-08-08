@@ -1,11 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
+import {
+  FormikForm,
+  FormikInput,
+  FormikTextarea,
+  FormikSelect,
+  FormikCheckbox,
+} from "@/components/shared/FormikForm";
+import { productSchema } from "@/lib/validation-schemas";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { productsService, Product } from "@/app/services/products";
@@ -23,19 +26,6 @@ interface EditProductFormProps {
   onCancel: () => void;
 }
 
-interface EditProductData {
-  name: string;
-  description: string;
-  price: number;
-  stock: number;
-  isActive: boolean;
-  imageUrl?: string;
-  barcode?: string;
-  discountable: boolean;
-  categoryId?: string;
-  subcategoryId?: string;
-}
-
 export const EditProductForm: React.FC<EditProductFormProps> = ({
   product,
   onSuccess,
@@ -50,20 +40,19 @@ export const EditProductForm: React.FC<EditProductFormProps> = ({
     product.categoryId || ""
   );
   const [imageUrl, setImageUrl] = useState<string>(product.imageUrl || "");
-  const [barcodeError, setBarcodeError] = useState<string>("");
 
-  const [formData, setFormData] = useState<EditProductData>({
+  const initialValues = {
     name: product.name,
     description: product.description,
     price: product.price,
     stock: product.stock,
     isActive: product.isActive,
-    imageUrl: product.imageUrl,
-    barcode: product.barcode,
+    imageUrl: product.imageUrl || "",
+    barcode: product.barcode || "",
     discountable: product.discountable,
-    categoryId: product.categoryId,
-    subcategoryId: product.subcategoryId,
-  });
+    categoryId: product.categoryId || "",
+    subcategoryId: product.subcategoryId || "",
+  };
 
   useEffect(() => {
     fetchCategories();
@@ -105,56 +94,15 @@ export const EditProductForm: React.FC<EditProductFormProps> = ({
     }
   };
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value, type } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "number" ? parseFloat(value) || 0 : value,
-    }));
-
-    // Clear barcode error when user starts typing
-    if (name === "barcode") {
-      setBarcodeError("");
-    }
-  };
-
-  const handleCheckboxChange = (name: string, checked: boolean) => {
-    setFormData((prev) => ({
-      ...prev,
-      [name]: checked,
-    }));
-  };
-
-  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const categoryId = e.target.value;
+  const handleCategoryChange = (categoryId: string) => {
     setSelectedCategoryId(categoryId);
-    setFormData((prev) => ({
-      ...prev,
-      categoryId,
-      subcategoryId: "", // Reset subcategory when category changes
-    }));
-  };
-
-  const handleSubcategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFormData((prev) => ({
-      ...prev,
-      subcategoryId: e.target.value,
-    }));
   };
 
   const handleImageUpload = (url: string) => {
     setImageUrl(url);
-    setFormData((prev) => ({
-      ...prev,
-      imageUrl: url,
-    }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const handleSubmit = async (values: any) => {
     if (!user?.business?.[0]?.id) {
       toast({
         title: "Error",
@@ -166,7 +114,10 @@ export const EditProductForm: React.FC<EditProductFormProps> = ({
 
     setIsLoading(true);
     try {
-      const updatedProduct = await productsService.update(product.id, formData);
+      const updatedProduct = await productsService.update(product.id, {
+        ...values,
+        imageUrl: imageUrl || values.imageUrl,
+      });
       onSuccess(updatedProduct);
     } catch (error: any) {
       console.error("Error updating product:", error);
@@ -187,180 +138,110 @@ export const EditProductForm: React.FC<EditProductFormProps> = ({
       {/* Product Form */}
       <div>
         <h3 className="text-lg font-semibold mb-4">Product Details</h3>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Product Name */}
-            <div className="space-y-2">
-              <Label htmlFor="name">Product Name *</Label>
-              <Input
-                id="name"
+        <FormikForm
+          initialValues={initialValues}
+          validationSchema={productSchema}
+          onSubmit={handleSubmit}
+          title="Edit Product"
+          onCancel={onCancel}
+          submitButtonText={isLoading ? "Updating..." : "Update Product"}
+          isLoading={isLoading}
+        >
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormikInput
                 name="name"
-                type="text"
-                value={formData.name}
-                onChange={handleInputChange}
+                label="Product Name"
                 placeholder="Enter product name"
                 required
               />
-            </div>
 
-            {/* Price */}
-            <div className="space-y-2">
-              <Label htmlFor="price">Price *</Label>
-              <Input
-                id="price"
+              <FormikInput
                 name="price"
+                label="Price"
                 type="number"
                 step="0.01"
                 min="0"
-                value={formData.price}
-                onChange={handleInputChange}
                 placeholder="0.00"
                 required
               />
-            </div>
 
-            {/* Stock */}
-            <div className="space-y-2">
-              <Label htmlFor="stock">Stock Quantity *</Label>
-              <Input
-                id="stock"
+              <FormikInput
                 name="stock"
+                label="Stock Quantity"
                 type="number"
                 min="0"
-                value={formData.stock}
-                onChange={handleInputChange}
                 placeholder="0"
                 required
               />
-            </div>
 
-            {/* Barcode */}
-            <div className="space-y-2">
-              <Label htmlFor="barcode">Barcode</Label>
-              <Input
-                id="barcode"
+              <FormikInput
                 name="barcode"
-                type="text"
-                value={formData.barcode}
-                onChange={handleInputChange}
+                label="Barcode"
                 placeholder="Enter barcode (optional)"
               />
-              {barcodeError && (
-                <p className="text-sm text-red-500">{barcodeError}</p>
-              )}
-            </div>
 
-            {/* Category */}
-            <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
-              <select
-                id="category"
-                value={selectedCategoryId}
-                onChange={handleCategoryChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select a category (optional)</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+              <FormikSelect
+                name="categoryId"
+                label="Category"
+                options={categories.map((category) => ({
+                  value: category.id,
+                  label: category.name,
+                }))}
+                placeholder="Select a category (optional)"
+                onChange={(value) => handleCategoryChange(value)}
+              />
 
-            {/* Subcategory */}
-            <div className="space-y-2">
-              <Label htmlFor="subcategory">Subcategory</Label>
-              <select
-                id="subcategory"
-                value={formData.subcategoryId}
-                onChange={handleSubcategoryChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              <FormikSelect
+                name="subcategoryId"
+                label="Subcategory"
+                options={subcategories.map((subcategory) => ({
+                  value: subcategory.id,
+                  label: subcategory.name,
+                }))}
+                placeholder="Select a subcategory (optional)"
                 disabled={!selectedCategoryId}
-              >
-                <option value="">Select a subcategory (optional)</option>
-                {subcategories.map((subcategory) => (
-                  <option key={subcategory.id} value={subcategory.id}>
-                    {subcategory.name}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
-          </div>
 
-          {/* Description */}
-          <div className="space-y-2">
-            <Label htmlFor="description">Description *</Label>
-            <Textarea
-              id="description"
+            <FormikTextarea
               name="description"
-              value={formData.description}
-              onChange={handleInputChange}
+              label="Description"
               placeholder="Enter product description"
               rows={4}
               required
             />
-          </div>
 
-          {/* Image Upload */}
-          <div className="space-y-2">
-            <Label>Product Image</Label>
-            <CloudinaryUploadWidget
-              onUpload={handleImageUpload}
-              uploadPreset="pos-upload-preset"
-              buttonText="Upload Product Image"
-            />
-            {imageUrl && (
-              <div className="mt-2">
-                <img
-                  src={imageUrl}
-                  alt="Product preview"
-                  className="w-32 h-32 object-cover rounded-md"
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Checkboxes */}
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="isActive"
-                checked={formData.isActive}
-                onCheckedChange={(checked) =>
-                  handleCheckboxChange("isActive", checked as boolean)
-                }
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Product Image
+              </label>
+              <CloudinaryUploadWidget
+                onUpload={handleImageUpload}
+                uploadPreset="pos-upload-preset"
+                buttonText="Upload Product Image"
               />
-              <Label htmlFor="isActive">Product is active</Label>
+              {imageUrl && (
+                <div className="mt-2">
+                  <img
+                    src={imageUrl}
+                    alt="Product preview"
+                    className="w-32 h-32 object-cover rounded-md"
+                  />
+                </div>
+              )}
             </div>
 
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="discountable"
-                checked={formData.discountable}
-                onCheckedChange={(checked) =>
-                  handleCheckboxChange("discountable", checked as boolean)
-                }
+            <div className="space-y-4">
+              <FormikCheckbox name="isActive" label="Product is active" />
+
+              <FormikCheckbox
+                name="discountable"
+                label="Product can be discounted"
               />
-              <Label htmlFor="discountable">Product can be discounted</Label>
             </div>
           </div>
-
-          {/* Form Actions */}
-          <div className="flex justify-end space-x-4 pt-6">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onCancel}
-              disabled={isLoading}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Updating..." : "Update Product"}
-            </Button>
-          </div>
-        </form>
+        </FormikForm>
       </div>
 
       {/* Product Variants Section */}

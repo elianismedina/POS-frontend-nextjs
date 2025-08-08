@@ -396,13 +396,12 @@ export const ProductVariants: React.FC<ProductVariantsProps> = ({
 
                 <div className="flex items-center space-x-2">
                   <Checkbox
-                    id="isActive"
                     checked={formData.isActive}
-                    onCheckedChange={(checked) =>
-                      handleCheckboxChange("isActive", checked as boolean)
+                    onChange={(e) =>
+                      handleCheckboxChange("isActive", e.target.checked)
                     }
                   />
-                  <Label htmlFor="isActive">Active</Label>
+                  <Label>Active</Label>
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4">

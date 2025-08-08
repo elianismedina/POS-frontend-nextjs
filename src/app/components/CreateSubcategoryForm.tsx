@@ -16,7 +16,7 @@ export const CreateSubcategoryForm: React.FC<CreateSubcategoryFormProps> = ({
   onSuccess,
   onCancel,
 }) => {
-  const { toast } = useToast();
+  const { success } = useToast();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -60,10 +60,9 @@ export const CreateSubcategoryForm: React.FC<CreateSubcategoryFormProps> = ({
         imageUrl: imageUrl || undefined,
         isActive: true,
       });
-      toast({
+      success({
         title: "Success",
         description: "Subcategory created successfully",
-        variant: "default",
       });
       onSuccess();
     } catch (err) {

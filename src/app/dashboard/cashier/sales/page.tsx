@@ -24,12 +24,7 @@ import {
   PhysicalTablesService,
   PhysicalTable,
 } from "@/services/physical-tables";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
@@ -1884,120 +1879,131 @@ export default function SalesPage() {
           </div>
         )}
       {/* Table selection modal */}
-      <Sheet
-        open={showTableModal && !isOrderFinalized}
-        onOpenChange={(open) => {
-          if (!isOrderFinalized) {
-            setShowTableModal(open);
-          }
-        }}
-      >
-        <SheetContent className="w-[400px]">
-          <SheetHeader>
-            <SheetTitle>Seleccionar Mesa Física</SheetTitle>
-          </SheetHeader>
-          <div className="py-4">
-            {state.availablePhysicalTables &&
-            state.availablePhysicalTables.length > 0 ? (
-              <ul className="space-y-2">
-                {state.availablePhysicalTables.map((table) => (
-                  <li key={table.id}>
-                    <Button
-                      variant={
-                        state.selectedPhysicalTable?.id === table.id
-                          ? "default"
-                          : "outline"
-                      }
-                      className="w-full justify-start"
-                      onClick={async () => {
-                        try {
-                          // Create or get existing table order for the selected physical table
-                          const tableOrder =
-                            await tableManagementService.selectPhysicalTable(
-                              table,
-                              user,
-                              sale
-                            );
-
-                          updateState({
-                            selectedPhysicalTable: table,
-                            currentTableOrder: tableOrder,
-                            completionDetails: {
-                              ...state.completionDetails,
-                              completionType: "DINE_IN",
-                            },
-                          });
-                          setShowTableModal(false);
-
-                          // Check if this is a table change (existing order with different table)
-                          const isTableChange =
-                            sale.currentOrder &&
-                            (sale.currentOrder.tableOrderId ||
-                              sale.currentOrder._props?.tableOrderId) &&
-                            (sale.currentOrder.tableOrderId !==
-                              tableOrder?.id ||
-                              sale.currentOrder._props?.tableOrderId !==
-                                tableOrder?.id);
-
-                          // Trigger a custom event to notify other pages to refresh
-                          if (typeof window !== "undefined") {
-                            if (isTableChange && sale.currentOrder) {
-                              // Dispatch table change event
-                              window.dispatchEvent(
-                                new CustomEvent("tableChanged", {
-                                  detail: {
-                                    oldTableOrderId:
-                                      sale.currentOrder.tableOrderId ||
-                                      sale.currentOrder._props?.tableOrderId,
-                                    newTableOrderId: tableOrder?.id,
-                                    physicalTableId: table.id,
-                                    tableNumber: table.tableNumber,
-                                    orderId:
-                                      sale.currentOrder.id ||
-                                      sale.currentOrder._props?.id,
-                                  },
-                                })
-                              );
-                              console.log("Dispatched tableChanged event");
-                            } else {
-                              // Dispatch table selected event
-                              window.dispatchEvent(
-                                new CustomEvent("tableSelected", {
-                                  detail: {
-                                    tableOrderId: tableOrder?.id,
-                                    physicalTableId: table.id,
-                                    tableNumber: table.tableNumber,
-                                  },
-                                })
-                              );
-                              console.log("Dispatched tableSelected event");
-                            }
-                          }
-                        } catch (error) {
-                          console.error("Error selecting table:", error);
-                          toast({
-                            title: "Error",
-                            description:
-                              "No se pudo seleccionar la mesa. Inténtalo de nuevo.",
-                            variant: "destructive",
-                          });
-                        }
-                      }}
-                    >
-                      Mesa {table.tableNumber}{" "}
-                      {table.tableName ? `- ${table.tableName}` : ""}
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="text-gray-500">
-                No hay mesas físicas disponibles.
+      {showTableModal && !isOrderFinalized && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-semibold">
+                  Seleccionar Mesa Física
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    if (!isOrderFinalized) {
+                      setShowTableModal(false);
+                    }
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
-            )}
+              <div className="py-4">
+                {state.availablePhysicalTables &&
+                state.availablePhysicalTables.length > 0 ? (
+                  <ul className="space-y-2">
+                    {state.availablePhysicalTables.map((table) => (
+                      <li key={table.id}>
+                        <Button
+                          variant={
+                            state.selectedPhysicalTable?.id === table.id
+                              ? "default"
+                              : "outline"
+                          }
+                          className="w-full justify-start"
+                          onClick={async () => {
+                            try {
+                              // Create or get existing table order for the selected physical table
+                              const tableOrder =
+                                await tableManagementService.selectPhysicalTable(
+                                  table,
+                                  user,
+                                  sale
+                                );
+
+                              updateState({
+                                selectedPhysicalTable: table,
+                                currentTableOrder: tableOrder,
+                                completionDetails: {
+                                  ...state.completionDetails,
+                                  completionType: "DINE_IN",
+                                },
+                              });
+                              setShowTableModal(false);
+
+                              // Check if this is a table change (existing order with different table)
+                              const isTableChange =
+                                sale.currentOrder &&
+                                (sale.currentOrder.tableOrderId ||
+                                  sale.currentOrder._props?.tableOrderId) &&
+                                (sale.currentOrder.tableOrderId !==
+                                  tableOrder?.id ||
+                                  sale.currentOrder._props?.tableOrderId !==
+                                    tableOrder?.id);
+
+                              // Trigger a custom event to notify other pages to refresh
+                              if (typeof window !== "undefined") {
+                                if (isTableChange && sale.currentOrder) {
+                                  // Dispatch table change event
+                                  window.dispatchEvent(
+                                    new CustomEvent("tableChanged", {
+                                      detail: {
+                                        oldTableOrderId:
+                                          sale.currentOrder.tableOrderId ||
+                                          sale.currentOrder._props
+                                            ?.tableOrderId,
+                                        newTableOrderId: tableOrder?.id,
+                                        physicalTableId: table.id,
+                                        tableNumber: table.tableNumber,
+                                        orderId:
+                                          sale.currentOrder.id ||
+                                          sale.currentOrder._props?.id,
+                                      },
+                                    })
+                                  );
+                                  console.log("Dispatched tableChanged event");
+                                } else {
+                                  // Dispatch table selected event
+                                  window.dispatchEvent(
+                                    new CustomEvent("tableSelected", {
+                                      detail: {
+                                        tableOrderId: tableOrder?.id,
+                                        physicalTableId: table.id,
+                                        tableNumber: table.tableNumber,
+                                      },
+                                    })
+                                  );
+                                  console.log("Dispatched tableSelected event");
+                                }
+                              }
+                            } catch (error) {
+                              console.error("Error selecting table:", error);
+                              toast({
+                                title: "Error",
+                                description:
+                                  "No se pudo seleccionar la mesa. Inténtalo de nuevo.",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                        >
+                          Mesa {table.tableNumber}{" "}
+                          {table.tableName ? `- ${table.tableName}` : ""}
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="text-gray-500">
+                    No hay mesas físicas disponibles.
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </SheetContent>
-      </Sheet>
+        </div>
+      )}
       {/* Category filter UI */}
       <div className="bg-white border-b px-6 py-1 flex items-center gap-4">
         <label htmlFor="categoryFilter" className="text-sm font-medium">

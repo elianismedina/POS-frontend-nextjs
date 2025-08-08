@@ -3,8 +3,19 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2 } from "lucide-react";
 import { NewBranchForm } from "@/components/branches/NewBranchForm";
+import { useRouter } from "next/navigation";
 
 export default function CreateBranchPage() {
+  const router = useRouter();
+
+  const handleSuccess = () => {
+    router.push("/dashboard/admin/branches");
+  };
+
+  const handleCancel = () => {
+    router.push("/dashboard/admin/branches");
+  };
+
   return (
     <div className="p-4">
       <Card>
@@ -17,7 +28,7 @@ export default function CreateBranchPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <NewBranchForm />
+          <NewBranchForm onSuccess={handleSuccess} onCancel={handleCancel} />
         </CardContent>
       </Card>
     </div>

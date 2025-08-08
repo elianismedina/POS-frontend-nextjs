@@ -13,7 +13,7 @@ export const CreateCategoryForm: React.FC<CreateCategoryFormProps> = ({
   onSuccess,
   onCancel,
 }) => {
-  const { toast } = useToast();
+  const { success } = useToast();
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -29,10 +29,9 @@ export const CreateCategoryForm: React.FC<CreateCategoryFormProps> = ({
 
     try {
       await categoriesService.createCategory(formData);
-      toast({
+      success({
         title: "Success",
         description: "Category created successfully",
-        variant: "default",
       });
       onSuccess();
     } catch (err) {

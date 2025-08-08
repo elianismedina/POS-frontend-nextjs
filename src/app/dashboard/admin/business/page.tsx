@@ -5,13 +5,12 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Pencil, QrCode, Copy, ExternalLink } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/components/ui/use-toast";
-import { CloudinaryUploadWidget } from "@/components/shared/CloudinaryUploadWidget";
 import { businessService, BusinessSettings } from "@/app/services/business";
+import { BusinessSettingsForm } from "@/components/admin/BusinessSettingsForm";
+import { QRCodeGenerator } from "@/components/admin/QRCodeGenerator";
 
 interface LocalBusinessSettings {
   address?: string;
@@ -35,7 +34,6 @@ export default function BusinessProfilePage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [localSettings, setLocalSettings] = useState<LocalBusinessSettings>({
@@ -101,553 +99,240 @@ export default function BusinessProfilePage() {
     try {
       await navigator.clipboard.writeText(text);
       toast({
-        title: "¡Copiado!",
-        description: "URL copiada al portapapeles",
-        variant: "default",
+        title: "Copiado",
+        description: "Enlace copiado al portapapeles",
+        variant: "success",
       });
     } catch (error) {
       toast({
         title: "Error",
         description: "Error al copiar al portapapeles",
-        variant: "destructive",
+        variant: "error",
       });
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
-    setError(null);
-
-    try {
-      if (!localSettings.business_id) {
-        throw new Error("No se encontró ID del negocio");
-      }
-
-      // Update business settings
-      await businessService.updateSettings(localSettings.business_id, {
-        address: localSettings.address,
-        phone: localSettings.phone,
-        email: localSettings.email,
-        image_url: localSettings.imageUrl,
-        tax_id: localSettings.taxId,
-        invoice_number_prefix: localSettings.invoiceNumberPrefix,
-        invoice_number_start: localSettings.invoiceNumberStart,
-        invoice_number_end: localSettings.invoiceNumberEnd,
-        invoice_number_current: localSettings.invoiceNumberCurrent,
-        invoice_expiration_months: localSettings.invoiceExpirationMonths,
-      });
-
-      // Update business name if it has changed
-      if (localSettings.business_name) {
-        await businessService.updateBusiness(localSettings.business_id, {
-          name: localSettings.business_name,
-        });
-      }
-
-      setIsEditing(false);
-      toast({
-        title: "Éxito",
-        description: "Configuración del negocio actualizada exitosamente",
-        variant: "default",
-      });
-    } catch (error: any) {
-      console.error("Error updating business:", error);
-      setError(
-        error.response?.data?.message ||
-          "Error al guardar la configuración del negocio. Por favor, inténtalo de nuevo."
-      );
-    } finally {
-      setIsSaving(false);
-    }
+  const handleEditSuccess = () => {
+    setIsEditing(false);
+    fetchBusinessData(); // Refresh data after successful update
   };
 
-  if (isLoading || authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-4">Cargando...</h2>
-          <p className="text-gray-500">
-            Por favor espera mientras cargamos la configuración de tu negocio
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const handleEditCancel = () => {
+    setIsEditing(false);
+  };
 
   return (
-    <div className="container mx-auto px-4 py-6 md:py-10">
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
-        <div className="flex items-center space-x-4">
-          {localSettings.imageUrl && (
-            <div className="flex-shrink-0">
-              <img
-                src={localSettings.imageUrl}
-                alt="Logo del Negocio"
-                className="w-16 h-16 object-cover rounded-lg border shadow-sm"
-              />
+    <div className="container-pos mx-auto p-4 space-pos-lg">
+      {isEditing ? (
+        <BusinessSettingsForm
+          initialData={localSettings}
+          onSuccess={handleEditSuccess}
+          onCancel={handleEditCancel}
+        />
+      ) : (
+        <div className="flex flex-col space-y-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                Perfil del Negocio
+              </h1>
+              <p className="text-gray-600 mt-1">
+                Gestiona la información y configuración de tu negocio
+              </p>
             </div>
-          )}
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold">
-              Perfil del Negocio
-            </h1>
-            {localSettings.business_name && (
-              <p className="text-lg text-gray-600 mt-2">
-                {localSettings.business_name}
-              </p>
-            )}
-            {localSettings.business_id && (
-              <p className="text-sm text-gray-500 mt-1">
-                ID: {localSettings.business_id}
-              </p>
-            )}
+            <Button
+              onClick={() => setIsEditing(true)}
+              className="w-full sm:w-auto"
+            >
+              <Pencil className="w-4 h-4 mr-2" />
+              Editar Información
+            </Button>
           </div>
-        </div>
-        {!isEditing && !error && (
-          <Button onClick={() => setIsEditing(true)}>
-            <Pencil className="h-4 w-4 mr-2" />
-            Editar Configuración
-          </Button>
-        )}
-      </div>
 
-      {error && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Información del Negocio</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isEditing ? (
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-4">
-                  <Label>Logo del Negocio</Label>
-                  <div className="flex items-center space-x-4">
-                    {localSettings.imageUrl && (
-                      <div className="flex-shrink-0">
-                        <img
-                          src={localSettings.imageUrl}
-                          alt="Logo del Negocio"
-                          className="w-20 h-20 object-cover rounded-lg border"
-                        />
-                      </div>
-                    )}
-                    <div className="flex-1">
-                      <CloudinaryUploadWidget
-                        onUpload={(url) =>
-                          setLocalSettings({ ...localSettings, imageUrl: url })
-                        }
-                        uploadPreset="pos-upload-preset"
-                        buttonText={
-                          localSettings.imageUrl ? "Cambiar Logo" : "Subir Logo"
-                        }
-                      />
+          {isLoading ? (
+            <div className="flex items-center justify-center p-8">
+              <div className="text-sm text-gray-500">Cargando...</div>
+            </div>
+          ) : error ? (
+            <Alert>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Business Information */}
+              <Card className="w-full">
+                <CardHeader>
+                  <CardTitle>Información del Negocio</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">
+                        Nombre del Negocio
+                      </label>
+                      <p className="text-lg font-semibold">
+                        {localSettings.business_name || "No configurado"}
+                      </p>
                     </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="businessName">Nombre del Negocio</Label>
-                  <Input
-                    id="businessName"
-                    value={localSettings.business_name || ""}
-                    onChange={(e) =>
-                      setLocalSettings({
-                        ...localSettings,
-                        business_name: e.target.value,
-                      })
-                    }
-                    placeholder="Ingresa el nombre de tu negocio"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="address">Dirección</Label>
-                  <Input
-                    id="address"
-                    value={localSettings.address || ""}
-                    onChange={(e) =>
-                      setLocalSettings({
-                        ...localSettings,
-                        address: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Teléfono</Label>
-                  <Input
-                    id="phone"
-                    value={localSettings.phone || ""}
-                    onChange={(e) =>
-                      setLocalSettings({
-                        ...localSettings,
-                        phone: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email">Correo Electrónico</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={localSettings.email || ""}
-                    onChange={(e) =>
-                      setLocalSettings({
-                        ...localSettings,
-                        email: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="taxId">NIT</Label>
-                  <Input
-                    id="taxId"
-                    value={localSettings.taxId || ""}
-                    onChange={(e) =>
-                      setLocalSettings({
-                        ...localSettings,
-                        taxId: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-
-                <div className="flex flex-col md:flex-row gap-4 pt-4">
-                  <Button
-                    type="submit"
-                    className="w-full md:w-auto"
-                    disabled={isSaving}
-                  >
-                    {isSaving ? "Guardando..." : "Guardar Cambios"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full md:w-auto"
-                    onClick={() => setIsEditing(false)}
-                    disabled={isSaving}
-                  >
-                    Cancelar
-                  </Button>
-                </div>
-              </form>
-            ) : (
-              <div className="space-y-4">
-                {/* Logo Display */}
-                {localSettings.imageUrl && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-2">
-                      Logo del Negocio
-                    </h3>
-                    <div className="flex items-center space-x-4">
-                      <img
-                        src={localSettings.imageUrl}
-                        alt="Logo del Negocio"
-                        className="w-24 h-24 object-cover rounded-lg border shadow-sm"
-                      />
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">
+                        Email
+                      </label>
+                      <p className="text-lg">
+                        {localSettings.email || "No configurado"}
+                      </p>
                     </div>
-                  </div>
-                )}
-
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Nombre del Negocio
-                  </h3>
-                  <p className="mt-1">
-                    {localSettings.business_name || "No configurado"}
-                  </p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Dirección
-                  </h3>
-                  <p className="mt-1">
-                    {localSettings.address || "No configurado"}
-                  </p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Teléfono
-                  </h3>
-                  <p className="mt-1">
-                    {localSettings.phone || "No configurado"}
-                  </p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Correo Electrónico
-                  </h3>
-                  <p className="mt-1">
-                    {localSettings.email || "No configurado"}
-                  </p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">NIT</h3>
-                  <p className="mt-1">
-                    {localSettings.taxId || "No configurado"}
-                  </p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Configuración de Facturas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isEditing ? (
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="invoicePrefix">
-                    Prefijo de Número de Factura
-                  </Label>
-                  <Input
-                    id="invoicePrefix"
-                    value={localSettings.invoiceNumberPrefix || ""}
-                    onChange={(e) =>
-                      setLocalSettings({
-                        ...localSettings,
-                        invoiceNumberPrefix: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="invoiceStart">Número Inicial</Label>
-                    <Input
-                      id="invoiceStart"
-                      type="number"
-                      value={localSettings.invoiceNumberStart || 0}
-                      onChange={(e) =>
-                        setLocalSettings({
-                          ...localSettings,
-                          invoiceNumberStart: parseInt(e.target.value) || 0,
-                        })
-                      }
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="invoiceEnd">Número Final</Label>
-                    <Input
-                      id="invoiceEnd"
-                      type="number"
-                      value={localSettings.invoiceNumberEnd || 0}
-                      onChange={(e) =>
-                        setLocalSettings({
-                          ...localSettings,
-                          invoiceNumberEnd: parseInt(e.target.value) || 0,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="invoiceCurrent">Número Actual</Label>
-                  <Input
-                    id="invoiceCurrent"
-                    type="number"
-                    value={localSettings.invoiceNumberCurrent || 0}
-                    onChange={(e) =>
-                      setLocalSettings({
-                        ...localSettings,
-                        invoiceNumberCurrent: parseInt(e.target.value) || 0,
-                      })
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="invoiceExpiration">
-                    Vencimiento de Factura (meses)
-                  </Label>
-                  <Input
-                    id="invoiceExpiration"
-                    type="number"
-                    value={localSettings.invoiceExpirationMonths || 0}
-                    onChange={(e) =>
-                      setLocalSettings({
-                        ...localSettings,
-                        invoiceExpirationMonths: parseInt(e.target.value) || 0,
-                      })
-                    }
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Prefijo de Número de Factura
-                  </h3>
-                  <p className="mt-1">
-                    {localSettings.invoiceNumberPrefix || "No configurado"}
-                  </p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Rango de Números
-                  </h3>
-                  <p className="mt-1">
-                    {localSettings.invoiceNumberStart || 0} -{" "}
-                    {localSettings.invoiceNumberEnd || 0}
-                  </p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Número Actual
-                  </h3>
-                  <p className="mt-1">
-                    {localSettings.invoiceNumberCurrent || 0}
-                  </p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Vencimiento de Factura
-                  </h3>
-                  <p className="mt-1">
-                    {localSettings.invoiceExpirationMonths || 0} meses
-                  </p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Digital Menu QR Code Section */}
-      {localSettings.business_id && (
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <QrCode className="h-5 w-5" />
-              Código QR del Menú Digital
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* QR Code Display */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-gray-500">
-                  Código QR del Menú para Clientes
-                </h3>
-                {localSettings.qr_code_data_url ? (
-                  <div className="flex flex-col items-center space-y-4">
-                    <img
-                      src={localSettings.qr_code_data_url}
-                      alt="Código QR del Menú Digital"
-                      className="w-48 h-48 object-contain border rounded-lg shadow-sm"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const link = document.createElement("a");
-                        link.href = localSettings.qr_code_data_url!;
-                        link.download = `qr-code-${localSettings.business_id}.png`;
-                        link.click();
-                      }}
-                    >
-                      Descargar Código QR
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-48 border-2 border-dashed border-gray-300 rounded-lg">
-                    <div className="text-center">
-                      <QrCode className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm text-gray-500">
-                        El código QR se generará una vez que se guarden la
-                        configuración del negocio
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">
+                        Teléfono
+                      </label>
+                      <p className="text-lg">
+                        {localSettings.phone || "No configurado"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">
+                        Dirección
+                      </label>
+                      <p className="text-lg">
+                        {localSettings.address || "No configurado"}
                       </p>
                     </div>
                   </div>
-                )}
-              </div>
+                </CardContent>
+              </Card>
 
-              {/* Digital Menu Information */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-gray-500">
-                  Información del Menú Digital
-                </h3>
-                <div className="space-y-3">
-                  <div>
-                    <Label className="text-xs text-gray-500">
-                      URL del Menú
-                    </Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Input
-                        value={localSettings.digital_menu_url || ""}
-                        readOnly
-                        className="text-sm"
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          copyToClipboard(localSettings.digital_menu_url || "")
-                        }
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      {localSettings.digital_menu_url && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            window.open(
-                              localSettings.digital_menu_url,
-                              "_blank"
-                            )
-                          }
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
-                      )}
+              {/* Tax Information */}
+              <Card className="w-full">
+                <CardHeader>
+                  <CardTitle>Información Fiscal</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">
+                        Número de Identificación Fiscal
+                      </label>
+                      <p className="text-lg">
+                        {localSettings.taxId || "No configurado"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">
+                        Prefijo de Factura
+                      </label>
+                      <p className="text-lg">
+                        {localSettings.invoiceNumberPrefix || "No configurado"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">
+                        Número Inicial
+                      </label>
+                      <p className="text-lg">
+                        {localSettings.invoiceNumberStart || "No configurado"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">
+                        Número Final
+                      </label>
+                      <p className="text-lg">
+                        {localSettings.invoiceNumberEnd || "No configurado"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">
+                        Número Actual
+                      </label>
+                      <p className="text-lg">
+                        {localSettings.invoiceNumberCurrent || "No configurado"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">
+                        Expiración (Meses)
+                      </label>
+                      <p className="text-lg">
+                        {localSettings.invoiceExpirationMonths ||
+                          "No configurado"}
+                      </p>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
 
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-blue-900 mb-2">
-                      Cómo usar el Código QR
-                    </h4>
-                    <ul className="text-sm text-blue-800 space-y-1">
-                      <li>• Imprime el código QR y colócalo en las mesas</li>
-                      <li>
-                        • Los clientes pueden escanear para acceder a tu menú
-                        digital
-                      </li>
-                      <li>
-                        • No se requiere descargar una aplicación - funciona con
-                        cualquier escáner QR
-                      </li>
-                      <li>
-                        • El menú se actualiza automáticamente cuando cambias
-                        los productos
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
+              {/* QR Code Generator */}
+              {localSettings.business_id && localSettings.business_name && (
+                <Card className="w-full lg:col-span-2">
+                  <CardHeader>
+                    <CardTitle>Generador de Códigos QR</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex justify-center">
+                      <QRCodeGenerator
+                        businessId={localSettings.business_id}
+                        businessName={localSettings.business_name}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Digital Menu Links */}
+              {(localSettings.digital_menu_url ||
+                localSettings.qr_code_data_url) && (
+                <Card className="w-full lg:col-span-2">
+                  <CardHeader>
+                    <CardTitle>Enlaces del Menú Digital</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {localSettings.digital_menu_url && (
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-gray-50 rounded-lg gap-4">
+                        <div className="flex-1 min-w-0">
+                          <label className="text-sm font-medium text-gray-500">
+                            URL del Menú Digital
+                          </label>
+                          <p className="text-sm text-blue-600 break-all">
+                            {localSettings.digital_menu_url}
+                          </p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              copyToClipboard(localSettings.digital_menu_url!)
+                            }
+                            className="w-full sm:w-auto"
+                          >
+                            <Copy className="h-4 w-4 mr-2" />
+                            Copiar
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              window.open(
+                                localSettings.digital_menu_url,
+                                "_blank"
+                              )
+                            }
+                            className="w-full sm:w-auto"
+                          >
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            Abrir
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </div>
       )}
     </div>
   );

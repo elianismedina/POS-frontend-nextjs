@@ -5,19 +5,10 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { Input } from "@/components/ui/input";
+
 import { CustomersService, Customer } from "@/app/services/customers";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
@@ -34,6 +25,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { CustomerForm } from "@/components/admin/CustomerForm";
 
 export default function CustomersPage() {
   const { isAuthenticated, user, isLoading: authLoading } = useAuth();
@@ -47,14 +39,6 @@ export default function CustomersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCustomers, setTotalCustomers] = useState(0);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
-    documentNumber: "",
-  });
 
   const handleEditCustomer = (customerId: string) => {
     // TODO: Navigate to edit customer page or open modal
@@ -117,63 +101,6 @@ export default function CustomersPage() {
 
   const handleCreateCustomer = () => {
     setShowCreateModal(true);
-  };
-
-  const handleSubmitCreateCustomer = async () => {
-    try {
-      setIsSubmitting(true);
-
-      // Get business ID from user
-      const businessId = user?.business?.[0]?.id;
-      if (!businessId) {
-        toast({
-          title: "Error",
-          description: "No business ID found",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const createData = {
-        ...formData,
-        businessId,
-      };
-
-      await CustomersService.createCustomer(createData);
-
-      toast({
-        title: "Success",
-        description: "Customer created successfully",
-      });
-
-      setShowCreateModal(false);
-      resetForm();
-      fetchCustomers();
-    } catch (error: any) {
-      console.error("Error creating customer:", error);
-      const errorMessage =
-        error.response?.data?.message ||
-        error.response?.data?.error ||
-        "Failed to create customer";
-
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      email: "",
-      phone: "",
-      address: "",
-      documentNumber: "",
-    });
   };
 
   const columns: ColumnDef<Customer>[] = [
@@ -476,102 +403,21 @@ export default function CustomersPage() {
       </Card>
 
       {/* Create Customer Modal */}
-      <Sheet open={showCreateModal} onOpenChange={setShowCreateModal}>
-        <SheetContent className="sm:max-w-[425px]">
-          <SheetHeader>
-            <SheetTitle>Create New Customer</SheetTitle>
-            <SheetDescription>
-              Add a new customer to your business. Fill in all required fields.
-            </SheetDescription>
-          </SheetHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">Name *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, name: e.target.value }))
-                }
-                placeholder="Enter customer name"
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email *</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, email: e.target.value }))
-                }
-                placeholder="Enter customer email"
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="phone">Phone *</Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, phone: e.target.value }))
-                }
-                placeholder="Enter customer phone"
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="address">Address *</Label>
-              <Textarea
-                id="address"
-                value={formData.address}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, address: e.target.value }))
-                }
-                placeholder="Enter customer address"
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="documentNumber">Document Number *</Label>
-              <Input
-                id="documentNumber"
-                value={formData.documentNumber}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    documentNumber: e.target.value,
-                  }))
-                }
-                placeholder="Enter document number"
-                required
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <CustomerForm
+                onSuccess={() => {
+                  setShowCreateModal(false);
+                  fetchCustomers();
+                }}
+                onCancel={() => setShowCreateModal(false)}
               />
             </div>
           </div>
-          <SheetFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setShowCreateModal(false);
-                resetForm();
-              }}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={handleSubmitCreateCustomer}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "Creating..." : "Create Customer"}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+        </div>
+      )}
     </div>
   );
 }

@@ -96,7 +96,7 @@ export default function Home() {
       console.log("🔍 [Login] Signin response received:", {
         hasAccessToken: !!response.data.accessToken,
         hasRefreshToken: !!response.data.refreshToken,
-        role: response.data.role
+        role: response.data.role,
       });
 
       // Only call login if the API call was successful
@@ -135,8 +135,12 @@ export default function Home() {
           "Error interno del servidor. Inténtalo de nuevo más tarde.";
       } else if (err.code === "NETWORK_ERROR" || err.code === "ERR_NETWORK") {
         errorMessage = "Error de conexión. Verifica tu conexión a internet.";
-      } else if (err.code === "ECONNABORTED" || err.message?.includes("timeout")) {
-        errorMessage = "El servidor está tardando en responder. Inténtalo de nuevo.";
+      } else if (
+        err.code === "ECONNABORTED" ||
+        err.message?.includes("timeout")
+      ) {
+        errorMessage =
+          "El servidor está tardando en responder. Inténtalo de nuevo.";
       }
 
       setError(errorMessage);
@@ -235,14 +239,10 @@ export default function Home() {
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox
-                  id="remember"
                   checked={rememberMe}
-                  onCheckedChange={(checked) => setRememberMe(checked === true)}
+                  onChange={(e) => setRememberMe(e.target.checked)}
                 />
-                <Label
-                  htmlFor="remember"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
+                <Label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                   Recordarme
                 </Label>
               </div>

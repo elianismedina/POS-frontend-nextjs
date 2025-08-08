@@ -8,14 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -45,6 +38,7 @@ import {
   ChevronRight,
   Calendar,
   Clock,
+  X,
 } from "lucide-react";
 
 export default function PhysicalTablesPage() {
@@ -562,355 +556,389 @@ export default function PhysicalTablesPage() {
         </Card>
 
         {/* Create Modal - Mobile Optimized */}
-        <Sheet open={showCreateModal} onOpenChange={setShowCreateModal}>
-          <SheetContent
-            side="right"
-            className="w-[95vw] sm:w-[540px] max-h-[90vh] overflow-y-auto"
-          >
-            <SheetHeader>
-              <SheetTitle className="flex items-center gap-2 text-lg sm:text-xl">
-                <Plus className="h-5 w-5 text-blue-600" />
-                Agregar Mesa Física
-              </SheetTitle>
-              <SheetDescription className="text-sm sm:text-base">
-                Crea una nueva mesa física para tu negocio.
-              </SheetDescription>
-            </SheetHeader>
+        {showCreateModal && (
+          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-2">
+                    <Plus className="h-5 w-5 text-blue-600" />
+                    <h2 className="text-lg sm:text-xl font-semibold">
+                      Agregar Mesa Física
+                    </h2>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowCreateModal(false)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-sm sm:text-base text-gray-600 mb-6">
+                  Crea una nueva mesa física para tu negocio.
+                </p>
 
-            <div className="space-y-6 py-6">
-              {/* Table Number */}
-              <div className="space-y-2">
-                <Label
-                  htmlFor="tableNumber"
-                  className="text-sm sm:text-base font-medium"
-                >
-                  Número de Mesa *
-                </Label>
-                <Input
-                  id="tableNumber"
-                  placeholder="Ej: 01, 02, A1, B2"
-                  value={formData.tableNumber}
-                  onChange={(e) =>
-                    setFormData({ ...formData, tableNumber: e.target.value })
-                  }
-                  className="h-10 sm:h-9"
-                />
-              </div>
+                <div className="space-y-6">
+                  {/* Table Number */}
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="tableNumber"
+                      className="text-sm sm:text-base font-medium"
+                    >
+                      Número de Mesa *
+                    </Label>
+                    <Input
+                      id="tableNumber"
+                      placeholder="Ej: 01, 02, A1, B2"
+                      value={formData.tableNumber}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          tableNumber: e.target.value,
+                        })
+                      }
+                      className="h-10 sm:h-9"
+                    />
+                  </div>
 
-              {/* Table Name */}
-              <div className="space-y-2">
-                <Label
-                  htmlFor="tableName"
-                  className="text-sm sm:text-base font-medium"
-                >
-                  Nombre de Mesa (Opcional)
-                </Label>
-                <Input
-                  id="tableName"
-                  placeholder="Ej: Mesa Ventana, Mesa Esquina"
-                  value={formData.tableName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, tableName: e.target.value })
-                  }
-                  className="h-10 sm:h-9"
-                />
-              </div>
+                  {/* Table Name */}
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="tableName"
+                      className="text-sm sm:text-base font-medium"
+                    >
+                      Nombre de Mesa (Opcional)
+                    </Label>
+                    <Input
+                      id="tableName"
+                      placeholder="Ej: Mesa Ventana, Mesa Esquina"
+                      value={formData.tableName}
+                      onChange={(e) =>
+                        setFormData({ ...formData, tableName: e.target.value })
+                      }
+                      className="h-10 sm:h-9"
+                    />
+                  </div>
 
-              {/* Capacity */}
-              <div className="space-y-2">
-                <Label
-                  htmlFor="capacity"
-                  className="text-sm sm:text-base font-medium"
-                >
-                  Capacidad *
-                </Label>
-                <Input
-                  id="capacity"
-                  type="number"
-                  min="1"
-                  max="20"
-                  placeholder="4"
-                  value={formData.capacity}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      capacity: parseInt(e.target.value) || 4,
-                    })
-                  }
-                  className="h-10 sm:h-9"
-                />
-              </div>
+                  {/* Capacity */}
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="capacity"
+                      className="text-sm sm:text-base font-medium"
+                    >
+                      Capacidad *
+                    </Label>
+                    <Input
+                      id="capacity"
+                      type="number"
+                      min="1"
+                      max="20"
+                      placeholder="4"
+                      value={formData.capacity}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          capacity: parseInt(e.target.value) || 4,
+                        })
+                      }
+                      className="h-10 sm:h-9"
+                    />
+                  </div>
 
-              {/* Location */}
-              <div className="space-y-2">
-                <Label
-                  htmlFor="location"
-                  className="text-sm sm:text-base font-medium"
-                >
-                  Ubicación (Opcional)
-                </Label>
-                <Input
-                  id="location"
-                  placeholder="Ej: Planta Principal, Ventana, Patio, Barra"
-                  value={formData.location}
-                  onChange={(e) =>
-                    setFormData({ ...formData, location: e.target.value })
-                  }
-                  className="h-10 sm:h-9"
-                />
-              </div>
+                  {/* Location */}
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="location"
+                      className="text-sm sm:text-base font-medium"
+                    >
+                      Ubicación (Opcional)
+                    </Label>
+                    <Input
+                      id="location"
+                      placeholder="Ej: Planta Principal, Ventana, Patio, Barra"
+                      value={formData.location}
+                      onChange={(e) =>
+                        setFormData({ ...formData, location: e.target.value })
+                      }
+                      className="h-10 sm:h-9"
+                    />
+                  </div>
 
-              {/* Branch Selection */}
-              <div className="space-y-2">
-                <Label
-                  htmlFor="branchId"
-                  className="text-sm sm:text-base font-medium"
-                >
-                  Sucursal *
-                </Label>
-                <select
-                  key={`branch-select-${branches?.length || 0}`}
-                  id="branchId"
-                  value={formData.branchId}
-                  onChange={(e) =>
-                    setFormData({ ...formData, branchId: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring h-10 sm:h-9"
-                >
-                  <option key="select-default" value="">
-                    Selecciona una sucursal
-                  </option>
-                  {!branches || branches.length === 0 ? (
-                    <option key="no-branches" value="" disabled>
-                      No hay sucursales disponibles
-                    </option>
-                  ) : (
-                    (branches || []).map((branch) => (
-                      <option key={branch.id} value={branch.id}>
-                        {branch.name}
+                  {/* Branch Selection */}
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="branchId"
+                      className="text-sm sm:text-base font-medium"
+                    >
+                      Sucursal *
+                    </Label>
+                    <select
+                      key={`branch-select-${branches?.length || 0}`}
+                      id="branchId"
+                      value={formData.branchId}
+                      onChange={(e) =>
+                        setFormData({ ...formData, branchId: e.target.value })
+                      }
+                      className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring h-10 sm:h-9"
+                    >
+                      <option key="select-default" value="">
+                        Selecciona una sucursal
                       </option>
-                    ))
-                  )}
-                </select>
-                {branches.length === 0 && (
-                  <p className="text-sm text-destructive">
-                    No se encontraron sucursales. Por favor, crea una sucursal
-                    primero.
-                  </p>
-                )}
+                      {!branches || branches.length === 0 ? (
+                        <option key="no-branches" value="" disabled>
+                          No hay sucursales disponibles
+                        </option>
+                      ) : (
+                        (branches || []).map((branch) => (
+                          <option key={branch.id} value={branch.id}>
+                            {branch.name}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    {branches.length === 0 && (
+                      <p className="text-sm text-destructive">
+                        No se encontraron sucursales. Por favor, crea una
+                        sucursal primero.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowCreateModal(false);
+                      resetForm();
+                    }}
+                    disabled={isSubmitting}
+                    className="w-full sm:w-auto h-10 sm:h-9"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={handleCreateTable}
+                    disabled={
+                      isSubmitting ||
+                      !formData.tableNumber ||
+                      !formData.branchId
+                    }
+                    className="w-full sm:w-auto h-10 sm:h-9"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Creando...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Crear Mesa
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
-
-            <SheetFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowCreateModal(false);
-                  resetForm();
-                }}
-                disabled={isSubmitting}
-                className="w-full sm:w-auto h-10 sm:h-9"
-              >
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleCreateTable}
-                disabled={
-                  isSubmitting || !formData.tableNumber || !formData.branchId
-                }
-                className="w-full sm:w-auto h-10 sm:h-9"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Creando...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Crear Mesa
-                  </>
-                )}
-              </Button>
-            </SheetFooter>
-          </SheetContent>
-        </Sheet>
+          </div>
+        )}
 
         {/* Edit Modal - Mobile Optimized */}
-        <Sheet open={showEditModal} onOpenChange={setShowEditModal}>
-          <SheetContent
-            side="right"
-            className="w-[95vw] sm:w-[540px] max-h-[90vh] overflow-y-auto"
-          >
-            <SheetHeader>
-              <SheetTitle className="flex items-center gap-2 text-lg sm:text-xl">
-                <Edit className="h-5 w-5 text-blue-600" />
-                Editar Mesa Física
-              </SheetTitle>
-              <SheetDescription className="text-sm sm:text-base">
-                Actualiza la información de la mesa física.
-              </SheetDescription>
-            </SheetHeader>
+        {showEditModal && (
+          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-2">
+                    <Edit className="h-5 w-5 text-blue-600" />
+                    <h2 className="text-lg sm:text-xl font-semibold">
+                      Editar Mesa Física
+                    </h2>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setEditingTable(null);
+                      resetForm();
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-sm sm:text-base text-gray-600 mb-6">
+                  Actualiza la información de la mesa física.
+                </p>
 
-            <div className="space-y-6 py-6">
-              {/* Table Number */}
-              <div className="space-y-2">
-                <Label
-                  htmlFor="edit-tableNumber"
-                  className="text-sm sm:text-base font-medium"
-                >
-                  Número de Mesa *
-                </Label>
-                <Input
-                  id="edit-tableNumber"
-                  placeholder="Ej: 01, 02, A1, B2"
-                  value={formData.tableNumber}
-                  onChange={(e) =>
-                    setFormData({ ...formData, tableNumber: e.target.value })
-                  }
-                  className="h-10 sm:h-9"
-                />
-              </div>
+                <div className="space-y-6">
+                  {/* Table Number */}
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="edit-tableNumber"
+                      className="text-sm sm:text-base font-medium"
+                    >
+                      Número de Mesa *
+                    </Label>
+                    <Input
+                      id="edit-tableNumber"
+                      placeholder="Ej: 01, 02, A1, B2"
+                      value={formData.tableNumber}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          tableNumber: e.target.value,
+                        })
+                      }
+                      className="h-10 sm:h-9"
+                    />
+                  </div>
 
-              {/* Table Name */}
-              <div className="space-y-2">
-                <Label
-                  htmlFor="edit-tableName"
-                  className="text-sm sm:text-base font-medium"
-                >
-                  Nombre de Mesa (Opcional)
-                </Label>
-                <Input
-                  id="edit-tableName"
-                  placeholder="Ej: Mesa Ventana, Mesa Esquina"
-                  value={formData.tableName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, tableName: e.target.value })
-                  }
-                  className="h-10 sm:h-9"
-                />
-              </div>
+                  {/* Table Name */}
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="edit-tableName"
+                      className="text-sm sm:text-base font-medium"
+                    >
+                      Nombre de Mesa (Opcional)
+                    </Label>
+                    <Input
+                      id="edit-tableName"
+                      placeholder="Ej: Mesa Ventana, Mesa Esquina"
+                      value={formData.tableName}
+                      onChange={(e) =>
+                        setFormData({ ...formData, tableName: e.target.value })
+                      }
+                      className="h-10 sm:h-9"
+                    />
+                  </div>
 
-              {/* Capacity */}
-              <div className="space-y-2">
-                <Label
-                  htmlFor="edit-capacity"
-                  className="text-sm sm:text-base font-medium"
-                >
-                  Capacidad *
-                </Label>
-                <Input
-                  id="edit-capacity"
-                  type="number"
-                  min="1"
-                  max="20"
-                  placeholder="4"
-                  value={formData.capacity}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      capacity: parseInt(e.target.value) || 4,
-                    })
-                  }
-                  className="h-10 sm:h-9"
-                />
-              </div>
+                  {/* Capacity */}
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="edit-capacity"
+                      className="text-sm sm:text-base font-medium"
+                    >
+                      Capacidad *
+                    </Label>
+                    <Input
+                      id="edit-capacity"
+                      type="number"
+                      min="1"
+                      max="20"
+                      placeholder="4"
+                      value={formData.capacity}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          capacity: parseInt(e.target.value) || 4,
+                        })
+                      }
+                      className="h-10 sm:h-9"
+                    />
+                  </div>
 
-              {/* Location */}
-              <div className="space-y-2">
-                <Label
-                  htmlFor="edit-location"
-                  className="text-sm sm:text-base font-medium"
-                >
-                  Ubicación (Opcional)
-                </Label>
-                <Input
-                  id="edit-location"
-                  placeholder="Ej: Planta Principal, Ventana, Patio, Barra"
-                  value={formData.location}
-                  onChange={(e) =>
-                    setFormData({ ...formData, location: e.target.value })
-                  }
-                  className="h-10 sm:h-9"
-                />
-              </div>
+                  {/* Location */}
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="edit-location"
+                      className="text-sm sm:text-base font-medium"
+                    >
+                      Ubicación (Opcional)
+                    </Label>
+                    <Input
+                      id="edit-location"
+                      placeholder="Ej: Planta Principal, Ventana, Patio, Barra"
+                      value={formData.location}
+                      onChange={(e) =>
+                        setFormData({ ...formData, location: e.target.value })
+                      }
+                      className="h-10 sm:h-9"
+                    />
+                  </div>
 
-              {/* Branch Selection */}
-              <div className="space-y-2">
-                <Label
-                  htmlFor="edit-branchId"
-                  className="text-sm sm:text-base font-medium"
-                >
-                  Sucursal *
-                </Label>
-                <select
-                  key={`edit-branch-select-${branches?.length || 0}`}
-                  id="edit-branchId"
-                  value={formData.branchId}
-                  onChange={(e) =>
-                    setFormData({ ...formData, branchId: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring h-10 sm:h-9"
-                >
-                  <option key="edit-select-default" value="">
-                    Selecciona una sucursal
-                  </option>
-                  {!branches || branches.length === 0 ? (
-                    <option key="edit-no-branches" value="" disabled>
-                      No hay sucursales disponibles
-                    </option>
-                  ) : (
-                    (branches || []).map((branch) => (
-                      <option key={branch.id} value={branch.id}>
-                        {branch.name}
+                  {/* Branch Selection */}
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="edit-branchId"
+                      className="text-sm sm:text-base font-medium"
+                    >
+                      Sucursal *
+                    </Label>
+                    <select
+                      key={`edit-branch-select-${branches?.length || 0}`}
+                      id="edit-branchId"
+                      value={formData.branchId}
+                      onChange={(e) =>
+                        setFormData({ ...formData, branchId: e.target.value })
+                      }
+                      className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring h-10 sm:h-9"
+                    >
+                      <option key="edit-select-default" value="">
+                        Selecciona una sucursal
                       </option>
-                    ))
-                  )}
-                </select>
-                {branches.length === 0 && (
-                  <p className="text-sm text-destructive">
-                    No se encontraron sucursales. Por favor, crea una sucursal
-                    primero.
-                  </p>
-                )}
+                      {!branches || branches.length === 0 ? (
+                        <option key="edit-no-branches" value="" disabled>
+                          No hay sucursales disponibles
+                        </option>
+                      ) : (
+                        (branches || []).map((branch) => (
+                          <option key={branch.id} value={branch.id}>
+                            {branch.name}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    {branches.length === 0 && (
+                      <p className="text-sm text-destructive">
+                        No se encontraron sucursales. Por favor, crea una
+                        sucursal primero.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-0 mt-6">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setEditingTable(null);
+                      resetForm();
+                    }}
+                    disabled={isSubmitting}
+                    className="w-full sm:w-auto h-10 sm:h-9"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={handleEditTable}
+                    disabled={
+                      isSubmitting ||
+                      !formData.tableNumber ||
+                      !formData.branchId
+                    }
+                    className="w-full sm:w-auto h-10 sm:h-9"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Actualizando...
+                      </>
+                    ) : (
+                      <>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Actualizar Mesa
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
-
-            <SheetFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowEditModal(false);
-                  setEditingTable(null);
-                  resetForm();
-                }}
-                disabled={isSubmitting}
-                className="w-full sm:w-auto h-10 sm:h-9"
-              >
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleEditTable}
-                disabled={
-                  isSubmitting || !formData.tableNumber || !formData.branchId
-                }
-                className="w-full sm:w-auto h-10 sm:h-9"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Actualizando...
-                  </>
-                ) : (
-                  <>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Actualizar Mesa
-                  </>
-                )}
-              </Button>
-            </SheetFooter>
-          </SheetContent>
-        </Sheet>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -299,7 +299,7 @@ export default function CreateReservationPage() {
                 <Label htmlFor="customerId">Cliente *</Label>
                 <Select
                   value={formData.customerId}
-                  onValueChange={(value) =>
+                  onValueChange={(value: string) =>
                     setFormData((prev) => ({ ...prev, customerId: value }))
                   }
                 >
@@ -360,7 +360,7 @@ export default function CreateReservationPage() {
                   </Label>
                   <Select
                     value={formData.physicalTableId || "no-table"}
-                    onValueChange={(value) =>
+                    onValueChange={(value: string) =>
                       setFormData((prev) => ({
                         ...prev,
                         physicalTableId: value,
@@ -437,7 +437,7 @@ export default function CreateReservationPage() {
                 <Label htmlFor="status">Estado</Label>
                 <Select
                   value={formData.status}
-                  onValueChange={(value) =>
+                  onValueChange={(value: string) =>
                     setFormData((prev) => ({ ...prev, status: value as any }))
                   }
                 >

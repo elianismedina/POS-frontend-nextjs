@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -12,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { QrCode, Download, Copy, AlertCircle } from "lucide-react";
-import { toast } from "@/components/ui/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 
 interface QRCodeGeneratorProps {
   businessId: string;
@@ -23,63 +21,55 @@ export function QRCodeGenerator({
   businessId,
   businessName,
 }: QRCodeGeneratorProps) {
-  const [tableId, setTableId] = useState("");
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { toast, error: errorToast, success } = useToast();
 
   const generateQRCode = async () => {
-    if (!tableId.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a table ID",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(
-        `/api/customer-menu/qr/${businessId}/${tableId}`,
-        {
-          method: "GET",
-        }
-      );
+      // Create QR code client-side since backend API is not available
+      const baseUrl =
+        process.env.NEXT_PUBLIC_CUSTOMER_MENU_URL ||
+        "https://customer-menu-frontend-jc8n.vercel.app";
+      const menuUrl = `${baseUrl}/welcome/${businessId}`;
 
-      if (!response.ok) {
-        throw new Error(`Failed to generate QR code: ${response.statusText}`);
+      // Create a simple QR code using a public QR code API
+      const qrCodeApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+        menuUrl
+      )}`;
+
+      const qrResponse = await fetch(qrCodeApiUrl);
+      if (qrResponse.ok) {
+        const blob = await qrResponse.blob();
+        const url = URL.createObjectURL(blob);
+        setQrCodeUrl(url);
+        return;
       }
 
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      setQrCodeUrl(url);
-
-      toast({
-        title: "Success",
-        description: "QR code generated successfully",
-      });
+      throw new Error("Could not generate QR code using fallback method");
     } catch (err) {
       console.error("Error generating QR code:", err);
       setError("Failed to generate QR code. Please try again.");
-      toast({
-        title: "Error",
-        description: "Failed to generate QR code",
-        variant: "destructive",
-      });
     } finally {
       setLoading(false);
     }
   };
+
+  // Auto-generate QR code when component mounts
+  useEffect(() => {
+    generateQRCode();
+  }, [businessId]);
 
   const downloadQRCode = () => {
     if (!qrCodeUrl) return;
 
     const link = document.createElement("a");
     link.href = qrCodeUrl;
-    link.download = `qr-code-${businessName}-table-${tableId}.png`;
+    link.download = `qr-code-${businessName}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -88,13 +78,13 @@ export function QRCodeGenerator({
   const copyMenuUrl = () => {
     const baseUrl =
       process.env.NEXT_PUBLIC_CUSTOMER_MENU_URL ||
-      "https://menu.yourdomain.com";
-    const welcomeUrl = `${baseUrl}/welcome/${businessId}?table=${tableId}`;
+      "https://customer-menu-frontend-jc8n.vercel.app";
+    const menuUrl = `${baseUrl}/welcome/${businessId}`;
 
-    navigator.clipboard.writeText(welcomeUrl);
-    toast({
+    navigator.clipboard.writeText(menuUrl);
+    success({
       title: "Copied",
-      description: "Welcome page URL copied to clipboard",
+      description: "Menu URL copied to clipboard",
     });
   };
 
@@ -103,30 +93,18 @@ export function QRCodeGenerator({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <QrCode className="w-5 h-5" />
-          QR Code Generator
+          QR Code
         </CardTitle>
         <CardDescription>
-          Generate QR codes for {businessName} tables
+          QR code for {businessName} digital menu
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="tableId">Table ID</Label>
-          <Input
-            id="tableId"
-            placeholder="e.g., table-1, A1, etc."
-            value={tableId}
-            onChange={(e) => setTableId(e.target.value)}
-          />
-        </div>
-
-        <Button
-          onClick={generateQRCode}
-          disabled={loading || !tableId.trim()}
-          className="w-full"
-        >
-          {loading ? "Generating..." : "Generate QR Code"}
-        </Button>
+        {loading && (
+          <div className="flex items-center justify-center p-8">
+            <div className="text-sm text-gray-500">Loading QR code...</div>
+          </div>
+        )}
 
         {error && (
           <div className="flex items-center gap-2 text-red-600 text-sm">

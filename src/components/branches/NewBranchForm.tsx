@@ -1,226 +1,145 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
-import { Button } from "@/components/ui/button";
+import React, { useState, useEffect } from "react";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { useAuth } from "@/lib/auth/AuthContext";
-import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+  FormikForm,
+  FormikInput,
+  FormikSelect,
+  FormikSwitch,
+} from "@/components/shared/FormikForm";
+import { branchSchema } from "@/lib/validation-schemas";
+import { BranchesService } from "@/app/services/branches";
+import { businessService } from "@/app/services/business";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2 } from "lucide-react";
+import { useAuth } from "@/lib/auth/AuthContext";
 
-const branchFormSchema = z.object({
-  name: z.string().min(2, {
-    message: "El nombre de la sucursal debe tener al menos 2 caracteres.",
-  }),
-  address: z.string().min(5, {
-    message: "La dirección debe tener al menos 5 caracteres.",
-  }),
-  phone: z.string().min(10, {
-    message: "El número de teléfono debe tener al menos 10 caracteres.",
-  }),
-  email: z.string().email({
-    message: "Por favor ingresa una dirección de email válida.",
-  }),
-});
+interface NewBranchFormProps {
+  onSuccess: () => void;
+  onCancel: () => void;
+}
 
-type BranchFormValues = z.infer<typeof branchFormSchema>;
+interface Business {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
 
-export function NewBranchForm() {
-  const { token, user } = useAuth();
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [branchCount, setBranchCount] = useState<number>(0);
-  const [branchLimit, setBranchLimit] = useState<number>(0);
-  const { toast } = useToast();
+export function NewBranchForm({ onSuccess, onCancel }: NewBranchFormProps) {
+  const { success, error } = useToast();
+  const { user } = useAuth();
+  // We'll use the current user's business ID
+  const [isLoading, setIsLoading] = useState(false);
 
-  const form = useForm<BranchFormValues>({
-    resolver: zodResolver(branchFormSchema),
-    defaultValues: {
-      name: "",
-      address: "",
-      phone: "",
-      email: "",
-    },
-  });
+  const initialValues = {
+    name: "",
+    address: "",
+    phone: "",
+    email: "",
+    isActive: true,
+  };
 
-  useEffect(() => {
-    const fetchBranchCount = async () => {
-      if (!token || !user?.business?.[0]?.id) return;
+  // No need to fetch businesses since we're using the current user's business
 
-      try {
-        const businessId = user.business[0].id;
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/branches/business/${businessId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+  // Since we're creating a branch for the current user's business,
+  // we don't need to fetch all businesses
+  // The business ID will be obtained from the user context
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch branches");
-        }
-
-        const branches = await response.json();
-        setBranchCount(branches.length);
-        setBranchLimit(user.business[0].branchLimit);
-      } catch (err) {
-        console.error("Error fetching branch count:", err);
-      }
-    };
-
-    fetchBranchCount();
-  }, [token, user]);
-
-  const onSubmit = async (data: BranchFormValues) => {
-    if (!token || !user?.business?.[0]?.id) {
-      setError("No hay un negocio asociado con tu cuenta");
+  const handleSubmit = async (values: any) => {
+    if (!user?.business?.[0]?.id) {
+      error({
+        title: "Error",
+        description: "No business ID found",
+      });
       return;
     }
 
-    if (branchCount >= branchLimit) {
-      setError(
-        `Has alcanzado el número máximo de sucursales (${branchLimit}) permitidas para tu plan de negocio. Por favor actualiza tu plan para agregar más sucursales.`
-      );
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
+    setIsLoading(true);
     try {
-      const businessId = user.business[0].id;
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/branches/business/${businessId}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(data),
-        }
-      );
+      const branchData = {
+        ...values,
+        businessId: user.business[0].id,
+      };
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Error al crear la sucursal");
-      }
+      await BranchesService.createBranch(branchData);
 
-      toast({
-        title: "Éxito",
-        description: "Sucursal creada exitosamente",
+      success({
+        title: "Success",
+        description: `Branch "${values.name}" created successfully`,
       });
 
-      router.push("/dashboard/admin/branches");
-    } catch (err) {
-      console.error("Error creating branch:", err);
-      setError(err instanceof Error ? err.message : "Ocurrió un error");
+      onSuccess();
+    } catch (error: any) {
+      console.error("Error creating branch:", error);
+
+      let errorMessage = "Failed to create branch";
+
+      if (error.response?.status === 409) {
+        errorMessage = "A branch with this name already exists";
+      } else if (error.response?.status === 400) {
+        errorMessage = "Please check your input and try again";
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+
+      error({
+        title: "Error",
+        description: errorMessage,
+      });
+
+      throw error;
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {error && (
-          <div className="p-3 rounded-md bg-red-50 border border-red-200">
-            <p className="text-sm text-red-600">{error}</p>
-          </div>
-        )}
-        <FormField
-          control={form.control}
+    <FormikForm
+      initialValues={initialValues}
+      validationSchema={branchSchema}
+      onSubmit={handleSubmit}
+      title="Create New Branch"
+      onCancel={onCancel}
+      submitButtonText="Create Branch"
+      isLoading={isLoading}
+    >
+      <div className="space-y-6">
+        <FormikInput
           name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Nombre de la Sucursal</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Ingresa el nombre de la sucursal"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+          label="Branch Name"
+          placeholder="Enter branch name"
+          required
         />
-        <FormField
-          control={form.control}
+
+        <FormikInput
           name="address"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Dirección</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Ingresa la dirección de la sucursal"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+          label="Address"
+          placeholder="Enter branch address"
+          required
         />
-        <FormField
-          control={form.control}
-          name="phone"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Número de Teléfono</FormLabel>
-              <FormControl>
-                <Input placeholder="Ingresa el número de teléfono" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input placeholder="Ingresa la dirección de email" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <div className="flex justify-end gap-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.back()}
-            disabled={loading}
-          >
-            Cancelar
-          </Button>
-          <Button type="submit" disabled={loading}>
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creando...
-              </>
-            ) : (
-              "Crear Sucursal"
-            )}
-          </Button>
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormikInput
+            name="phone"
+            label="Phone Number"
+            placeholder="Enter phone number"
+            required
+          />
+
+          <FormikInput
+            name="email"
+            label="Email"
+            type="email"
+            placeholder="Enter email address"
+            required
+          />
         </div>
-      </form>
-    </Form>
+
+        <FormikSwitch
+          name="isActive"
+          label="Active"
+          description="Enable this branch for use"
+        />
+      </div>
+    </FormikForm>
   );
 }

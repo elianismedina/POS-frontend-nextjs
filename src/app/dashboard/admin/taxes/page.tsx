@@ -46,29 +46,15 @@ const TaxesPage = () => {
     }
   }, [businessId]);
 
-  const handleCreateSuccess = async (data: {
-    name: string;
-    rate: number;
-    description?: string;
-    businessId: string;
-  }) => {
-    setIsCreating(true);
-    try {
-      await taxesService.createTax(data);
-      setShowCreateForm(false);
-      setSuccessMessage(`El impuesto "${data.name}" fue creado exitosamente`);
-      fetchTaxes();
+  const handleCreateSuccess = async () => {
+    setShowCreateForm(false);
+    setSuccessMessage("El impuesto fue creado exitosamente");
+    fetchTaxes();
 
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setSuccessMessage(null);
-      }, 3000);
-    } catch (err: any) {
-      console.error("Error creating tax:", err);
-      setError("Error al crear el impuesto. Por favor, inténtalo de nuevo.");
-    } finally {
-      setIsCreating(false);
-    }
+    // Clear success message after 3 seconds
+    setTimeout(() => {
+      setSuccessMessage(null);
+    }, 3000);
   };
 
   // Show error if no business ID is available
@@ -178,10 +164,8 @@ const TaxesPage = () => {
                   </button>
                 </div>
                 <TaxForm
-                  onSubmit={handleCreateSuccess}
+                  onSuccess={handleCreateSuccess}
                   onCancel={() => setShowCreateForm(false)}
-                  isLoading={isCreating}
-                  businessId={businessId}
                 />
               </div>
             </div>

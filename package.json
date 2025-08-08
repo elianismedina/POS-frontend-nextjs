@@ -30,6 +30,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.0",
     "date-fns": "^3.6.0",
+    "formik": "^2.4.6",
     "lucide-react": "^0.344.0",
     "next": "14.1.0",
     "next-themes": "^0.2.1",
@@ -38,6 +39,7 @@
     "react-hook-form": "^7.57.0",
     "recharts": "^3.0.2",
     "tailwind-merge": "^2.2.1",
+    "yup": "^1.7.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
